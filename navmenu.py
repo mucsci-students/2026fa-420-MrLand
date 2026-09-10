@@ -11,8 +11,8 @@ def home():
     return Page(
         "home",
         {
-            "1":("config", config),
-            "2":("schedule", schedule)
+            "config":("add or load a configuration", config),
+            "schedule":("", schedule)
         }
     )
 
@@ -21,10 +21,9 @@ def config():
     return Page(
         "config",
         {
-            "1": ("faculty", faculty),
-            "2": ("courses", courses),
-            "3": ("labs", labs),
-            "4": ("rooms", rooms),
+            "create": ("create new configuration", create),
+            "load": ("load a configuration", load),
+            "home": ("go to home page", home)
         }
     )
 
@@ -32,7 +31,11 @@ def create():
     return Page(
         "create",
         {
-            
+            "faculty": ("add faculty", faculty),
+            "courses": ("add course", courses),
+            "labs": ("add lab", labs),
+            "rooms": ("add room", rooms),
+            "home": ("go to home page", home)
         }
     )
 
@@ -40,6 +43,10 @@ def load():
     return Page(
         "load",
         {
+            "faculty": ("load faculty", faculty),
+            "courses": ("load course", courses),
+            "labs": ("load lab", labs),
+            "rooms": ("load room", rooms)
         }
     )
 
@@ -47,7 +54,7 @@ def faculty():
     return Page(
         "faculty",
         {
-
+            # import from another file?
         }
     )
 
@@ -74,6 +81,7 @@ def rooms():
     return Page(
         "rooms",
         {
+
         }
     )
 
@@ -82,6 +90,9 @@ def schedule():
         "schedule",
     )
 
+# Global commands always accessible
+
+
 
 
 def main():
@@ -89,21 +100,21 @@ def main():
     currentPage = home()
     history = []
     while True:
-        print(f"\n=== {currentPage.name.upper()} ===")
+        print(f"{currentPage.name.upper()}")
 
         # Dynamic help
         print("\nCommands:")
 
         for command, (description, _) in currentPage.commands.items():
-            print(f"  {command} - {description}")
+            print(f"  {command}: {description}")
 
-        print("back: go back")
-        print("exit: quit")
+        print("  back: go back")
+        print("  exit: quit")
 
         command = input("\n> ").strip().lower()
 
         if command == "exit":
-            print("Goodbye!")
+            print("Exited the Program")
             break
 
         if command == "back":
