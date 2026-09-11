@@ -91,27 +91,27 @@ def faculty():
 def courses():
     return Page(
         "courses",
-        {}
+        []
     )
 
 def labs():
     return Page(
         "labs",
-        {}
+        []
     )
 
 
 def rooms():
     return Page(
-        "labs",
-        {}
+        "rooms",
+        []
     )
 
 
 def schedule():
     return Page(
         "schedule",
-        {}
+        []
     )
 
 # Global commands 
