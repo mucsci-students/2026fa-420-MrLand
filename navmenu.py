@@ -78,7 +78,11 @@ def load():
 def faculty():
     return Page(
         "faculty",
-        {}
+        [Command.parse("a|add", "add faculty", add_faculty),
+        Command.parse("m|modify", "modify faculty", modify_faculty),
+        Command.parse("d|delete", "delete faculty", delete_faculty),
+        Command.parse("v|view", "view faculty", view_faculty),
+        Command.parse("h|home", "go to home page", home)]
     )
 
 
