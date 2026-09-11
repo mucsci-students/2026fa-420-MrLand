@@ -1,4 +1,3 @@
-from pydantic import ValidationError
 from scheduler.config import FacultyConfig
 
 
@@ -102,15 +101,37 @@ def add_faculty():
     lab_preferences = labPreference()
     mandatory_days = mandatoryDays()
 
-    faculty_member.append(FacultyConfig(
+    faculty_members.append(FacultyConfig(
         name=name,
-        max_credits=max_credits,
-        min_credits=min_credits,
-        course_limit=course_limit,
+        maximum_credits=max_credits,
+        minimum_credits=min_credits,
+        unique_course_limit=course_limit,
         times=times,
-        max_days=max_days,
+        maximum_days=max_days,
         course_preferences=course_preferences,
         room_preferences=room_preferences,
         lab_preferences=lab_preferences,
         mandatory_days=mandatory_days)
     )
+
+def modify_faculty():
+
+def view_faculty():
+    if not faculty_members:
+        print("No faculty members found.")
+        return
+    print("FACULTY MEMBERS:")
+    for i, faculty in enumerate(faculty_members, start=1):
+        print(f"{i}. {faculty.name}")
+
+def delete_faculty():
+    if not faculty_members:
+        print("No faculty members found.")
+        return
+    list_faculty()
+    index = int(input("Enter the number of the faculty member to delete: ")) - 1
+    if 0 <= index < len(faculty_members):
+        deleted_faculty = faculty_members.pop(index)
+        print(f"Deleted faculty member: {deleted_faculty.name}")
+    else:
+        print("Invalid selection.")
