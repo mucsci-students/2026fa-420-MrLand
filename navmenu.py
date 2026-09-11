@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import Callable, Optional
+from config import add_faculty, modify_faculty, delete_faculty, view_faculty
 
 
 @dataclass(frozen=True)
@@ -75,37 +76,42 @@ def load():
         Command.parse("h|home", "go to home page", home),
     ])
 
+#FACULTY FUNCTIONS
 def faculty():
     return Page(
         "faculty",
-        {}
+        [Command.parse("a|add", "add faculty", add_faculty),
+        Command.parse("m|modify", "modify faculty", modify_faculty),
+        Command.parse("d|delete", "delete faculty", delete_faculty),
+        Command.parse("v|view", "view faculty", view_faculty),
+        Command.parse("h|home", "go to home page", home)]
     )
 
 
 def courses():
     return Page(
         "courses",
-        {}
+        []
     )
 
 def labs():
     return Page(
         "labs",
-        {}
+        []
     )
 
 
 def rooms():
     return Page(
-        "labs",
-        {}
+        "rooms",
+        []
     )
 
 
 def schedule():
     return Page(
         "schedule",
-        {}
+        []
     )
 
 # Global commands 
@@ -174,7 +180,13 @@ def main():
         # navigate pages
         # tracks history and current page for back and command options
         history.append(current_page)
-        current_page = command.action()
+
+        result = command.action()
+
+        if result is not None:
+            current_page = result
+        else:
+            current_page = history.pop()
 
 if __name__ == "__main__":
     main()
