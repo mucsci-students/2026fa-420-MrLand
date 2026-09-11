@@ -180,7 +180,13 @@ def main():
         # navigate pages
         # tracks history and current page for back and command options
         history.append(current_page)
-        current_page = command.action()
+
+        result = command.action()
+
+        if result is not None:
+            current_page = result
+        else:
+            current_page = history.pop()
 
 if __name__ == "__main__":
     main()
