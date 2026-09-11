@@ -115,6 +115,14 @@ def add_faculty():
     )
 
 def modify_faculty():
+    view_faculty()
+    index = int(input("Enter the number of the faculty member to modify: ")) - 1
+    if 0 <= index < len(faculty_members):
+        faculty = faculty_members[index]
+        print(f"Modifying faculty member: {faculty.name}")
+        # Add modification logic here
+    else:
+        print("Invalid selection.")
 
 def view_faculty():
     if not faculty_members:
@@ -128,7 +136,7 @@ def delete_faculty():
     if not faculty_members:
         print("No faculty members found.")
         return
-    list_faculty()
+    view_faculty()
     index = int(input("Enter the number of the faculty member to delete: ")) - 1
     if 0 <= index < len(faculty_members):
         deleted_faculty = faculty_members.pop(index)
