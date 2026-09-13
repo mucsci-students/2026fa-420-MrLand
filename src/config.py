@@ -42,7 +42,7 @@ def facultyTimes():
 def coursePreference():
     coursePreferences = {}
     while True:
-        course = input("Enter course name (or 'done' to finish): ")
+        course = input("Enter preferred course name (or 'done' to finish): ")
         if course.lower() == 'done':
             break
         
@@ -57,7 +57,7 @@ def coursePreference():
 def roomPreference():
     roomPreferences = {}
     while True:
-        room = input("Enter room (or 'done' to finish): ")
+        room = input("Enter preferred room (or 'done' to finish): ")
         if room.lower() == 'done':
             break
         
@@ -71,7 +71,7 @@ def roomPreference():
 def labPreference():
     labPreferences = {}
     while True:
-        lab = input("Enter lab (or 'done' to finish): ")
+        lab = input("Enter preferred lab (or 'done' to finish): ")
         if lab.lower() == 'done':
             break
         
@@ -133,7 +133,12 @@ def add_faculty():
     )
 
 def modify_faculty():
-    view_faculty()
+    if not faculty_members:
+        print("No faculty members found.")
+        return
+    print("FACULTY MEMBERS:")
+    for i, faculty in enumerate(faculty_members, start=1):
+        print(f"{i}. {faculty.name}")
     index = int(input("Enter the number of the faculty member to modify: ")) - 1
     if 0 <= index < len(faculty_members):
         selected_faculty = faculty_members[index]
@@ -171,6 +176,7 @@ def modify_faculty():
             selected_faculty.mandatory_days = mandatoryDays()
         else:
             print("Invalid selection.")
+        print(f"Updated faculty member: {selected_faculty.name}")
     else:
         print("Invalid selection.")
 
@@ -181,6 +187,15 @@ def view_faculty():
     print("FACULTY MEMBERS:")
     for i, faculty in enumerate(faculty_members, start=1):
         print(f"{i}. {faculty.name}")
+        print(f"   Maximum Credits: {faculty.maximum_credits}")
+        print(f"   Minimum Credits: {faculty.minimum_credits}")
+        print(f"   Course Limit: {faculty.unique_course_limit}")
+        print(f"   Times: {faculty.times}")
+        print(f"   Maximum Days: {faculty.maximum_days}")
+        print(f"   Course Preferences: {faculty.course_preferences}")
+        print(f"   Room Preferences: {faculty.room_preferences}")
+        print(f"   Lab Preferences: {faculty.lab_preferences}")
+        print(f"   Mandatory Days: {faculty.mandatory_days}")
 
 def delete_faculty():
     if not faculty_members:
