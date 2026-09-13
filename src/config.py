@@ -3,6 +3,24 @@ from scheduler.config import FacultyConfig
 
 faculty_members = []
 
+#getters to get faculty information from user input
+def getName():
+    name = input("Enter faculty name: ")
+    return name
+def getMaxCredits():
+    max_credits = int(input("Enter maximum credits: "))
+    return max_credits
+def getMinCredits():
+    min_credits = int(input("Enter minimum credits: "))
+    return min_credits
+def getCourseLimit():
+    course_limit = int(input("Enter course limit: "))
+    return course_limit
+def getMaxDays():
+    max_days = int(input("Enter maximum days: "))
+    return max_days
+
+
 #helper function to get time availability from user input
 def facultyTimes():
     times = {}
@@ -90,12 +108,12 @@ def mandatoryDays():
 
 def add_faculty():
     print("ADD NEW FACULTY MEMBER")
-    name = input("Enter faculty name: ")
-    max_credits = int(input("Enter maximum credits: "))
-    min_credits = int(input("Enter minimum credits: "))
-    course_limit = int(input("Enter course limit: "))
+    name = getName()
+    max_credits = getMaxCredits()
+    min_credits = getMinCredits()
+    course_limit = getCourseLimit()
     times = facultyTimes()
-    max_days = int(input("Enter maximum days: "))
+    max_days = getMaxDays()
     course_preferences = coursePreference()
     room_preferences = roomPreference()
     lab_preferences = labPreference()
@@ -118,9 +136,41 @@ def modify_faculty():
     view_faculty()
     index = int(input("Enter the number of the faculty member to modify: ")) - 1
     if 0 <= index < len(faculty_members):
-        faculty = faculty_members[index]
-        print(f"Modifying faculty member: {faculty.name}")
-        # Add modification logic here
+        selected_faculty = faculty_members[index]
+        print(f"Modifying faculty member: {selected_faculty.name}")
+        print("1. Faculty Name")
+        print("2. Maximum Credits")
+        print("3. Minimum Credits")
+        print("4. Course Limit")
+        print("5. Times")
+        print("6. Maximum Days")
+        print("7. Course Preferences")
+        print("8. Room Preferences")
+        print("9. Lab Preferences")
+        print("10. Mandatory Days")
+        choice = int(input("Enter the number of the attribute to modify: "))
+        if choice == 1:
+            selected_faculty.name = getName()
+        elif choice == 2:
+            selected_faculty.maximum_credits = getMaxCredits()
+        elif choice == 3:
+            selected_faculty.minimum_credits = getMinCredits()
+        elif choice == 4:
+            selected_faculty.unique_course_limit = getCourseLimit()
+        elif choice == 5:
+            selected_faculty.times = facultyTimes()
+        elif choice == 6:
+            selected_faculty.maximum_days = getMaxDays()
+        elif choice == 7:
+            selected_faculty.course_preferences = coursePreference()
+        elif choice == 8:
+            selected_faculty.room_preferences = roomPreference()
+        elif choice == 9:
+            selected_faculty.lab_preferences = labPreference()
+        elif choice == 10:
+            selected_faculty.mandatory_days = mandatoryDays()
+        else:
+            print("Invalid selection.")
     else:
         print("Invalid selection.")
 
