@@ -11,6 +11,7 @@ def getName():
             print("Faculty member already exists. Please enter a different name.")
             return getName()
     return name
+
 def getMaxCredits():
     try:
         max_credits = int(input("Enter maximum credits: "))
@@ -18,6 +19,7 @@ def getMaxCredits():
     except ValueError:
         print("Invalid input. Please enter a valid integer for maximum credits.")
         return getMaxCredits()
+
 def getMinCredits():
     try:
         min_credits = int(input("Enter minimum credits: "))
@@ -25,6 +27,7 @@ def getMinCredits():
     except ValueError:
         print("Invalid input. Please enter a valid integer for minimum credits.")
         return getMinCredits()
+
 def getCourseLimit():
     try:
         course_limit = int(input("Enter course limit: "))
@@ -32,6 +35,7 @@ def getCourseLimit():
     except ValueError:
         print("Invalid input. Please enter a valid integer for course limit.")
         return getCourseLimit()
+
 def getMaxDays():
     try:
         max_days = int(input("Enter maximum days: "))
@@ -39,7 +43,6 @@ def getMaxDays():
     except ValueError:
         print("Invalid input. Please enter a valid integer for maximum days.")
         return getMaxDays()
-
 
 #helper function to get time availability from user input
 def facultyTimes():
@@ -65,9 +68,9 @@ def coursePreference():
         course = input("Enter preferred course name (or 'done' to finish): ")
         if course.lower() == 'done':
             break
-        elif course in coursePreferences:
-            print("Course already entered. Please enter a different course.")
-            return coursePreference()
+        #elif course in coursePreferences:
+        #    print("Course already entered. Please enter a different course.")
+        #    return coursePreference()
         
         preference = input("Enter preference (1-10): ")
         while (not preference.isdigit() or int(preference) < 1 or int(preference) > 10):
@@ -84,8 +87,8 @@ def roomPreference():
         if room.lower() == 'done':
             break
         elif room in roomPreferences:
-            print("Room already entered. Please enter a different room.")
-            return roomPreference()
+        #    print("Room already entered. Please enter a different room.")
+        #    return roomPreference()
 
         preference = input("Enter preference (1-10): ")
         while (not preference.isdigit() or int(preference) < 1 or int(preference) > 10):
@@ -93,6 +96,7 @@ def roomPreference():
             preference = input("Enter preference (1-10): ")
         roomPreferences[room] = int(preference)
     return roomPreferences
+
 #helper function to get lab preferences from user input
 def labPreference():
     labPreferences = {}
@@ -100,15 +104,16 @@ def labPreference():
         lab = input("Enter preferred lab (or 'done' to finish): ")
         if lab.lower() == 'done':
             break
-        elif lab in labPreferences:
-            print("Lab already entered. Please enter a different lab.")
-            return labPreference()
+        #elif lab in labPreferences:
+        #    print("Lab already entered. Please enter a different lab.")
+        #    return labPreference()
         preference = input("Enter preference (1-10): ")
         while (not preference.isdigit() or int(preference) < 1 or int(preference) > 10):
             print("Invalid preference. Please enter a number between 1 and 10.")
             preference = input("Enter preference (1-10): ")
         labPreferences[lab] = int(preference)
     return labPreferences
+
 #helper function to get mandatory teaching days from user input
 def mandatoryDays():
     days = set()
@@ -134,6 +139,7 @@ def mandatoryDays():
             print("Invalid day. Please enter Mon, Tue, Wed, Thu, or Fri.")
     return days
 
+#adds a faculty member to the faculty_members list, with error handling for invalid input
 def add_faculty():
     print("ADD NEW FACULTY MEMBER")
     name = getName()
@@ -172,7 +178,7 @@ def add_faculty():
             add_faculty()
         else:
             return
-            
+#modify a faculty member's information, with error handling for invalid input
 def modify_faculty():
     if not faculty_members:
         print("No faculty members found.")
@@ -234,6 +240,7 @@ def modify_faculty():
     else:
         print("Invalid selection.")
 
+#prints out all the faculty members and their information
 def view_faculty():
     if not faculty_members:
         print("No faculty members found.")
@@ -251,6 +258,7 @@ def view_faculty():
         print(f"   Lab Preferences: {faculty.lab_preferences}")
         print(f"   Mandatory Days: {faculty.mandatory_days}")
 
+#deletes a specified faculty member
 def delete_faculty():
     if not faculty_members:
         print("No faculty members found.")
