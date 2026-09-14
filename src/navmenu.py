@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Callable, Optional
-from config import add_faculty, modify_faculty, delete_faculty, view_faculty
 from services.lab_service import add_lab, modify_lab, delete_lab, view_labs
+from faculty import add_faculty, modify_faculty, delete_faculty, view_faculty
 
 @dataclass(frozen=True)
 class Command:

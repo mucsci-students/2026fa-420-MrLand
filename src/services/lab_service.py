@@ -52,17 +52,18 @@ def add_lab():
 
     while True:
         capacity_input = input("Enter Lab Capacity: ").strip()
+        while (capacity < 1):
+            print("Capacity must be greater than 0")
+            capacity_input = input("Enter Lab Capacity: ").strip()
+            
 
-        try:
+
             capacity = int(capacity_input)
             if capacity <= 0:
                 print("Capacity must be greater than 0")
                 continue
 
-            break
-
-        except ValueError:
-            print("Enter A Positive Number")
+        
 
         features = set()
 
