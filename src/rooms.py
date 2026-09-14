@@ -38,14 +38,30 @@ def get_room_features():
 
 
 def get_room_availability():
-    availability = []
-    print("Enter availability entries one at a time, then type 'done' when finished.")
+    availability = {}
+    valid_days = ["MON", "TUE", "WED", "THU", "FRI"]
+    print("Enter availability entries one at a time.")
+    print("Format: DAY HH:MM-HH:MM (e.g., MON 09:00-10:00)")
+    print("Type 'done' when finished.")
     while True:
-        entry = input("Enter availability (example: MON 09:00-10:00): ").strip()
+        entry = input("Enter availability: ")
         if entry.lower() == "done":
             break
-        if entry:
-            availability.append(entry)
+
+        parts = entry.split()
+        if len(parts) != 2:
+            print("Invalid format. Please use the format: DAY HH:MM-HH:MM")
+            continue
+
+        day = parts[0]
+        time_range = parts[1]
+
+        if day in valid_days:
+            if day not in availability:
+                availability[day] = []
+            availability[day].append(time_range)
+        else:
+            print(f"Invalid day. Please use one of the following: {', '.join(valid_days)}")
     return availability
 
 def add_rooms():
@@ -54,7 +70,7 @@ def add_rooms():
             name=get_room_name(),
             capacity=get_room_capacity(),
             features=get_room_features(),
-            availability=get_room_availability(),
+            times=get_room_availability(),
         )
 
         rooms.append(room)
@@ -75,7 +91,7 @@ def view_rooms():
         print(f"{i}. {room.name}")
         print(f"   Capacity: {room.capacity}")
         print(f"   Features: {room.features}")
-        print(f"   Availability: {room.availability}")
+        print(f"   Availability: {room.times}")
 
 def modify_rooms():
     if not rooms:
@@ -117,7 +133,7 @@ def modify_rooms():
         elif choice == 3:
             room.features = get_room_features()
         elif choice == 4:
-            room.availability = get_room_availability()
+            room.times = get_room_availability()
         else:
             print("Invalid selection.")
             return
