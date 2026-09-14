@@ -6,19 +6,39 @@ faculty_members = []
 #getters to get faculty information from user input
 def getName():
     name = input("Enter faculty name: ")
+    for faculty in faculty_members:
+        if faculty.name.lower() == name.lower():
+            print("Faculty member already exists. Please enter a different name.")
+            return getName()
     return name
 def getMaxCredits():
-    max_credits = int(input("Enter maximum credits: "))
-    return max_credits
+    try:
+        max_credits = int(input("Enter maximum credits: "))
+        return max_credits
+    except ValueError:
+        print("Invalid input. Please enter a valid integer for maximum credits.")
+        return getMaxCredits()
 def getMinCredits():
-    min_credits = int(input("Enter minimum credits: "))
-    return min_credits
+    try:
+        min_credits = int(input("Enter minimum credits: "))
+        return min_credits
+    except ValueError:
+        print("Invalid input. Please enter a valid integer for minimum credits.")
+        return getMinCredits()
 def getCourseLimit():
-    course_limit = int(input("Enter course limit: "))
-    return course_limit
+    try:
+        course_limit = int(input("Enter course limit: "))
+        return course_limit
+    except ValueError:
+        print("Invalid input. Please enter a valid integer for course limit.")
+        return getCourseLimit()
 def getMaxDays():
-    max_days = int(input("Enter maximum days: "))
-    return max_days
+    try:
+        max_days = int(input("Enter maximum days: "))
+        return max_days
+    except ValueError:
+        print("Invalid input. Please enter a valid integer for maximum days.")
+        return getMaxDays()
 
 
 #helper function to get time availability from user input
@@ -45,6 +65,9 @@ def coursePreference():
         course = input("Enter preferred course name (or 'done' to finish): ")
         if course.lower() == 'done':
             break
+        elif course in coursePreferences:
+            print("Course already entered. Please enter a different course.")
+            return coursePreference()
         
         preference = input("Enter preference (1-10): ")
         while (not preference.isdigit() or int(preference) < 1 or int(preference) > 10):
@@ -60,7 +83,10 @@ def roomPreference():
         room = input("Enter preferred room (or 'done' to finish): ")
         if room.lower() == 'done':
             break
-        
+        elif room in roomPreferences:
+            print("Room already entered. Please enter a different room.")
+            return roomPreference()
+
         preference = input("Enter preference (1-10): ")
         while (not preference.isdigit() or int(preference) < 1 or int(preference) > 10):
             print("Invalid preference. Please enter a number between 1 and 10.")
@@ -74,7 +100,9 @@ def labPreference():
         lab = input("Enter preferred lab (or 'done' to finish): ")
         if lab.lower() == 'done':
             break
-        
+        elif lab in labPreferences:
+            print("Lab already entered. Please enter a different lab.")
+            return labPreference()
         preference = input("Enter preference (1-10): ")
         while (not preference.isdigit() or int(preference) < 1 or int(preference) > 10):
             print("Invalid preference. Please enter a number between 1 and 10.")
@@ -119,7 +147,8 @@ def add_faculty():
     lab_preferences = labPreference()
     mandatory_days = mandatoryDays()
 
-    faculty_members.append(FacultyConfig(
+    try: 
+        faculty_members.append(FacultyConfig(
         name=name,
         maximum_credits=max_credits,
         minimum_credits=min_credits,
@@ -131,7 +160,19 @@ def add_faculty():
         lab_preferences=lab_preferences,
         mandatory_days=mandatory_days)
     )
-
+    except Exception as e:
+        print(f"Error occurred while adding faculty member: {e}")
+        print("Faculty member was not added.")
+        print("Commands:\n  (r)etry\n  (f)aculty\n")
+        choice = input()
+        while choice not in ["r", "f"]:
+            print("INVALID COMMAND.\n  (r)etry\n  (f)aculty\n")
+            choice = input()
+        if choice == "r":
+            add_faculty()
+        else:
+            return
+            
 def modify_faculty():
     if not faculty_members:
         print("No faculty members found.")
@@ -141,41 +182,54 @@ def modify_faculty():
         print(f"{i}. {faculty.name}")
     index = int(input("Enter the number of the faculty member to modify: ")) - 1
     if 0 <= index < len(faculty_members):
-        selected_faculty = faculty_members[index]
-        print(f"Modifying faculty member: {selected_faculty.name}")
-        print("1. Faculty Name")
-        print("2. Maximum Credits")
-        print("3. Minimum Credits")
-        print("4. Course Limit")
-        print("5. Times")
-        print("6. Maximum Days")
-        print("7. Course Preferences")
-        print("8. Room Preferences")
-        print("9. Lab Preferences")
-        print("10. Mandatory Days")
-        choice = int(input("Enter the number of the attribute to modify: "))
-        if choice == 1:
-            selected_faculty.name = getName()
-        elif choice == 2:
-            selected_faculty.maximum_credits = getMaxCredits()
-        elif choice == 3:
-            selected_faculty.minimum_credits = getMinCredits()
-        elif choice == 4:
-            selected_faculty.unique_course_limit = getCourseLimit()
-        elif choice == 5:
-            selected_faculty.times = facultyTimes()
-        elif choice == 6:
-            selected_faculty.maximum_days = getMaxDays()
-        elif choice == 7:
-            selected_faculty.course_preferences = coursePreference()
-        elif choice == 8:
-            selected_faculty.room_preferences = roomPreference()
-        elif choice == 9:
-            selected_faculty.lab_preferences = labPreference()
-        elif choice == 10:
-            selected_faculty.mandatory_days = mandatoryDays()
-        else:
-            print("Invalid selection.")
+        try:
+            selected_faculty = faculty_members[index]
+            print(f"Modifying faculty member: {selected_faculty.name}")
+            print("1. Faculty Name")
+            print("2. Maximum Credits")
+            print("3. Minimum Credits")
+            print("4. Course Limit")
+            print("5. Times")
+            print("6. Maximum Days")
+            print("7. Course Preferences")
+            print("8. Room Preferences")
+            print("9. Lab Preferences")
+            print("10. Mandatory Days")
+            choice = int(input("Enter the number of the attribute to modify: "))
+            if choice == 1:
+                selected_faculty.name = getName()
+            elif choice == 2:
+                selected_faculty.maximum_credits = getMaxCredits()
+            elif choice == 3:
+                selected_faculty.minimum_credits = getMinCredits()
+            elif choice == 4:
+                selected_faculty.unique_course_limit = getCourseLimit()
+            elif choice == 5:
+                selected_faculty.times = facultyTimes()
+            elif choice == 6:
+                selected_faculty.maximum_days = getMaxDays()
+            elif choice == 7:
+                selected_faculty.course_preferences = coursePreference()
+            elif choice == 8:
+                selected_faculty.room_preferences = roomPreference()
+            elif choice == 9:
+                selected_faculty.lab_preferences = labPreference()
+            elif choice == 10:
+                selected_faculty.mandatory_days = mandatoryDays()
+            else:
+                print("Invalid selection.")
+        except Exception as e:
+            print(f"Error occurred while modifying faculty member: {e}")
+            print("Faculty member was not modified.")
+            print("Commands:\n  (r)etry\n  (f)aculty\n")
+            choice = input()
+            while choice not in ["r", "f"]:
+                print("INVALID COMMAND.\n  (r)etry\n  (f)aculty\n")
+                choice = input()
+            if choice == "r":
+                modify_faculty()
+            else:
+                return
         print(f"Updated faculty member: {selected_faculty.name}")
     else:
         print("Invalid selection.")
