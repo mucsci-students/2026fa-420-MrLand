@@ -75,7 +75,6 @@ def add_rooms():
 
         rooms.append(room)
         print(f"Room added: {room.name}")
-        return room
 
     except Exception as exc:
         print(f"Room validation failed: {exc}")
