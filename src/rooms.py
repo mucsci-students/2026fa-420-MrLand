@@ -1,4 +1,4 @@
-from scheduler.config import RoomConfig
+from scheduler.config import RoomConfig, TimeRange
 
 rooms = []
 
@@ -17,34 +17,46 @@ def get_room_name():
 def get_room_capacity():
     while True:
         capacity_str = input("Enter room capacity: ").strip()
+
         if not capacity_str.isdigit():
             print("Capacity must be a positive integer. Please try again.")
             continue
+
         capacity = int(capacity_str)
+
         if capacity <= 0:
             print("Capacity must be greater than zero. Please try again.")
             continue
+
         return capacity
+
 
 def get_room_features():
     features = []
+
     while True:
         feature = input("Enter a feature (or 'done' to finish): ").strip()
+
         if feature.lower() == "done":
             break
+
         if feature:
             features.append(feature)
+
     return features
 
 
 def get_room_availability():
     availability = {}
     valid_days = ["MON", "TUE", "WED", "THU", "FRI"]
+
     print("Enter availability entries one at a time.")
     print("Format: DAY HH:MM-HH:MM (e.g., MON 09:00-10:00)")
     print("Type 'done' when finished.")
+
     while True:
-        entry = input("Enter availability: ")
+        entry = input("Enter availability: ").strip()
+
         if entry.lower() == "done":
             break
 
@@ -53,16 +65,25 @@ def get_room_availability():
             print("Invalid format. Please use the format: DAY HH:MM-HH:MM")
             continue
 
-        day = parts[0]
+        day = parts[0].upper()
         time_range = parts[1]
 
-        if day in valid_days:
-            if day not in availability:
-                availability[day] = []
-            availability[day].append(time_range)
-        else:
+        if day not in valid_days:
             print(f"Invalid day. Please use one of the following: {', '.join(valid_days)}")
+            continue
+
+        try:
+            validated_range = TimeRange.from_string(time_range)
+        except (ValueError, TypeError):
+            print("Invalid time range. Use HH:MM-HH:MM with end after start.")
+            continue
+        
+        if day not in availability:
+            availability[day] = []
+        availability[day].append(validated_range)
+
     return availability
+
 
 def add_rooms():
     try:
@@ -80,6 +101,7 @@ def add_rooms():
         print(f"Room validation failed: {exc}")
         return None
 
+
 def view_rooms():
     if not rooms:
         print("No rooms found.")
@@ -91,6 +113,7 @@ def view_rooms():
         print(f"   Capacity: {room.capacity}")
         print(f"   Features: {room.features}")
         print(f"   Availability: {room.times}")
+
 
 def modify_rooms():
     if not rooms:
@@ -122,7 +145,7 @@ def modify_rooms():
         print("Invalid selection.")
         return
 
-    old_room = room.copy()
+    old_room = room.model_dump()
 
     try:
         if choice == 1:
@@ -141,9 +164,10 @@ def modify_rooms():
 
     except Exception as exc:
         # Restore previous valid state
-        rooms[index] = old_room
+        rooms[index] = type(room).model_validate(old_room)
         print(f"Update failed: {exc}")
         print("Previous valid room data was restored.")
+
 
 def delete_rooms():
     if not rooms:
