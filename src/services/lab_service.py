@@ -3,6 +3,46 @@ from models.lab import find_lab
 
 labs = []
 
+def get_lab_name():
+    name = input("Enter Lab Name: ").strip()
+
+    if not name:
+        print("Lab Name Cannot Be Blank")
+        return get_lab_name()
+
+    if find_lab(labs, name) is not None:
+        print("Lab Name Exists Already")
+        return get_lab_name()
+
+    return name
+
+def get_lab_capacity():
+    capacity_input = input("Enter Lab Capacity: ").strip()
+
+    try:
+        capacity = int(capacity_input)
+
+        if capacity_input <= 0:
+            print("Capacity Must Be Greater Than 0")
+            return get_lab_capacity()
+        return capacity
+    except ValueError:
+        print("Value Must Be An Integer")
+
+def get_lab_features():
+    features = set()
+    print("\nEnter Lab Features")
+    print("Type 'done' When Finished")
+    while True:
+        feature = input("Feature: ").strip()
+        
+        if feature.lower() == "done":
+            break
+        
+        if feature: 
+            features.add(feature)
+    
+
 def get_lab_times():
     choice = input().strip().lower()
 
@@ -39,61 +79,24 @@ def get_lab_times():
 
 
 def add_lab():
-    print("\nAdd New Lab")
+    name = get_lab_names()
+    capacity = get_lab_capacity()
+    features = get_lab_features
+    times = get_lab_times()
 
-    name = input("Enter Lab Name: ").strip()
+    try: 
+        lab = LabConfig(
+            name = name,
+            capacity = capacity,
+            features = features,
+            times = times,
+        )
 
-    if not name:
-        print("Lab Name Cannot Be Blank")
+        labs.append(lab)
+        print(f"'{name}' Added")
 
-    if find_lab(labs, name) is not None:
-        print("Lab Name Exists Already")
-        return
-
-    while True:
-        capacity_input = input("Enter Lab Capacity: ").strip()
-        while (capacity < 1):
-            print("Capacity must be greater than 0")
-            capacity_input = input("Enter Lab Capacity: ").strip()
-            
-
-
-            capacity = int(capacity_input)
-            if capacity <= 0:
-                print("Capacity must be greater than 0")
-                continue
-
-        
-
-        features = set()
-
-        print("\nEnter Lab Features")
-        print("Type 'done' When Finished")
-
-        while True:
-            feature = input("Feature: ").strip()
-
-            if feature.lower() == "done":
-                break
-
-            if feature: 
-                features.add(feature)
-
-        times = get_lab_times()
-
-        try: 
-            lab = LabConfig(
-                name = name,
-                capacity = capacity,
-                features = features,
-                times = times,
-            )
-
-            labs.append(lab)
-            print(f"'{name}' Added")
-
-        except Exception as error:
-            print(f"Failed To Create Lab: {error}")
+    except Exception as error:
+        print(f"Failed To Create Lab: {error}")
 
 def view_labs():
     if not labs:
