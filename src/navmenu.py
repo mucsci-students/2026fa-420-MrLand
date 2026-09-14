@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Optional
 from services.lab_service import add_lab, modify_lab, delete_lab, view_labs
 from faculty import add_faculty, modify_faculty, delete_faculty, view_faculty
+from rooms import add_rooms, modify_rooms, delete_rooms, view_rooms
 
 @dataclass(frozen=True)
 class Command:
@@ -110,7 +111,11 @@ def labs():
 def rooms():
     return Page(
         "rooms",
-        []
+        [Command.parse("a|add", "add room", add_rooms),
+        Command.parse("m|modify", "modify room", modify_rooms),
+        Command.parse("d|delete", "delete room", delete_rooms),
+        Command.parse("v|view", "view room", view_rooms),
+        Command.parse("h|home", "go to home page", home)]
     )
 
 
