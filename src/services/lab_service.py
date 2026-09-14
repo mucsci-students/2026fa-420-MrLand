@@ -1,5 +1,5 @@
 from scheduler.config import LabConfig
-from ..models.lab import find_lab
+from models.lab import find_lab
 
 labs = []
 
@@ -51,7 +51,7 @@ def add_lab():
         return
 
     while True:
-        capacity_input = input("Enter Lab Capacity ").strip()
+        capacity_input = input("Enter Lab Capacity: ").strip()
 
         try:
             capacity = int(capacity_input)
