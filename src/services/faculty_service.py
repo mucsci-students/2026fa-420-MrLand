@@ -4,50 +4,51 @@ from scheduler.config import FacultyConfig
 faculty_members = []
 
 #getters to get faculty information from user input
-def getName():
+def get_name():
     name = input("Enter faculty name: ")
     for faculty in faculty_members:
         if faculty.name.lower() == name.lower():
             print("Faculty member already exists. Please enter a different name.")
-            return getName()
+            return get_name()
     return name
 
-def getMaxCredits():
+def get_max_credits():
     try:
         max_credits = int(input("Enter maximum credits: "))
         return max_credits
     except ValueError:
         print("Invalid input. Please enter a valid integer for maximum credits.")
-        return getMaxCredits()
+        return get_max_credits()
 
-def getMinCredits():
+def get_min_credits():
     try:
         min_credits = int(input("Enter minimum credits: "))
         return min_credits
     except ValueError:
         print("Invalid input. Please enter a valid integer for minimum credits.")
-        return getMinCredits()
+        return get_min_credits()
 
-def getCourseLimit():
+def get_course_limit():
     try:
         course_limit = int(input("Enter course limit: "))
         return course_limit
     except ValueError:
         print("Invalid input. Please enter a valid integer for course limit.")
-        return getCourseLimit()
+        return get_course_limit()
 
-def getMaxDays():
+def get_max_days():
     try:
         max_days = int(input("Enter maximum days: "))
         return max_days
     except ValueError:
         print("Invalid input. Please enter a valid integer for maximum days.")
-        return getMaxDays()
+        return get_max_days()
 
 #helper function to get time availability from user input
-def facultyTimes():
+def faculty_times():
     times = {}
     days = ["MON", "TUE", "WED", "THU", "FRI"]
+    print("Availability for each day:")
     for day in days:
         ranges = []
         print(f"\nAvailability for {day}")
@@ -62,60 +63,63 @@ def facultyTimes():
     return times
 
 #helper function to get course preferences from user input
-def coursePreference():
-    coursePreferences = {}
+def course_preference_getter():
+    course_preferences = {}
+    print("Course Preferences:")
     while True:
         course = input("Enter preferred course name (or 'done' to finish): ")
         if course.lower() == 'done':
             break
-        #elif course in coursePreferences:
+        #elif course in course_preferences:
         #    print("Course already entered. Please enter a different course.")
-        #    return coursePreference()
-        
+        #    return course_preference_getter()
+
         preference = input("Enter preference (1-10): ")
         while (not preference.isdigit() or int(preference) < 1 or int(preference) > 10):
             print("Invalid preference. Please enter a number between 1 and 10.")
             preference = input("Enter preference (1-10): ")
-        coursePreferences[course] = int(preference)
-    return coursePreferences
+        course_preferences[course] = int(preference)
+    return course_preferences
 
 #helper function to get room preferences from user input
-def roomPreference():
-    roomPreferences = {}
+def room_preference_getter():
+    room_preferences = {}
+    print("Room Preferences:")
     while True:
         room = input("Enter preferred room (or 'done' to finish): ")
         if room.lower() == 'done':
             break
-        #elif room in roomPreferences:
+        #elif room in room_preferences:
         #    print("Room already entered. Please enter a different room.")
-        #    return roomPreference()
+        #    return room_preference_getter()
 
         preference = input("Enter preference (1-10): ")
         while (not preference.isdigit() or int(preference) < 1 or int(preference) > 10):
             print("Invalid preference. Please enter a number between 1 and 10.")
             preference = input("Enter preference (1-10): ")
-        roomPreferences[room] = int(preference)
-    return roomPreferences
+        room_preferences[room] = int(preference)
+    return room_preferences
 
 #helper function to get lab preferences from user input
-def labPreference():
-    labPreferences = {}
+def lab_preference_getter():
+    lab_preferences = {}
+    print("Lab Preferences:")
     while True:
         lab = input("Enter preferred lab (or 'done' to finish): ")
         if lab.lower() == 'done':
             break
-        #elif lab in labPreferences:
+        #elif lab in lab_preferences:
         #    print("Lab already entered. Please enter a different lab.")
-        #    return labPreference()
+        #    return lab_preference_getter()
         preference = input("Enter preference (1-10): ")
         while (not preference.isdigit() or int(preference) < 1 or int(preference) > 10):
             print("Invalid preference. Please enter a number between 1 and 10.")
             preference = input("Enter preference (1-10): ")
-        labPreferences[lab] = int(preference)
-    return labPreferences
+        lab_preferences[lab] = int(preference)
+    return lab_preferences
 
 #helper function to get mandatory teaching days from user input
-def mandatoryDays():
+def mandatory_days_getter():
     days = set()
     while True:
         day = input(
@@ -142,16 +146,16 @@ def mandatoryDays():
 #adds a faculty member to the faculty_members list, with error handling for invalid input
 def add_faculty():
     print("ADD NEW FACULTY MEMBER")
-    name = getName()
-    max_credits = getMaxCredits()
-    min_credits = getMinCredits()
-    course_limit = getCourseLimit()
-    times = facultyTimes()
-    max_days = getMaxDays()
-    course_preferences = coursePreference()
-    room_preferences = roomPreference()
-    lab_preferences = labPreference()
-    mandatory_days = mandatoryDays()
+    name = get_name()
+    max_credits = get_max_credits()
+    min_credits = get_min_credits()
+    course_limit = get_course_limit()
+    times = faculty_times()
+    max_days = get_max_days()
+    course_preferences = course_preference_getter()
+    room_preferences = room_preference_getter()
+    lab_preferences = lab_preference_getter()
+    mandatory_days = mandatory_days_getter()
 
     try: 
         faculty_members.append(FacultyConfig(
@@ -203,25 +207,25 @@ def modify_faculty():
             print("10. Mandatory Days")
             choice = int(input("Enter the number of the attribute to modify: "))
             if choice == 1:
-                selected_faculty.name = getName()
+                selected_faculty.name = get_name()
             elif choice == 2:
-                selected_faculty.maximum_credits = getMaxCredits()
+                selected_faculty.maximum_credits = get_max_credits()
             elif choice == 3:
-                selected_faculty.minimum_credits = getMinCredits()
+                selected_faculty.minimum_credits = get_min_credits()
             elif choice == 4:
-                selected_faculty.unique_course_limit = getCourseLimit()
+                selected_faculty.unique_course_limit = get_course_limit()
             elif choice == 5:
-                selected_faculty.times = facultyTimes()
+                selected_faculty.times = faculty_times()
             elif choice == 6:
-                selected_faculty.maximum_days = getMaxDays()
+                selected_faculty.maximum_days = get_max_days()
             elif choice == 7:
-                selected_faculty.course_preferences = coursePreference()
+                selected_faculty.course_preferences = course_preference_getter()
             elif choice == 8:
-                selected_faculty.room_preferences = roomPreference()
+                selected_faculty.room_preferences = room_preference_getter()
             elif choice == 9:
-                selected_faculty.lab_preferences = labPreference()
+                selected_faculty.lab_preferences = lab_preference_getter()
             elif choice == 10:
-                selected_faculty.mandatory_days = mandatoryDays()
+                selected_faculty.mandatory_days = mandatory_days_getter()
             else:
                 print("Invalid selection.")
         except Exception as e:
