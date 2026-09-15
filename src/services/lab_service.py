@@ -138,7 +138,7 @@ def modify_lab():
         ) - 1
     except ValueError:
         print("Enter Valid Number.")
-        return
+        return 
 
     if not 0 <= index < len(labs):
         print("Invalid Selection.")
@@ -157,30 +157,15 @@ def modify_lab():
     choice = input("Choose What To Modify: ").strip()
 
     if choice == "1":
-        new_name = input("Enter New Name: ").strip()
+        new_name = get_lab_name()
 
-        if not new_name:
-            print("Name Cannot Be Blank.")
-            return
-
-        existing = find_lab(labs, new_name)
-
-        if existing is not None and existing is not lab:
-            print("Lab Name Exists Already.")
-            return
+        lab.name = new_name
+        print(f"Name Updated to '{lab.name}'")
         
     elif choice == "2":
-        try:
-            new_capacity = int(
-                input("Enter New Capacity: ")
-            )
-
-            if new_capacity <= 0:
-                print("Capacity Must Be Greater Than 0.")
-                return
-
-        except ValueError:
-            print("Enter Valid Number")
+        new_capacity = get_lab_capacity()
+        lab.capacity = new_capacity
+        print(f"Capacity Updated to '{lab.capacity}'")
 
     elif choice == "3":
         new_features = set()
@@ -196,8 +181,13 @@ def modify_lab():
             if feature:
                 new_features.add(feature)
 
+        lab.features = new_features
+        print("Features Updated")
+
     elif choice == "4":
         new_times = get_lab_times()
+        lab.times = new_times
+        print("Availability Updated")
 
     elif choice == "5":
         print("Modification Cancelled.")
