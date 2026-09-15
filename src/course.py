@@ -10,32 +10,101 @@ courses = []
 
 def add_course():
     # get information from user
-    course_id = get_course_ID()
+    course_id = get_course_id()
+    section = get_section_id()
     credits = get_credits()
-    capacity = get_capacity
-    section = get_section_ID()
-    labs = get_labs()
+    capacity = get_capacity()
+    modality = get_modality()
     rooms = get_rooms()
+    labs = get_labs()
+    required_room_features = get_required_room_features()
+    required_lab_features = get_required_lab_features()
+    reserve_room_during_lab = get_reserve_room()
     conflicts = get_conflicts()
     faculties = get_faculty()
 
     courses.append(CourseConfig(
         course_id=course_id,
+        section=section,
         credits=credits,
         capacity=capacity,
-        section=section,
-        labs=labs,
+        modality=modality,
         rooms=rooms,
+        labs=labs,
+        required_room_features=required_room_features,
+        required_lab_features=required_lab_features,
+        reserve_room_during_lab=reserve_room_during_lab,
         conflicts=conflicts,
         faculties=faculties
     ))
     
 
 def modify_course():
-    # find course
-    # ask which attribute to change
-    # change it
-    return
+    if not courses:
+        print("No courses found.")
+        return
+
+    print("COURSES:")
+    for i, course in enumerate(courses, start=1):
+        print(f"{i}. {course.course_id}")
+
+    try:
+        index = int(input("Enter the number of the course to modify: ")) - 1
+
+        if 0 <= index < len(courses):
+            selected_course = courses[index]
+
+            print(f"Modifying course: {selected_course.course_id}")
+            print("1. Course ID")
+            print("2. Credits")
+            print("3. Capacity")
+            print("4. Rooms")
+            print("5. Labs")
+            print("6. Conflicts")
+            print("7. Faculty")
+            print("8. Section ID")
+            print("9. Modality")
+            print("10. Required Room Features")
+            print("11. Required Lab Features")
+            print("12. Reserve Room During Lab")
+
+            choice = int(input("Enter the number of the field to modify: "))
+
+            if choice == 1:
+                selected_course.course_id = get_course_id()
+            elif choice == 2:
+                selected_course.credits = get_credits()
+            elif choice == 3:
+                selected_course.capacity = get_capacity()
+            elif choice == 4:
+                selected_course.rooms = get_rooms()
+            elif choice == 5:
+                selected_course.labs = get_labs()
+            elif choice == 6:
+                selected_course.conflicts = get_conflicts()
+            elif choice == 7:
+                selected_course.faculties = get_faculty()
+            elif choice == 8:
+                selected_course.section_id = get_section_id()
+            elif choice == 9:
+                selected_course.modality = get_modality()
+            elif choice == 10:
+                selected_course.required_room_features = get_required_room_features()
+            elif choice == 11:
+                selected_course.required_lab_features = get_required_lab_features()
+            elif choice == 12:
+                selected_course.reserve_room_during_lab = get_reserve_room()
+            else:
+                print("Invalid selection.")
+                return
+
+            print(f"Updated course: {selected_course.course_id}")
+
+        else:
+            print("Invalid selection.")
+
+    except ValueError:
+        print("Invalid input. Please enter a valid number.")
 
 
 def delete_course():
@@ -73,7 +142,7 @@ def view_courses():
 #------------------- Getters for course data -----------------------------
 
 
-def get_course_ID():
+def get_course_id():
     try:
         course_id = input("Enter course ID: ")
 
@@ -84,7 +153,7 @@ def get_course_ID():
 
     except ValueError as e:
         print(f"Invalid input: {e}")
-        return get_course_ID()
+        return get_course_id()
     
 
 def get_credits():
@@ -115,7 +184,7 @@ def get_capacity():
         return get_capacity()
     
 
-def get_section_ID():
+def get_section_id():
     try:
         section_id = input("Enter section ID (or press Enter for none): ")
 
@@ -126,7 +195,7 @@ def get_section_ID():
 
     except ValueError as e:
         print(f"Invalid input: {e}")
-        return get_section_ID()
+        return get_section_id()
     
 
 def get_rooms():
@@ -206,3 +275,67 @@ def get_labs():
     except ValueError as e:
         print(f"Invalid input: {e}")
         return get_labs()
+    
+    
+def get_modality():
+    try:
+        modality = input("Enter course modality (in_person, online, hybrid): ").lower()
+
+        if modality not in ["in_person", "online", "hybrid"]:
+            raise ValueError("Modality must be in_person, online, or hybrid.")
+
+        return modality
+
+    except ValueError as e:
+        print(f"Invalid input: {e}")
+        return get_modality()
+        
+
+def get_required_room_features():
+    try:
+        features = input("Enter required room features (comma-separated): ")
+
+        if not features.strip():
+            return set()
+
+        features = {feature.strip() for feature in features.split(",")}
+
+        return features
+
+    except ValueError as e:
+        print(f"Invalid input: {e}")
+        return get_required_room_features()
+    
+
+def get_required_lab_features():
+    try:
+        features = input("Enter required lab features (comma-separated): ")
+
+        if not features.strip():
+            return set()
+
+        features = {feature.strip() for feature in features.split(",")}
+
+        return features
+
+    except ValueError as e:
+        print(f"Invalid input: {e}")
+        return get_required_lab_features()
+    
+
+def get_reserve_room():
+    try:
+        reserve_room = input("Reserve room during lab? (yes/no): ").lower()
+
+        if reserve_room == "yes":
+            return True
+        elif reserve_room == "no":
+            return False
+        else:
+            raise ValueError("Please enter yes or no.")
+
+    except ValueError as e:
+        print(f"Invalid input: {e}")
+        return get_reserve_room()
+    
+
