@@ -108,9 +108,23 @@ def modify_course():
 
 
 def delete_course():
-    # find course
-    # remove it from courses
-    return
+    if not courses:
+        print("No courses found.")
+        return
+
+    view_courses()
+
+    try:
+        index = int(input("Enter the number of the course to delete: ")) - 1
+
+        if 0 <= index < len(courses):
+            deleted_course = courses.pop(index)
+            print(f"Deleted course: {deleted_course.course_id}")
+        else:
+            print("Invalid selection.")
+
+    except ValueError:
+        print("Invalid input. Please enter a valid number.")
 
 
 def view_courses():
