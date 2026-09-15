@@ -1,7 +1,17 @@
 from scheduler.config import LabConfig
-from ..models.lab import find_lab
 
 labs = []
+
+# returns the lab if exists
+def find_lab(labs, name):
+    for lab in labs:
+        if lab.name == name:
+            return lab
+        return None
+    
+def lab_exists(labs, name):
+    return find_lab(labs, name) is not None
+
 
 def get_lab_name():
     name = input("Enter Lab Name: ").strip().lower()
