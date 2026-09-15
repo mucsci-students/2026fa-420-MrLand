@@ -1,6 +1,5 @@
 from scheduler.config import FacultyConfig
-from src.config import faculty_members
-
+from src.config import *
 
 #getters to get faculty information from user input
 def get_name():
