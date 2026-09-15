@@ -1,5 +1,5 @@
 from scheduler.config import LabConfig
-from models.lab import find_lab
+from ..models.lab import find_lab, lab_exists
 
 labs = []
 
@@ -22,7 +22,7 @@ def get_lab_capacity():
     try:
         capacity = int(capacity_input)
 
-        if capacity_input <= 0:
+        if capacity <= 0:
             print("Capacity Must Be Greater Than 0")
             return get_lab_capacity()
         return capacity
@@ -41,7 +41,8 @@ def get_lab_features():
         
         if feature: 
             features.add(feature)
-    
+
+    return features
 
 def get_lab_times():
     choice = input().strip().lower()
@@ -79,7 +80,7 @@ def get_lab_times():
 
 
 def add_lab():
-    name = get_lab_names()
+    name = get_lab_name()
     capacity = get_lab_capacity()
     features = get_lab_features
     times = get_lab_times()
