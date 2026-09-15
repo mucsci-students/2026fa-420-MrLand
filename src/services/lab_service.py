@@ -1,4 +1,5 @@
 from scheduler.config import LabConfig
+import re
 
 labs = []
 
@@ -56,15 +57,28 @@ def get_lab_features():
 
     return features
 
+def validate_time_range(time):
+    pattern = r"^([0-1][0-9]|2[0-3]):[0-5][0-9]-([0-1][0-9]|2[0-3]):[0-5][0-9]$"
+
+    if not re.match(pattern, time):
+        print(ValueError(f"'{time}' does not match HH:MM-HH:MM"))
+        return get_lab_times()
+        
+
+    return True
+
 def get_lab_times():
+    print("Enter n: Unrestricted Availability")
+    print("Enter y: Add Available Times")
+
     choice = input().strip().lower()
 
-    if choice == "n":
+    if choice == "n".lower():
         return None
 
-    if choice != "y":
-        print("Invalid choice. Using unrestricted availability.")
-        return None
+    if choice != "y".lower():
+        print("Invalid choice.")
+        return get_lab_times()
 
     times = {}
 
@@ -81,6 +95,9 @@ def get_lab_times():
 
             if time_range.lower() == "done":
                 break
+
+            if not validate_time_range(time_range):
+                return get_lab_times()
 
             if time_range:
                 ranges.append(time_range)
@@ -213,6 +230,7 @@ def delete_lab():
 
     view_labs()
 
+    # test for validity
     try:
         index = int(
             input("\nEnter Number of Lab To Delete: ")
@@ -224,6 +242,8 @@ def delete_lab():
     if not 0 <= index < len(labs):
         print("Invalid Selection.")
         return
+
+    # delete confirmation 
 
     lab = labs[index]
 
