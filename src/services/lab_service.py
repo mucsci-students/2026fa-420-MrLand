@@ -1,10 +1,10 @@
 from scheduler.config import LabConfig
-from ..models.lab import find_lab, lab_exists
+from ..models.lab import find_lab
 
 labs = []
 
 def get_lab_name():
-    name = input("Enter Lab Name: ").strip()
+    name = input("Enter Lab Name: ").strip().lower()
 
     if not name:
         print("Lab Name Cannot Be Blank")
@@ -28,11 +28,13 @@ def get_lab_capacity():
         return capacity
     except ValueError:
         print("Value Must Be An Integer")
+        return get_lab_capacity()
 
 def get_lab_features():
     features = set()
     print("\nEnter Lab Features")
     print("Type 'done' When Finished")
+
     while True:
         feature = input("Feature: ").strip()
         
@@ -82,7 +84,7 @@ def get_lab_times():
 def add_lab():
     name = get_lab_name()
     capacity = get_lab_capacity()
-    features = get_lab_features
+    features = get_lab_features()
     times = get_lab_times()
 
     try: 
