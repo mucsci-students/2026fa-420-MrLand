@@ -86,7 +86,7 @@ def roomPreference():
         room = input("Enter preferred room (or 'done' to finish): ")
         if room.lower() == 'done':
             break
-        elif room in roomPreferences:
+        #elif room in roomPreferences:
         #    print("Room already entered. Please enter a different room.")
         #    return roomPreference()
 
