@@ -45,7 +45,28 @@ def delete_course():
 
 
 def view_courses():
-    return
+    if not courses:
+        print("No courses found.")
+        return
+
+    print("\nCOURSES")
+    print("-" * 80)
+
+    for i, course in enumerate(courses, start=1):
+        print(f"Course {i}:")
+        print(f"  Course ID:       {course.course_id}")
+        print(f"  Section ID:      {course.section_id}")
+        print(f"  Credits:         {course.credits}")
+        print(f"  Capacity:        {course.capacity}")
+        print(f"  Rooms:           {course.rooms}")
+        print(f"  Labs:            {course.labs}")
+        print(f"  Conflicts:       {course.conflicts}")
+        print(f"  Faculty:         {course.faculties}")
+        print(f"  Modality:        {course.modality}")
+        print(f"  Room Features:   {course.required_room_features}")
+        print(f"  Lab Features:    {course.required_lab_features}")
+        print(f"  Reserve Room:    {course.reserve_room_during_lab}")
+        print("-" * 80)
 
 
 
