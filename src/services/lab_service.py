@@ -1,7 +1,7 @@
 from scheduler.config import LabConfig
 import re
 
-labs = []
+labs_members = []
 
 # returns the lab if exists
 def find_lab(labs, name):
@@ -21,7 +21,7 @@ def get_lab_name():
         print("Lab Name Cannot Be Blank")
         return get_lab_name()
 
-    if find_lab(labs, name) is not None:
+    if find_lab(labs_members, name) is not None:
         print("Lab Name Exists Already")
         return get_lab_name()
 
@@ -122,20 +122,20 @@ def add_lab():
             times = times,
         )
 
-        labs.append(lab)
+        labs_members.append(lab)
         print(f"'{name}' Added")
 
     except Exception as error:
         print(f"Failed To Create Lab: {error}")
 
 def view_labs():
-    if not labs:
+    if not labs_members:
         print("\nNo Lab Found")
         return
 
     print("\nLabs")
 
-    for i, lab in enumerate(labs, start = 1):
+    for i, lab in enumerate(labs_members, start = 1):
         print(f"\n{i}. {lab.name}")
         print(f"Capacity: {lab.capacity}")
 
@@ -153,7 +153,7 @@ def view_labs():
                 print(f" {day}: {ranges}")
 
 def modify_lab():
-    if not labs:
+    if not labs_members:
         print("\nNo labs found.")
         return
 
@@ -167,11 +167,11 @@ def modify_lab():
         print("Enter Valid Number.")
         return 
 
-    if not 0 <= index < len(labs):
+    if not 0 <= index < len(labs_members):
         print("Invalid Selection.")
         return
 
-    lab = labs[index]
+    lab = labs_members[index]
 
     print(f"\nModifying lab: {lab.name}")
 
@@ -224,7 +224,7 @@ def modify_lab():
 
 
 def delete_lab():
-    if not labs:
+    if not labs_members:
         print("\nNo Labs Found.")
         return
 
@@ -239,20 +239,20 @@ def delete_lab():
         print("Enter Valid Number.")
         return
 
-    if not 0 <= index < len(labs):
+    if not 0 <= index < len(labs_members):
         print("Invalid Selection.")
         return
 
     # delete confirmation 
 
-    lab = labs[index]
+    lab = labs_members[index]
 
     confirm = input(
         f"Delete '{lab.name}'? (y/n): "
     ).strip().lower()
 
     if confirm == "y":
-        labs.pop(index)
+        labs_members.pop(index)
         print(f"Deleted '{lab.name}'.")
     else:
         print("Deletion Cancelled.")

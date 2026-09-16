@@ -41,7 +41,7 @@ def add_course():
 
     # adds course to the list after using CourseConfig constructor
     try: 
-        courses.append(CourseConfig(
+        course_members.append(CourseConfig(
             course_id=course_id,
             section_id=section_id,
             credits=credits,
@@ -77,7 +77,7 @@ def add_course():
 # method to allow user to pick a course and modify it
 def modify_course():
     # checks to make sure there is at least one course
-    if not courses:
+    if not course_members:
         print("No courses found.")
         return
 
@@ -87,8 +87,8 @@ def modify_course():
     try:
         index = int(input("Enter the number of the course to modify: ")) - 1
 
-        if 0 <= index < len(courses):
-            selected_course = courses[index]
+        if 0 <= index < len(course_members):
+            selected_course = course_members[index]
 
             print(f"Modifying course: {selected_course.course_id}")
             print("1. Course ID")
@@ -212,7 +212,7 @@ def modify_course():
 # method to delete a course from the courses list
 def delete_course():
     # checks to make sure there is at least one course
-    if not courses:
+    if not course_members:
         print("No courses found.")
         return
 
@@ -222,8 +222,8 @@ def delete_course():
     try:
         index = int(input("Enter the number of the course to delete: ")) - 1
 
-        if 0 <= index < len(courses):
-            deleted_course = courses.pop(index)
+        if 0 <= index < len(course_members):
+            deleted_course = course_members.pop(index)
             print(f"Deleted course: {deleted_course.course_id}")
         else:
             print("Invalid selection.")
@@ -235,14 +235,14 @@ def delete_course():
 # method to print out all the courses in the course list in a readable manner
 def view_courses():
     # checks to make sure there is at least one course
-    if not courses:
+    if not course_members:
         print("No courses found.")
         return
 
     print("\nCOURSES")
     print("-" * 80)
 
-    for i, course in enumerate(courses, start=1):
+    for i, course in enumerate(course_members, start=1):
         print(f"Course {i}:")
         print(f"  Course ID:       {course.course_id}")
         print(f"  Section ID:      {course.section_id}")
@@ -260,7 +260,7 @@ def view_courses():
 
 # helper to check for duplicate courseIDs with the same sectionID
 def course_exists(course_id, section_id, exclude=None):
-    for course in courses:
+    for course in course_members:
         if course is exclude:
             continue
 
@@ -373,7 +373,7 @@ def get_conflicts(course_id):
                 raise ValueError("A course cannot conflict with itself.")
 
             # ensures conflict is a valid course
-            if not any(course.course_id.lower() == conflict.lower() for course in courses):
+            if not any(course.course_id.lower() == conflict.lower() for course in course_members):
                 raise ValueError(f"Course '{conflict}' does not exist.")
 
         return conflicts
