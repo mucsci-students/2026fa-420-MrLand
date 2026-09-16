@@ -1,5 +1,5 @@
 from scheduler.config import FacultyConfig
-from config import *
+from navmenu import 
 
 
 #getters to get faculty information from user input
