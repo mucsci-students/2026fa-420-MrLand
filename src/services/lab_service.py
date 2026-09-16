@@ -41,7 +41,7 @@ def get_lab_capacity():
         print("Value Must Be An Integer")
         return get_lab_capacity()
 
-def delete_lab_features(features):
+def delete_lab_features():
     while True:
         print("Enter Number of Feature To Delete, done to quit")
         feature = input("==> ").strip()
@@ -53,9 +53,9 @@ def delete_lab_features(features):
             print(f"\n{number}. {feature.name}")
 
         if feature:
-            features.remove(feature)
+            labs.features.remove(feature)
 
-    return features
+    return labs.features
 
 
 def get_lab_features():
@@ -235,7 +235,7 @@ def modify_lab():
             if feature:
                 new_features.add(feature)
 
-        lab.features = new_features
+        lab.features.update(new_features)
         print("Features Updated")
 
     elif choice == "4":
