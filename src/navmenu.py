@@ -53,9 +53,14 @@ def home():
 def config():
     return Page("config", [
         Command.parse("c|create", "create new configuration", create),
-        Command.parse("l|load", "load a configuration", load),
+        Command.parse("l|load", "load a configuration", load_get_name),
         Command.parse("h|home", "go to home page", home),
     ])
+
+def load_get_name():
+    file_name = input("Please enter the name of the configuration: ")
+    load_config(file_name)
+    return load()
 
 
 def create():
