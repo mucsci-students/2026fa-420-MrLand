@@ -4,6 +4,7 @@ from services.lab_service import add_lab, modify_lab, delete_lab, view_labs
 from services.faculty_service import add_faculty, modify_faculty, delete_faculty, view_faculty
 from services.rooms_service import add_rooms, modify_rooms, delete_rooms, view_rooms
 from course import add_course, modify_course, delete_course, view_courses
+from run_scheduler import run_scheduler
 
 @dataclass(frozen=True)
 class Command:
@@ -134,7 +135,10 @@ def rooms():
 def schedule():
     return Page(
         "schedule",
-        []
+        [
+            Command.parse("r|run", "run the scheduler", run_scheduler),
+            Command.parse("h|home", "go to home page", home),
+        ]
     )
 
 # Global commands 
