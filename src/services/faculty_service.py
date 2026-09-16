@@ -189,7 +189,7 @@ def  view_faculty_names():
     print("FACULTY MEMBERS:")
     for i, faculty in enumerate(faculty_members, start=1):
         print(f"{i}. {faculty.name}")
-        return True
+    return True
 #modify a faculty member's information, with error handling for invalid input
 def modify_faculty():
     if (not view_faculty_names()):
