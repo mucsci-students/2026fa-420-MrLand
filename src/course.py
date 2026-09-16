@@ -478,6 +478,9 @@ def get_required_lab_features():
 
         features = [feature.strip() for feature in features.split(",")]
 
+        if any(not feature for feature in features):
+            raise ValueError("Lab feature names cannot be empty.")
+
         # checks for duplicates
         if len(features) != len(set(features)):
             raise ValueError("Duplicate lab features are not allowed.")
