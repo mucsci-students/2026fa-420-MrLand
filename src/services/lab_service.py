@@ -41,6 +41,39 @@ def get_lab_capacity():
         print("Value Must Be An Integer")
         return get_lab_capacity()
 
+def delete_lab_features(lab):
+    while True:
+        if not lab.features:
+            print("No Features To Delete")
+            return
+        print("\nCurrent Features:")
+
+        features = list(lab.features)
+        for number, feature in enumerate(features, start = 1):
+            print(f"{number}. {feature}")
+
+        print("Enter Number of Feature To Delete or 'done' to quit")
+
+        choice = input("==> ").strip()
+
+        if choice == 'done':
+            break
+
+        try:
+            number = int(choice)
+
+            if number < 1 or number > len(features):
+                print("Invalid Feature Number.")
+                continue
+
+            feature = features[number - 1]
+            lab.features.remove(feature)
+
+            print(f"Deleted '{feature}'.")
+
+        except ValueError:
+            print("Enter a valid feature number.")
+
 def get_lab_features():
     features = set()
     print("\nEnter Lab Features")
@@ -61,10 +94,9 @@ def validate_time_range(time):
     pattern = r"^([0-1][0-9]|2[0-3]):[0-5][0-9]-([0-1][0-9]|2[0-3]):[0-5][0-9]$"
 
     if not re.match(pattern, time):
-        print(ValueError(f"'{time}' does not match HH:MM-HH:MM"))
-        return get_lab_times()
+        print(f"'{time}' does not match HH:MM-HH:MM")
+        return False
         
-
     return True
 
 def get_lab_times():
@@ -97,7 +129,7 @@ def get_lab_times():
                 break
 
             if not validate_time_range(time_range):
-                return get_lab_times()
+                continue
 
             if time_range:
                 ranges.append(time_range)
@@ -135,8 +167,8 @@ def view_labs():
 
     print("\nLabs")
 
-    for i, lab in enumerate(labs, start = 1):
-        print(f"\n{i}. {lab.name}")
+    for number, lab in enumerate(labs, start = 1):
+        print(f"\n{number}. {lab.name}")
         print(f"Capacity: {lab.capacity}")
 
         if lab.features:
@@ -196,6 +228,19 @@ def modify_lab():
 
     elif choice == "3":
         new_features = set()
+        print("Enter d: Delete Current Features")
+        print("Enter a: Add More Features")
+        
+        choice = input().strip().lower()
+    
+        if choice == "d".lower():
+            delete_lab_features(lab)
+            print("Features Updated")
+            return
+        
+        if choice != "a".lower():
+            print("Invalid choice.")
+            return get_lab_features()
 
         print("Enter New Features. Type 'done' When Finished.")
 
@@ -208,7 +253,7 @@ def modify_lab():
             if feature:
                 new_features.add(feature)
 
-        lab.features = new_features
+        lab.features.update(new_features)
         print("Features Updated")
 
     elif choice == "4":
