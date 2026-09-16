@@ -1,5 +1,5 @@
 from scheduler.config import RoomConfig, TimeRange
-from src.config import rooms
+from config import rooms
 
 # Gets room name from user input, ensuring it's not empty and unique
 def get_room_name():
