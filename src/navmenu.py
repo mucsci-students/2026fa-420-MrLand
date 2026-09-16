@@ -5,6 +5,11 @@ from services.faculty_service import add_faculty, modify_faculty, delete_faculty
 from services.rooms_service import add_rooms, modify_rooms, delete_rooms, view_rooms
 from course import add_course, modify_course, delete_course, view_courses
 
+current_config = None
+config_name = None
+
+
+
 @dataclass(frozen=True)
 class Command:
 
@@ -57,29 +62,24 @@ def config():
         Command.parse("l|load", "load a configuration", load_get_name),
         Command.parse("h|home", "go to home page", home),
     ])
+def create();
+    name = input("Please enter a name for the configuration: ")
+    return config_dashboard()
+
 
 def load_get_name():
     file_name = input("Please enter the name of the configuration: ")
-    load_config(file_name)
-    return load()
+    current_config = load_config(file_name)
+    return config_dashboard()
 
 
-def create():
-    return Page("create", [
-        Command.parse("f|faculty", "add faculty", faculty),
-        Command.parse("c|courses", "add course", courses),
-        Command.parse("l|labs", "add lab", labs),
-        Command.parse("r|rooms", "add room", rooms),
-        Command.parse("h|home", "go to home page", home),
-    ])
-
-
-def load():
-    return Page("load", [
-        Command.parse("f|faculty", "load faculty", faculty),
+def config_dashboard():
+    return Page("Configuration Dashboard", [
+        Command.parse("f|faculty", "faculty", faculty),
         Command.parse("c|courses", "load course", courses),
         Command.parse("l|labs", "load lab", labs),
         Command.parse("r|rooms", "load room", rooms),
+        Command.parse("s|save", "save current config", config_save(current_config))
         Command.parse("h|home", "go to home page", home),
     ])
 
@@ -177,6 +177,8 @@ def print_menu(page: Page) -> None:
 
 def main():
     print("Type q to exit")
+
+    #current_config =
 
     current_page = home()
     history: list[Page] = []
