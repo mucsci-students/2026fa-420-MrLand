@@ -1,5 +1,5 @@
 from scheduler.config import LabConfig
-import re
+from config import *
 
 labs = []
 

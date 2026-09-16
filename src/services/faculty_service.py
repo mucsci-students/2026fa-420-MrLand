@@ -1,5 +1,5 @@
 from scheduler.config import FacultyConfig
-from src.config import faculty_members
+from config import *
 
 
 #getters to get faculty information from user input
@@ -167,8 +167,9 @@ def add_faculty():
         course_preferences=course_preferences,
         room_preferences=room_preferences,
         lab_preferences=lab_preferences,
-        mandatory_days=mandatory_days)
-    )
+        mandatory_days=mandatory_days))
+        print("Faculty member added successfully.")
+    
     except Exception as e:
         print(f"Error occurred while adding faculty member: {e}")
         print("Faculty member was not added.")
@@ -181,15 +182,23 @@ def add_faculty():
             add_faculty()
         else:
             return
-#modify a faculty member's information, with error handling for invalid input
-def modify_faculty():
+def  view_faculty_names():
     if not faculty_members:
         print("No faculty members found.")
-        return
+        return False
     print("FACULTY MEMBERS:")
     for i, faculty in enumerate(faculty_members, start=1):
         print(f"{i}. {faculty.name}")
-    index = int(input("Enter the number of the faculty member to modify: ")) - 1
+        return True
+#modify a faculty member's information, with error handling for invalid input
+def modify_faculty():
+    if (not view_faculty_names()):
+        return
+    try:
+        index = int(input("Enter the number of the faculty member to modify: ")) - 1
+    except ValueError:
+        print("Invalid input. Please enter a valid number.")
+        return modify_faculty()
     if 0 <= index < len(faculty_members):
         try:
             selected_faculty = faculty_members[index]
@@ -263,11 +272,12 @@ def view_faculty():
 
 #deletes a specified faculty member
 def delete_faculty():
-    if not faculty_members:
-        print("No faculty members found.")
+    view_faculty_names()
+    try:
+        index = int(input("Enter the number of the faculty member to delete: ")) - 1
+    except ValueError:
+        print("Invalid input. Please enter a valid number.")
         return
-    view_faculty()
-    index = int(input("Enter the number of the faculty member to delete: ")) - 1
     if 0 <= index < len(faculty_members):
         deleted_faculty = faculty_members.pop(index)
         print(f"Deleted faculty member: {deleted_faculty.name}")
