@@ -59,8 +59,8 @@ class TestCourse(unittest.TestCase):
         self.assertEqual(course_service.course_members[0].modality, "hybrid")
         self.assertEqual(course_service.course_members[0].room, ["Room A", "Room B"])
         self.assertEqual(course_service.course_members[0].lab, ["Lab 1"])
-        self.assertEqual(course_service.course_members[0].required_room_features, ["accessible"])
-        self.assertEqual(course_service.course_members[0].required_lab_features, ["gpu"])
+        self.assertEqual(course_service.course_members[0].required_room_features, {"accessible"})
+        self.assertEqual(course_service.course_members[0].required_lab_features, {"gpu"})
         self.assertEqual(course_service.course_members[0].reserve_room_during_lab, False)
         self.assertEqual(course_service.course_members[0].conflicts, [])
         self.assertEqual(course_service.course_members[0].faculty, ["Dr. Smith", "Dr. Johnson"])
@@ -320,7 +320,7 @@ class TestCourse(unittest.TestCase):
         with patch("builtins.input", return_value="1"):
             course_service.delete_course()
 
-        self.assertEqual(len(course_service.course_member), 0)
+        self.assertEqual(len(course_service.course_members), 0)
 
     @patch("builtins.input", side_effect=[
         "CS101",
