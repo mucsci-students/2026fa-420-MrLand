@@ -6,10 +6,10 @@ from scheduler.config import CombinedConfig, SchedulerConfig, TimeSlotConfig
 from scheduler.scheduler import Scheduler
 
 
-from faculty import faculty_members
+from services.faculty_service import faculty_members
 from services.course_service import course_members
-from room import room_members
-from lab import lab_members
+from services.rooms_service import room_members
+from services.lab_service import lab_members
 
 
 # Stores generated schedules so Micah's "display schedules" feature can read them.

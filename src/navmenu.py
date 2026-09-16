@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Callable, Optional
-from faculty import add_faculty, modify_faculty, delete_faculty, view_faculty
-
+from services.lab_service import add_lab, modify_lab, delete_lab, view_labs
+from services.faculty_service import add_faculty, modify_faculty, delete_faculty, view_faculty
+from services.rooms_service import add_rooms, modify_rooms, delete_rooms, view_rooms
 
 @dataclass(frozen=True)
 class Command:
@@ -97,14 +98,24 @@ def courses():
 def labs():
     return Page(
         "labs",
-        []
+        [
+            Command.parse("a|add", "add lab", add_lab),
+            Command.parse("m|modify", "modify lab", modify_lab),
+            Command.parse("d|delete", "delete lab", delete_lab),
+            Command.parse("v|view", "view lab", view_labs),
+            Command.parse("h|home", "go to home page", home),
+        ]
     )
 
 
 def rooms():
     return Page(
         "rooms",
-        []
+        [Command.parse("a|add", "add room", add_rooms),
+        Command.parse("m|modify", "modify room", modify_rooms),
+        Command.parse("d|delete", "delete room", delete_rooms),
+        Command.parse("v|view", "view room", view_rooms),
+        Command.parse("h|home", "go to home page", home)]
     )
 
 
