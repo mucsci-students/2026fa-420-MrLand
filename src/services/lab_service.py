@@ -41,6 +41,23 @@ def get_lab_capacity():
         print("Value Must Be An Integer")
         return get_lab_capacity()
 
+def delete_lab_features(features):
+    while True:
+        print("Enter Number of Feature To Delete, done to quit")
+        feature = input("==> ").strip()
+
+        if feature == 'done':
+            break
+
+        for number, feature in enumerate(labs, start = 1):
+            print(f"\n{number}. {feature.name}")
+
+        if feature:
+            features.remove(feature)
+
+    return features
+
+
 def get_lab_features():
     features = set()
     print("\nEnter Lab Features")
@@ -64,7 +81,6 @@ def validate_time_range(time):
         print(ValueError(f"'{time}' does not match HH:MM-HH:MM"))
         return get_lab_times()
         
-
     return True
 
 def get_lab_times():
@@ -135,8 +151,8 @@ def view_labs():
 
     print("\nLabs")
 
-    for i, lab in enumerate(labs, start = 1):
-        print(f"\n{i}. {lab.name}")
+    for number, lab in enumerate(labs, start = 1):
+        print(f"\n{number}. {lab.name}")
         print(f"Capacity: {lab.capacity}")
 
         if lab.features:
@@ -196,6 +212,17 @@ def modify_lab():
 
     elif choice == "3":
         new_features = set()
+        print("Enter d: Delete Current Features")
+        print("Enter a: Add More Features")
+        
+        choice = input().strip().lower()
+    
+        if choice == "d".lower():
+            return delete_lab_features()
+        
+        if choice != "a".lower():
+            print("Invalid choice.")
+            return get_lab_features()
 
         print("Enter New Features. Type 'done' When Finished.")
 
