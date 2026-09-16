@@ -3,6 +3,7 @@ from typing import Callable, Optional
 from services.lab_service import add_lab, modify_lab, delete_lab, view_labs
 from services.faculty_service import add_faculty, modify_faculty, delete_faculty, view_faculty
 from services.rooms_service import add_rooms, modify_rooms, delete_rooms, view_rooms
+from course import add_course, modify_course, delete_course, view_courses
 
 @dataclass(frozen=True)
 class Command:
@@ -92,7 +93,13 @@ def faculty():
 def courses():
     return Page(
         "courses",
-        []
+        [
+            Command.parse("a|add", "add course", add_course),
+            Command.parse("m|modify", "modify course", modify_course),
+            Command.parse("d|delete", "delete course", delete_course),
+            Command.parse("v|view", "view course", view_courses),
+            Command.parse("h|home", "go to home page", home),
+        ]
     )
 
 def labs():
