@@ -41,22 +41,38 @@ def get_lab_capacity():
         print("Value Must Be An Integer")
         return get_lab_capacity()
 
-def delete_lab_features():
+def delete_lab_features(lab):
     while True:
-        print("Enter Number of Feature To Delete, done to quit")
-        feature = input("==> ").strip()
+        if not lab.features:
+            print("No Features To Delete")
+            return
+        print("\nCurrent Features:")
 
-        if feature == 'done':
+        features = list(lab.features)
+        for number, feature in enumerate(features, start = 1):
+            print(f"{number}. {feature}")
+
+        print("Enter Number of Feature To Delete or 'done' to quit")
+
+        choice = input("==> ").strip()
+
+        if choice == 'done':
             break
 
-        for number, feature in enumerate(labs, start = 1):
-            print(f"\n{number}. {feature.name}")
+        try:
+            number = int(choice)
 
-        if feature:
-            labs.features.remove(feature)
+            if number < 1 or number > len(features):
+                print("Invalid Feature Number.")
+                continue
 
-    return labs.features
+            feature = features[number - 1]
+            lab.features.remove(feature)
 
+            print(f"Deleted '{feature}'.")
+
+        except ValueError:
+            print("Enter a valid feature number.")
 
 def get_lab_features():
     features = set()
@@ -218,7 +234,9 @@ def modify_lab():
         choice = input().strip().lower()
     
         if choice == "d".lower():
-            return delete_lab_features()
+            delete_lab_features(lab)
+            print("Features Updated")
+            return
         
         if choice != "a".lower():
             print("Invalid choice.")
