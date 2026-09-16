@@ -1,7 +1,7 @@
 from scheduler.config import RoomConfig, TimeRange
+from src.config import rooms
 
-rooms = []
-
+# Gets room name from user input, ensuring it's not empty and unique
 def get_room_name():
     while True:                 
         name = input("Enter room name: ").strip()
@@ -13,7 +13,7 @@ def get_room_name():
             continue
         return name
 
-
+# Gets room capacity from user input, ensuring it's a positive integer
 def get_room_capacity():
     while True:
         capacity_str = input("Enter room capacity: ").strip()
@@ -30,7 +30,7 @@ def get_room_capacity():
 
         return capacity
 
-
+# Gets room features from user input, allowing multiple features to be added
 def get_room_features():
     features = []
 
@@ -45,7 +45,7 @@ def get_room_features():
 
     return features
 
-
+# Gets room availability from user input, ensuring valid day and time range formats
 def get_room_availability():
     availability = {}
     valid_days = ["MON", "TUE", "WED", "THU", "FRI"]
@@ -84,7 +84,7 @@ def get_room_availability():
 
     return availability
 
-
+# Add rooms function that collects room details and appends a new RoomConfig to the rooms list
 def add_rooms():
     try:
         room = RoomConfig(
@@ -101,7 +101,7 @@ def add_rooms():
         print(f"Room validation failed: {exc}")
         return None
 
-
+# View rooms function that displays all rooms and their details
 def view_rooms():
     if not rooms:
         print("No rooms found.")
@@ -114,7 +114,7 @@ def view_rooms():
         print(f"   Features: {room.features}")
         print(f"   Availability: {room.times}")
 
-
+# Modify rooms function that allows the user to select a room and modify its details
 def modify_rooms():
     if not rooms:
         print("No rooms found.")
@@ -168,7 +168,7 @@ def modify_rooms():
         print(f"Update failed: {exc}")
         print("Previous valid room data was restored.")
 
-
+# Delete rooms function that allows the user to select a room and delete it from the rooms list
 def delete_rooms():
     if not rooms:
         print("No rooms found.")
