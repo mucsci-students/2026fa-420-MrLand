@@ -94,8 +94,8 @@ def validate_time_range(time):
     pattern = r"^([0-1][0-9]|2[0-3]):[0-5][0-9]-([0-1][0-9]|2[0-3]):[0-5][0-9]$"
 
     if not re.match(pattern, time):
-        print(ValueError(f"'{time}' does not match HH:MM-HH:MM"))
-        return get_lab_times()
+        print(f"'{time}' does not match HH:MM-HH:MM")
+        return False
         
     return True
 
@@ -129,7 +129,7 @@ def get_lab_times():
                 break
 
             if not validate_time_range(time_range):
-                return get_lab_times()
+                continue
 
             if time_range:
                 ranges.append(time_range)
