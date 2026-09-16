@@ -6,7 +6,7 @@ from scheduler.config import CourseConfig
 
 
 # list to hold the courses
-courses = []
+course_members = []
 
 # method to add a course to the list of courses
 # prompts for data and then uses CourseConfig to create the object
