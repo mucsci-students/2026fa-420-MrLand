@@ -5,6 +5,10 @@ from services.faculty_service import add_faculty, modify_faculty, delete_faculty
 from services.rooms_service import add_rooms, modify_rooms, delete_rooms, view_rooms
 from course import add_course, modify_course, delete_course, view_courses
 from run_scheduler import run_scheduler
+import services.config_service as config_service
+
+current_config = None
+config_name = None
 
 @dataclass(frozen=True)
 class Command:
@@ -13,17 +17,13 @@ class Command:
     description: str
     action: Callable
 
-    # reads input as "first letter of user input" and "full word of user input"
     @classmethod
     def parse(cls, spec: str, description: str, action: Callable) -> "Command":
         return cls(tuple(spec.split("|")), description, action)
 
-    # checks whether input is valid
     def matches(self, user_input: str) -> bool:
         return user_input in self.aliases
 
-    # displays options for user input as (letter)word 
-    # ex: c(onfig)
     def display(self) -> str:
         if len(self.aliases) == 1:
             return self.aliases[0]
@@ -59,28 +59,47 @@ def config():
         Command.parse("h|home", "go to home page", home),
     ])
 
-def load_get_name():
-    file_name = input("Please enter the name of the configuration: ")
-    load_config(file_name)
-    return load()
-
 
 def create():
-    return Page("create", [
-        Command.parse("f|faculty", "add faculty", faculty),
-        Command.parse("c|courses", "add course", courses),
-        Command.parse("l|labs", "add lab", labs),
-        Command.parse("r|rooms", "add room", rooms),
-        Command.parse("h|home", "go to home page", home),
-    ])
+    global current_config, config_name
+
+    name = input("Please enter a name for the configuration: ")
+    if not name.strip():
+        print("Configuration name cannot be empty.")
+        return create()
+
+    current_config = config_service.create_draft_config()
+    config_name = name
+    print(f"Configuration '{name}' created. Add rooms, courses, and faculty before saving.")
+    return config_dashboard()
 
 
-def load():
-    return Page("load", [
-        Command.parse("f|faculty", "load faculty", faculty),
+def load_get_name():
+    global current_config, config_name
+
+    file_name = input("Please enter the name of the configuration: ")
+    try:
+        current_config = config_service.load_config(file_name)
+        config_name = file_name
+        print(f"Configuration '{file_name}' loaded successfully.")
+    except FileNotFoundError as e:
+        print(e)
+        return config()
+
+    return config_dashboard()
+
+
+def save_current_config():
+    config_service.save_config(current_config, config_name)
+    return None
+
+def config_dashboard():
+    return Page("Configuration Dashboard", [
+        Command.parse("f|faculty", "faculty", faculty),
         Command.parse("c|courses", "load course", courses),
         Command.parse("l|labs", "load lab", labs),
         Command.parse("r|rooms", "load room", rooms),
+        Command.parse("s|save", "save current config", save_current_config),
         Command.parse("h|home", "go to home page", home),
     ])
 
@@ -88,10 +107,10 @@ def load():
 def faculty():
     return Page(
         "faculty",
-        [Command.parse("a|add", "add faculty", add_faculty),
-        Command.parse("m|modify", "modify faculty", modify_faculty),
-        Command.parse("d|delete", "delete faculty", delete_faculty),
-        Command.parse("v|view", "view faculty", view_faculty),
+        [Command.parse("a|add", "add faculty", lambda: add_faculty(current_config.config.faculty)),
+        Command.parse("m|modify", "modify faculty", lambda: modify_faculty(current_config.config.faculty)),
+        Command.parse("d|delete", "delete faculty", lambda: delete_faculty(current_config.config.faculty)),
+        Command.parse("v|view", "view faculty", lambda: view_faculty(current_config.config.faculty)),
         Command.parse("h|home", "go to home page", home)]
     )
 
@@ -112,10 +131,10 @@ def labs():
     return Page(
         "labs",
         [
-            Command.parse("a|add", "add lab", add_lab),
-            Command.parse("m|modify", "modify lab", modify_lab),
-            Command.parse("d|delete", "delete lab", delete_lab),
-            Command.parse("v|view", "view lab", view_labs),
+            Command.parse("a|add", "add lab", lambda: add_lab(current_config.config.labs)),
+            Command.parse("m|modify", "modify lab", lambda: modify_lab(current_config.config.labs)),
+            Command.parse("d|delete", "delete lab", lambda: delete_lab(current_config.config.labs)),
+            Command.parse("v|view", "view lab", lambda: view_labs(current_config.config.labs)),
             Command.parse("h|home", "go to home page", home),
         ]
     )
@@ -124,10 +143,10 @@ def labs():
 def rooms():
     return Page(
         "rooms",
-        [Command.parse("a|add", "add room", add_rooms),
-        Command.parse("m|modify", "modify room", modify_rooms),
-        Command.parse("d|delete", "delete room", delete_rooms),
-        Command.parse("v|view", "view room", view_rooms),
+        [Command.parse("a|add", "add room", lambda: add_rooms(current_config.config.rooms)),
+        Command.parse("m|modify", "modify room", lambda: modify_rooms(current_config.config.rooms)),
+        Command.parse("d|delete", "delete room", lambda: delete_rooms(current_config.config.rooms)),
+        Command.parse("v|view", "view room", lambda: view_rooms(current_config.config.rooms)),
         Command.parse("h|home", "go to home page", home)]
     )
 
@@ -141,7 +160,7 @@ def schedule():
         ]
     )
 
-# Global commands 
+# Global commands
 
 def go_back(current_page: Page, history: list[Page]) -> Page:
     if history:
@@ -189,7 +208,6 @@ def main():
         print_menu(current_page)
         user_input = input("\n> ").strip().lower()
 
-        # check if user input requires global command
         global_command = find_global(user_input)
         if global_command is not None:
             result = global_command.action(current_page, history)
@@ -198,14 +216,11 @@ def main():
             current_page = result
             continue
 
-        # check for invalid commands
         command = current_page.find(user_input)
         if command is None:
             print("Invalid command.")
             continue
 
-        # navigate pages
-        # tracks history and current page for back and command options
         history.append(current_page)
 
         result = command.action()
