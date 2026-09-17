@@ -5,6 +5,7 @@ from services.faculty_service import add_faculty, modify_faculty, delete_faculty
 from services.rooms_service import add_rooms, modify_rooms, delete_rooms, view_rooms
 from course import add_course, modify_course, delete_course, view_courses
 from run_scheduler import run_scheduler
+from config_builder import finalize_and_save_config, load_config
 
 @dataclass(frozen=True)
 class Command:
@@ -71,6 +72,7 @@ def create():
         Command.parse("c|courses", "add course", courses),
         Command.parse("l|labs", "add lab", labs),
         Command.parse("r|rooms", "add room", rooms),
+        Command.parse("s|save", "save this configuration", finalize_and_save_config),
         Command.parse("h|home", "go to home page", home),
     ])
 
@@ -81,6 +83,7 @@ def load():
         Command.parse("c|courses", "load course", courses),
         Command.parse("l|labs", "load lab", labs),
         Command.parse("r|rooms", "load room", rooms),
+        Command.parse("s|save", "save changes to this configuration", finalize_and_save_config),
         Command.parse("h|home", "go to home page", home),
     ])
 
