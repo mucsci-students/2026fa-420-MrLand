@@ -1,45 +1,49 @@
-from scheduler.config import LabConfig
 import re
 
-labs = []
+from scheduler.config import LabConfig
 
-# returns the lab if exists
-def find_lab(labs, name):
+# returns the lab if it exists, else None
+def find_lab(labs, name, exclude=None):
     for lab in labs:
-        if lab.name == name:
+        if lab is exclude:
+            continue
+        if lab.name.lower() == name.lower():
             return lab
-        return None
-    
-def lab_exists(labs, name):
-    return find_lab(labs, name) is not None
+    return None
+
+def lab_exists(labs, name, exclude=None):
+    return find_lab(labs, name, exclude=exclude) is not None
 
 
-def get_lab_name():
-    name = input("Enter Lab Name: ").strip().lower()
+def get_lab_name(labs, exclude=None):
+    while True:
+        name = input("Enter Lab Name: ").strip()
 
-    if not name:
-        print("Lab Name Cannot Be Blank")
-        return get_lab_name()
+        if not name:
+            print("Lab Name Cannot Be Blank")
+            continue
 
-    if find_lab(labs, name) is not None:
-        print("Lab Name Exists Already")
-        return get_lab_name()
+        if find_lab(labs, name, exclude=exclude) is not None:
+            print("Lab Name Exists Already")
+            continue
 
-    return name
+        return name
 
 def get_lab_capacity():
-    capacity_input = input("Enter Lab Capacity: ").strip()
+    while True:
+        capacity_input = input("Enter Lab Capacity: ").strip()
 
-    try:
-        capacity = int(capacity_input)
+        try:
+            capacity = int(capacity_input)
+        except ValueError:
+            print("Value Must Be An Integer")
+            continue
 
         if capacity <= 0:
             print("Capacity Must Be Greater Than 0")
-            return get_lab_capacity()
+            continue
+
         return capacity
-    except ValueError:
-        print("Value Must Be An Integer")
-        return get_lab_capacity()
 
 def delete_lab_features(lab):
     while True:
@@ -49,7 +53,7 @@ def delete_lab_features(lab):
         print("\nCurrent Features:")
 
         features = list(lab.features)
-        for number, feature in enumerate(features, start = 1):
+        for number, feature in enumerate(features, start=1):
             print(f"{number}. {feature}")
 
         print("Enter Number of Feature To Delete or 'done' to quit")
@@ -81,11 +85,11 @@ def get_lab_features():
 
     while True:
         feature = input("Feature: ").strip()
-        
+
         if feature.lower() == "done":
             break
-        
-        if feature: 
+
+        if feature:
             features.add(feature)
 
     return features
@@ -96,24 +100,26 @@ def validate_time_range(time):
     if not re.match(pattern, time):
         print(f"'{time}' does not match HH:MM-HH:MM")
         return False
-        
+
     return True
 
 def get_lab_times():
-    print("Enter n: Unrestricted Availability")
-    print("Enter y: Add Available Times")
+    while True:
+        print("Enter n: Unrestricted Availability")
+        print("Enter y: Add Available Times")
 
-    choice = input().strip().lower()
+        choice = input().strip().lower()
 
-    if choice == "n".lower():
-        return None
+        if choice == "n":
+            return None
 
-    if choice != "y".lower():
-        print("Invalid choice.")
-        return get_lab_times()
+        if choice != "y":
+            print("Invalid choice.")
+            continue
+
+        break
 
     times = {}
-
     days = ["MON", "TUE", "WED", "THU", "FRI"]
 
     for day in days:
@@ -131,8 +137,7 @@ def get_lab_times():
             if not validate_time_range(time_range):
                 continue
 
-            if time_range:
-                ranges.append(time_range)
+            ranges.append(time_range)
 
         if ranges:
             times[day] = ranges
@@ -140,18 +145,18 @@ def get_lab_times():
     return times
 
 
-def add_lab():
-    name = get_lab_name()
+def add_lab(labs):
+    name = get_lab_name(labs)
     capacity = get_lab_capacity()
     features = get_lab_features()
     times = get_lab_times()
 
-    try: 
+    try:
         lab = LabConfig(
-            name = name,
-            capacity = capacity,
-            features = features,
-            times = times,
+            name=name,
+            capacity=capacity,
+            features=features,
+            times=times,
         )
 
         labs.append(lab)
@@ -160,14 +165,14 @@ def add_lab():
     except Exception as error:
         print(f"Failed To Create Lab: {error}")
 
-def view_labs():
+def view_labs(labs):
     if not labs:
         print("\nNo Lab Found")
         return
 
     print("\nLabs")
 
-    for number, lab in enumerate(labs, start = 1):
+    for number, lab in enumerate(labs, start=1):
         print(f"\n{number}. {lab.name}")
         print(f"Capacity: {lab.capacity}")
 
@@ -184,29 +189,27 @@ def view_labs():
             for day, ranges in lab.times.items():
                 print(f" {day}: {ranges}")
 
-def modify_lab():
+def modify_lab(labs):
     if not labs:
         print("\nNo labs found.")
         return
 
-    view_labs()
+    view_labs(labs)
 
     try:
-        index = int(
-            input("\nEnter Number Of Lab To Modify: ")
-        ) - 1
+        index = int(input("\nEnter Number Of Lab To Modify: ")) - 1
     except ValueError:
         print("Enter Valid Number.")
-        return 
+        return
 
     if not 0 <= index < len(labs):
         print("Invalid Selection.")
         return
 
     lab = labs[index]
+    old_lab = lab.model_dump()
 
     print(f"\nModifying lab: {lab.name}")
-
     print("1. Name")
     print("2. Capacity")
     print("3. Features")
@@ -215,71 +218,70 @@ def modify_lab():
 
     choice = input("Choose What To Modify: ").strip()
 
-    if choice == "1":
-        new_name = get_lab_name()
+    try:
+        if choice == "1":
+            lab.name = get_lab_name(labs, exclude=lab)
+            print(f"Name Updated to '{lab.name}'")
 
-        lab.name = new_name
-        print(f"Name Updated to '{lab.name}'")
-        
-    elif choice == "2":
-        new_capacity = get_lab_capacity()
-        lab.capacity = new_capacity
-        print(f"Capacity Updated to '{lab.capacity}'")
+        elif choice == "2":
+            lab.capacity = get_lab_capacity()
+            print(f"Capacity Updated to '{lab.capacity}'")
 
-    elif choice == "3":
-        new_features = set()
-        print("Enter d: Delete Current Features")
-        print("Enter a: Add More Features")
-        
-        choice = input().strip().lower()
-    
-        if choice == "d".lower():
-            delete_lab_features(lab)
+        elif choice == "3":
+            print("Enter d: Delete Current Features")
+            print("Enter a: Add More Features")
+
+            feature_choice = input().strip().lower()
+
+            if feature_choice == "d":
+                delete_lab_features(lab)
+                print("Features Updated")
+                return
+
+            if feature_choice != "a":
+                print("Invalid choice. No changes made.")
+                return
+
+            print("Enter New Features. Type 'done' When Finished.")
+            new_features = set()
+
+            while True:
+                feature = input("Feature: ").strip()
+
+                if feature.lower() == "done":
+                    break
+
+                if feature:
+                    new_features.add(feature)
+
+            lab.features = lab.features | new_features
             print("Features Updated")
-            return
-        
-        if choice != "a".lower():
-            print("Invalid choice.")
-            return get_lab_features()
 
-        print("Enter New Features. Type 'done' When Finished.")
+        elif choice == "4":
+            lab.times = get_lab_times()
+            print("Availability Updated")
 
-        while True:
-            feature = input("Feature: ").strip()
+        elif choice == "5":
+            print("Modification Cancelled.")
 
-            if feature.lower() == "done":
-                break
+        else:
+            print("Invalid Option.")
 
-            if feature:
-                new_features.add(feature)
-
-        lab.features.update(new_features)
-        print("Features Updated")
-
-    elif choice == "4":
-        new_times = get_lab_times()
-        lab.times = new_times
-        print("Availability Updated")
-
-    elif choice == "5":
-        print("Modification Cancelled.")
-
-    else:
-        print("Invalid Option.")
+    except Exception as error:
+        labs[index] = type(lab).model_validate(old_lab)
+        print(f"Update failed: {error}")
+        print("Previous valid lab data was restored.")
 
 
-def delete_lab():
+def delete_lab(labs):
     if not labs:
         print("\nNo Labs Found.")
         return
 
-    view_labs()
+    view_labs(labs)
 
-    # test for validity
     try:
-        index = int(
-            input("\nEnter Number of Lab To Delete: ")
-        ) - 1
+        index = int(input("\nEnter Number of Lab To Delete: ")) - 1
     except ValueError:
         print("Enter Valid Number.")
         return
@@ -288,19 +290,12 @@ def delete_lab():
         print("Invalid Selection.")
         return
 
-    # delete confirmation 
-
     lab = labs[index]
 
-    confirm = input(
-        f"Delete '{lab.name}'? (y/n): "
-    ).strip().lower()
+    confirm = input(f"Delete '{lab.name}'? (y/n): ").strip().lower()
 
     if confirm == "y":
         labs.pop(index)
         print(f"Deleted '{lab.name}'.")
     else:
         print("Deletion Cancelled.")
-
-
-        
