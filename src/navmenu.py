@@ -7,6 +7,11 @@ from course import add_course, modify_course, delete_course, view_courses
 from run_scheduler import run_scheduler
 from config_builder import finalize_and_save_config, load_config, time_config, save_changes_config
 
+current_config = None
+config_name = None
+
+
+
 @dataclass(frozen=True)
 class Command:
 
@@ -59,32 +64,24 @@ def config():
         Command.parse("l|load", "load a configuration", load_get_name),
         Command.parse("h|home", "go to home page", home),
     ])
+def create();
+    name = input("Please enter a name for the configuration: ")
+    return config_dashboard()
+
 
 def load_get_name():
     file_name = input("Please enter the name of the configuration: ")
-    load_config(file_name)
-    return load()
+    current_config = load_config(file_name)
+    return config_dashboard()
 
 
-def create():
-    return Page("create", [
-        Command.parse("f|faculty", "add faculty", faculty),
-        Command.parse("c|courses", "add course", courses),
-        Command.parse("l|labs", "add lab", labs),
-        Command.parse("r|rooms", "add room", rooms),
-        Command.parse("s|save", "save this configuration", finalize_and_save_config),
-        Command.parse("h|home", "go to home page", home),
-    ])
-
-
-def load():
-    return Page("load", [
-        Command.parse("f|faculty", "load faculty", faculty),
+def config_dashboard():
+    return Page("Configuration Dashboard", [
+        Command.parse("f|faculty", "faculty", faculty),
         Command.parse("c|courses", "load course", courses),
         Command.parse("l|labs", "load lab", labs),
         Command.parse("r|rooms", "load room", rooms),
-        Command.parse("t|time", "update the time slots for this configuration", time_config),
-        Command.parse("s|save", "save changes to this configuration", save_changes_config),
+        Command.parse("s|save", "save current config", config_save(current_config))
         Command.parse("h|home", "go to home page", home),
     ])
 
@@ -185,6 +182,8 @@ def print_menu(page: Page) -> None:
 
 def main():
     print("Type q to exit")
+
+    #current_config =
 
     current_page = home()
     history: list[Page] = []

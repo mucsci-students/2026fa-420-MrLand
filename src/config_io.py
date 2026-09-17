@@ -6,6 +6,7 @@ from scheduler.config import CombinedConfig
 filepath = os.path.join("src", "configs")
 
 
+
 def _config_path(config_name: str) -> str:
     return os.path.join(filepath, f"{config_name}.json")
 
