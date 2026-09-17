@@ -1,14 +1,17 @@
 from scheduler.config import RoomConfig, TimeRange
-from config import *
 
 # Gets room name from user input, ensuring it's not empty and unique
-def get_room_name():
-    while True:                 
+def get_room_name(rooms, exclude=None):
+    while True:
         name = input("Enter room name: ").strip()
         if not name:
             print("Room name cannot be empty. Please try again.")
             continue
-        if any(room.name.lower() == name.lower() for room in rooms):
+        if any(
+            room.name.lower() == name.lower()
+            for room in rooms
+            if room is not exclude
+        ):
             print("Room name already exists. Please try again.")
             continue
         return name
@@ -77,7 +80,7 @@ def get_room_availability():
         except (ValueError, TypeError):
             print("Invalid time range. Use HH:MM-HH:MM with end after start.")
             continue
-        
+
         if day not in availability:
             availability[day] = []
         availability[day].append(validated_range)
@@ -85,10 +88,10 @@ def get_room_availability():
     return availability
 
 # Add rooms function that collects room details and appends a new RoomConfig to the rooms list
-def add_rooms():
+def add_rooms(rooms):
     try:
         room = RoomConfig(
-            name=get_room_name(),
+            name=get_room_name(rooms),
             capacity=get_room_capacity(),
             features=get_room_features(),
             times=get_room_availability(),
@@ -102,7 +105,7 @@ def add_rooms():
         return None
 
 # View rooms function that displays all rooms and their details
-def view_rooms():
+def view_rooms(rooms):
     if not rooms:
         print("No rooms found.")
         return
@@ -115,12 +118,12 @@ def view_rooms():
         print(f"   Availability: {room.times}")
 
 # Modify rooms function that allows the user to select a room and modify its details
-def modify_rooms():
+def modify_rooms(rooms):
     if not rooms:
         print("No rooms found.")
         return
 
-    view_rooms()
+    view_rooms(rooms)
     try:
         index = int(input("Enter the room number to modify: ").strip()) - 1
     except ValueError:
@@ -149,7 +152,7 @@ def modify_rooms():
 
     try:
         if choice == 1:
-            room.name = get_room_name()
+            room.name = get_room_name(rooms, exclude=room)
         elif choice == 2:
             room.capacity = get_room_capacity()
         elif choice == 3:
@@ -169,12 +172,12 @@ def modify_rooms():
         print("Previous valid room data was restored.")
 
 # Delete rooms function that allows the user to select a room and delete it from the rooms list
-def delete_rooms():
+def delete_rooms(rooms):
     if not rooms:
         print("No rooms found.")
         return
 
-    view_rooms()
+    view_rooms(rooms)
     try:
         index = int(input("Enter the room number to delete: ").strip()) - 1
     except ValueError:

@@ -6,13 +6,12 @@ from scheduler.config import CombinedConfig
 filepath = os.path.join("src", "configs")
 
 
-
 def _config_path(config_name: str) -> str:
     return os.path.join(filepath, f"{config_name}.json")
 
 
-def config_save(combined_config: CombinedConfig, config_name: str) -> None:
-    """Save CombinedConfig Object to JSON file"""
+def write_config_file(combined_config: CombinedConfig, config_name: str) -> None:
+    """Write a CombinedConfig object to a JSON file."""
     os.makedirs(filepath, exist_ok=True)
     path = _config_path(config_name)
 
@@ -20,8 +19,8 @@ def config_save(combined_config: CombinedConfig, config_name: str) -> None:
         config_file.write(combined_config.model_dump_json(indent=4))
 
 
-def config_load(config_name: str) -> CombinedConfig:
-    """Load CombinedConfig Object from JSON file"""
+def read_config_file(config_name: str) -> CombinedConfig:
+    """Read a CombinedConfig object from a JSON file."""
     path = _config_path(config_name)
 
     if not os.path.isfile(path):
@@ -30,11 +29,11 @@ def config_load(config_name: str) -> CombinedConfig:
     return configuration.load_config_from_file(CombinedConfig, path)
 
 
-def config_print(combined_config: CombinedConfig) -> None:
-    """Print CombinedConfig Object"""
+def print_config(combined_config: CombinedConfig) -> None:
+    """Print a CombinedConfig object as formatted JSON."""
     print(combined_config.model_dump_json(indent=4))
 
 
-def config_exists(config_name: str) -> bool:
-    """Check if CombinedConfig Object exists in JSON file"""
+def config_file_exists(config_name: str) -> bool:
+    """Check whether a config JSON file exists on disk."""
     return os.path.isfile(_config_path(config_name))
