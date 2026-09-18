@@ -94,6 +94,11 @@
                     "start": "09:00",
                     "spacing": 60,
                     "end": "12:00"
+                },
+                {
+                    "start": "11:20",
+                    "spacing": 60,
+                    "end": "12:20"
                 }
             ]
         },
@@ -110,6 +115,20 @@
                     }
                 ],
                 "disabled": false,
+                "start_time": null
+            },
+            {
+                "credits": 3,
+                "meetings": [
+                    {
+                        "day": "MON",
+                        "start_time": "12:00",
+                        "duration": 60,
+                        "lab": false,
+                        "delivery": "in_person"
+                    }
+                ],
+                "disabled": true,
                 "start_time": null
             }
         ],
