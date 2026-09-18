@@ -1,26 +1,22 @@
-# run_scheduler.py
-
 from services.config_service import load_config as config_load, config_exists
 from scheduler.scheduler import Scheduler
-from config_state import state
+from schedule_result import ScheduleResult
 
 
 def confirm_yes_no(prompt):
     """Ask a yes/no question, looping until a valid answer is given."""
-    answer = input(f"{prompt} (yes/no): ").strip().lower()
-    if answer in ("yes", "y"):
-        return True
-    if answer in ("no", "n"):
-        return False
-    print("Please enter yes or no.")
-    return confirm_yes_no(prompt)
+    while True:
+        answer = input(f"{prompt} (yes/no): ").strip().lower()
+        if answer in ("yes", "y"):
+            return True
+        if answer in ("no", "n"):
+            return False
+        print("Please enter yes or no.")
 
 
-# ---- actions -------------------------------------------------------------
-
-
-def run_scheduler():
-    """Load a saved configuration by name and run the scheduler on it."""
+def run_scheduler(schedules):
+    """Load a saved configuration by name and run the scheduler on it,
+    generating up to config.limit schedules."""
     config_name = input("Enter the name of the configuration to run: ").strip()
 
     if not config_exists(config_name):
@@ -39,9 +35,13 @@ def run_scheduler():
         print(f"Error occurred while starting the scheduler: {e}")
         return
 
-    schedule = next(sched.get_models(), None)
+    generated = []
+    for schedule in sched.get_models():
+        generated.append(schedule)
+        if len(generated) >= full_config.limit:
+            break
 
-    if schedule is None:
+    if not generated:
         print("No valid schedule could be generated for this configuration.")
         diagnosis = sched.diagnose()
         print(f"Status: {diagnosis.status}")
@@ -51,10 +51,8 @@ def run_scheduler():
             print(f"  Suggestion: {suggestion.message}")
         return
 
-    state.schedules.append(schedule)
-    audit = sched.audit_schedule(schedule)
+    valid_count = sum(1 for schedule in generated if sched.audit_schedule(schedule).is_valid)
 
-    print("Scheduler ran successfully.")
-    print(f"Schedule valid: {audit.is_valid}")
-    for instance in schedule:
-        print(f"  {instance.course}: {instance.faculty}, room={instance.room}, lab={instance.lab}")
+    schedules.extend(ScheduleResult(config_name=config_name, schedule=s) for s in generated)
+
+    print(f"Scheduler ran successfully. Generated {len(generated)} schedule(s), {valid_count} valid.")
