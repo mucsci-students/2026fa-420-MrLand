@@ -4,6 +4,7 @@ from services.lab_service import add_lab, modify_lab, delete_lab, view_labs
 from services.faculty_service import add_faculty, modify_faculty, delete_faculty, view_faculty
 from services.rooms_service import add_rooms, modify_rooms, delete_rooms, view_rooms
 from course import add_course, modify_course, delete_course, view_courses
+from run_scheduler import run_scheduler
 from services.time_block_service import add_time_block, modify_time_block, delete_time_block, view_time_blocks
 from services.class_pattern_service import add_class_pattern, modify_class_pattern, delete_class_pattern, view_class_patterns, add_meeting, modify_meeting, view_meetings, delete_meeting
 import services.config_service as config_service
@@ -183,7 +184,10 @@ def class_patterns():
 def schedule():
     return Page(
         "schedule",
-        []
+        [
+            Command.parse("r|run", "run the scheduler", run_scheduler),
+            Command.parse("h|home", "go to home page", home),
+        ]
     )
 
 # Global commands
