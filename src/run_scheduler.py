@@ -2,9 +2,7 @@
 
 from services.config_service import load_config as config_load, config_exists
 from scheduler.scheduler import Scheduler
-
-# Stores generated schedules so "display schedules" feature can read them.
-generated_schedules = []
+from config_state import state
 
 
 def confirm_yes_no(prompt):
@@ -53,21 +51,10 @@ def run_scheduler():
             print(f"  Suggestion: {suggestion.message}")
         return
 
-    generated_schedules.append(schedule)
+    state.schedules.append(schedule)
     audit = sched.audit_schedule(schedule)
 
     print("Scheduler ran successfully.")
     print(f"Schedule valid: {audit.is_valid}")
     for instance in schedule:
         print(f"  {instance.course}: {instance.faculty}, room={instance.room}, lab={instance.lab}")
-
-
-def view_schedules():
-    """Print all schedules generated so far."""
-    if not generated_schedules:
-        print("Configuration has no saved schedules")
-        return
-    for i, schedule in enumerate(generated_schedules, start=1):
-        print(f"\nSchedule {i}:")
-        for instance in schedule:
-            print(f"  {instance.course}: {instance.faculty}, room={instance.room}, lab={instance.lab}")
