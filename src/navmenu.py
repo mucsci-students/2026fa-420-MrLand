@@ -3,6 +3,13 @@ from typing import Callable, Optional
 from services.lab_service import add_lab, modify_lab, delete_lab, view_labs
 from services.faculty_service import add_faculty, modify_faculty, delete_faculty, view_faculty
 from services.rooms_service import add_rooms, modify_rooms, delete_rooms, view_rooms
+from course import add_course, modify_course, delete_course, view_courses
+from services.time_block_service import add_time_block, modify_time_block, delete_time_block, view_time_blocks
+from services.class_pattern_service import add_class_pattern, modify_class_pattern, delete_class_pattern, view_class_patterns, add_meeting, modify_meeting, view_meetings, delete_meeting
+import services.config_service as config_service
+
+current_config = None
+config_name = None
 
 @dataclass(frozen=True)
 class Command:
@@ -11,17 +18,13 @@ class Command:
     description: str
     action: Callable
 
-    # reads input as "first letter of user input" and "full word of user input"
     @classmethod
     def parse(cls, spec: str, description: str, action: Callable) -> "Command":
         return cls(tuple(spec.split("|")), description, action)
 
-    # checks whether input is valid
     def matches(self, user_input: str) -> bool:
         return user_input in self.aliases
 
-    # displays options for user input as (letter)word 
-    # ex: c(onfig)
     def display(self) -> str:
         if len(self.aliases) == 1:
             return self.aliases[0]
@@ -53,27 +56,53 @@ def home():
 def config():
     return Page("config", [
         Command.parse("c|create", "create new configuration", create),
-        Command.parse("l|load", "load a configuration", load),
+        Command.parse("l|load", "load a configuration", load_get_name),
         Command.parse("h|home", "go to home page", home),
     ])
 
 
 def create():
-    return Page("create", [
-        Command.parse("f|faculty", "add faculty", faculty),
-        Command.parse("c|courses", "add course", courses),
-        Command.parse("l|labs", "add lab", labs),
-        Command.parse("r|rooms", "add room", rooms),
-        Command.parse("h|home", "go to home page", home),
-    ])
+    global current_config, config_name
+
+    name = input("Please enter a name for the configuration: ")
+    if not name.strip():
+        print("Configuration name cannot be empty.")
+        return create()
+
+    current_config = config_service.create_draft_config()
+    config_name = name
+    print(f"Configuration '{name}' created. Add rooms, courses, and faculty before saving.")
+    return config_dashboard()
 
 
-def load():
-    return Page("load", [
-        Command.parse("f|faculty", "load faculty", faculty),
+def load_get_name():
+    global current_config, config_name
+
+    file_name = input("Please enter the name of the configuration: ")
+    try:
+        current_config = config_service.load_config(file_name)
+        config_name = file_name
+        print(f"Configuration '{file_name}' loaded successfully.")
+    except FileNotFoundError as e:
+        print(e)
+        return config()
+
+    return config_dashboard()
+
+
+def save_current_config():
+    config_service.save_config(current_config, config_name)
+    return None
+
+def config_dashboard():
+    return Page("Configuration Dashboard", [
+        Command.parse("f|faculty", "faculty", faculty),
         Command.parse("c|courses", "load course", courses),
         Command.parse("l|labs", "load lab", labs),
         Command.parse("r|rooms", "load room", rooms),
+        Command.parse("t|time slots", "time slots", time_slots),
+        Command.parse("p|class patterns", "class patterns", class_patterns),
+        Command.parse("s|save", "save current config", save_current_config),
         Command.parse("h|home", "go to home page", home),
     ])
 
@@ -81,10 +110,10 @@ def load():
 def faculty():
     return Page(
         "faculty",
-        [Command.parse("a|add", "add faculty", add_faculty),
-        Command.parse("m|modify", "modify faculty", modify_faculty),
-        Command.parse("d|delete", "delete faculty", delete_faculty),
-        Command.parse("v|view", "view faculty", view_faculty),
+        [Command.parse("a|add", "add faculty", lambda: add_faculty(current_config.config.faculty)),
+        Command.parse("m|modify", "modify faculty", lambda: modify_faculty(current_config.config.faculty)),
+        Command.parse("d|delete", "delete faculty", lambda: delete_faculty(current_config.config.faculty)),
+        Command.parse("v|view", "view faculty", lambda: view_faculty(current_config.config.faculty)),
         Command.parse("h|home", "go to home page", home)]
     )
 
@@ -92,17 +121,23 @@ def faculty():
 def courses():
     return Page(
         "courses",
-        []
+        [
+            Command.parse("a|add", "add course", add_course),
+            Command.parse("m|modify", "modify course", modify_course),
+            Command.parse("d|delete", "delete course", delete_course),
+            Command.parse("v|view", "view course", view_courses),
+            Command.parse("h|home", "go to home page", home),
+        ]
     )
 
 def labs():
     return Page(
         "labs",
         [
-            Command.parse("a|add", "add lab", add_lab),
-            Command.parse("m|modify", "modify lab", modify_lab),
-            Command.parse("d|delete", "delete lab", delete_lab),
-            Command.parse("v|view", "view lab", view_labs),
+            Command.parse("a|add", "add lab", lambda: add_lab(current_config.config.labs)),
+            Command.parse("m|modify", "modify lab", lambda: modify_lab(current_config.config.labs)),
+            Command.parse("d|delete", "delete lab", lambda: delete_lab(current_config.config.labs)),
+            Command.parse("v|view", "view lab", lambda: view_labs(current_config.config.labs)),
             Command.parse("h|home", "go to home page", home),
         ]
     )
@@ -111,11 +146,37 @@ def labs():
 def rooms():
     return Page(
         "rooms",
-        [Command.parse("a|add", "add room", add_rooms),
-        Command.parse("m|modify", "modify room", modify_rooms),
-        Command.parse("d|delete", "delete room", delete_rooms),
-        Command.parse("v|view", "view room", view_rooms),
+        [Command.parse("a|add", "add room", lambda: add_rooms(current_config.config.rooms)),
+        Command.parse("m|modify", "modify room", lambda: modify_rooms(current_config.config.rooms)),
+        Command.parse("d|delete", "delete room", lambda: delete_rooms(current_config.config.rooms)),
+        Command.parse("v|view", "view room", lambda: view_rooms(current_config.config.rooms)),
         Command.parse("h|home", "go to home page", home)]
+    )
+
+def time_slots():
+    return Page(
+        "time slots",
+        [Command.parse("a|add", "add time block", lambda: add_time_block(current_config.time_slot_config)),
+        Command.parse("m|modify", "modify time block", lambda: modify_time_block(current_config.time_slot_config)),
+        Command.parse("d|delete", "delete time block", lambda: delete_time_block(current_config.time_slot_config)),
+        Command.parse("v|view", "view time blocks", lambda: view_time_blocks(current_config.time_slot_config)),
+        Command.parse("h|home", "go to home page", home)]
+    )
+
+
+def class_patterns():
+    return Page(
+        "class patterns",
+        [
+            Command.parse("a|add", "add class pattern", lambda: add_class_pattern(current_config.time_slot_config)),
+            Command.parse("m|modify", "modify class pattern", lambda: modify_class_pattern(current_config.time_slot_config)),
+            Command.parse("d|delete", "delete class pattern", lambda: delete_class_pattern(current_config.time_slot_config)),
+            Command.parse("v|view", "view class patterns", lambda: view_class_patterns(current_config.time_slot_config)),
+            Command.parse("am|add meeting", "add meeting", lambda: add_meeting(current_config.time_slot_config)),
+            Command.parse("mm|modify meeting", "modify meeting", lambda: modify_meeting(current_config.time_slot_config)),
+            Command.parse("dm|delete meeting", "delete meeting", lambda: delete_meeting(current_config.time_slot_config)),
+            Command.parse("vm|view meetings","view meetings", lambda: view_meetings(current_config.time_slot_config)),
+            Command.parse("h|home", "go to home page", home)]
     )
 
 
@@ -125,7 +186,7 @@ def schedule():
         []
     )
 
-# Global commands 
+# Global commands
 
 def go_back(current_page: Page, history: list[Page]) -> Page:
     if history:
@@ -173,7 +234,6 @@ def main():
         print_menu(current_page)
         user_input = input("\n> ").strip().lower()
 
-        # check if user input requires global command
         global_command = find_global(user_input)
         if global_command is not None:
             result = global_command.action(current_page, history)
@@ -182,14 +242,11 @@ def main():
             current_page = result
             continue
 
-        # check for invalid commands
         command = current_page.find(user_input)
         if command is None:
             print("Invalid command.")
             continue
 
-        # navigate pages
-        # tracks history and current page for back and command options
         history.append(current_page)
 
         result = command.action()

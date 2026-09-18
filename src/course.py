@@ -8,6 +8,8 @@ from scheduler.config import CourseConfig
 # list to hold the courses
 courses = []
 
+from conflict import modify_conflicts, conflicts_menu
+
 # method to add a course to the list of courses
 # prompts for data and then uses CourseConfig to create the object
 def add_course():
@@ -36,7 +38,7 @@ def add_course():
     required_room_features = get_required_room_features()
     required_lab_features = get_required_lab_features()
     reserve_room_during_lab = get_reserve_room()
-    conflicts = get_conflicts(course_id)
+    conflicts = conflicts_menu(course_id)
     faculty = get_faculty()
 
     # adds course to the list after using CourseConfig constructor
@@ -177,7 +179,7 @@ def modify_course():
             
             # conflicts
             elif choice == 11:
-                selected_course.conflicts = get_conflicts(selected_course.course_id)
+                modify_conflicts(selected_course)
             
             # faculty
             elif choice == 12:
