@@ -48,7 +48,7 @@ class TestClassPatternCRUD(unittest.TestCase):
                     credits=3,
                     meetings=[
                         Meeting(
-                            day=Day.MON,
+                            day="MON",
                             start_time="09:00",
                             duration=75,
                             lab=False,
@@ -67,7 +67,7 @@ class TestClassPatternCRUD(unittest.TestCase):
     def test_get_day_valid(self, mock_input):
         result = class_pattern.get_day()
 
-        self.assertEqual(result, Day.MON)
+        self.assertEqual(result, "MON")
 
     @patch("builtins.input", return_value="INVALID")
     @patch("builtins.print")
@@ -148,7 +148,7 @@ class TestClassPatternCRUD(unittest.TestCase):
         meeting = class_pattern.create_meeting()
 
         self.assertIsNotNone(meeting)
-        self.assertEqual(meeting.day, Day.MON)
+        self.assertEqual(meeting.day, "MON")
         self.assertEqual(meeting.start_time, "10:00")
         self.assertEqual(meeting.duration, 75)
         self.assertFalse(meeting.lab)
@@ -168,7 +168,7 @@ class TestClassPatternCRUD(unittest.TestCase):
         meeting = class_pattern.create_meeting()
 
         self.assertIsNotNone(meeting)
-        self.assertEqual(meeting.day, Day.TUE)
+        self.assertEqual(meeting.day, "TUE")
         self.assertIsNone(meeting.start_time)
         self.assertEqual(meeting.duration, 60)
         self.assertTrue(meeting.lab)
@@ -244,7 +244,7 @@ class TestClassPatternCRUD(unittest.TestCase):
 
         meeting = pattern.meetings[0]
 
-        self.assertEqual(meeting.day, Day.TUE)
+        self.assertEqual(meeting.day, "TUE")
         self.assertEqual(meeting.start_time, "10:00")
         self.assertEqual(meeting.duration, 75)
         self.assertFalse(meeting.lab)
@@ -512,7 +512,7 @@ class TestClassPatternCRUD(unittest.TestCase):
 
         meeting = pattern.meetings[1]
 
-        self.assertEqual(meeting.day, Day.TUE)
+        self.assertEqual(meeting.day, "TUE")
         self.assertEqual(meeting.start_time, "10:00")
         self.assertEqual(meeting.duration, 75)
         self.assertFalse(meeting.lab)
@@ -597,7 +597,7 @@ class TestClassPatternCRUD(unittest.TestCase):
 
         meeting = self.time_slot_config.classes[0].meetings[0]
 
-        self.assertEqual(meeting.day, Day.TUE)
+        self.assertEqual(meeting.day, "TUE")
         self.assertEqual(meeting.start_time, "11:00")
         self.assertEqual(meeting.duration, 90)
         self.assertFalse(meeting.lab)

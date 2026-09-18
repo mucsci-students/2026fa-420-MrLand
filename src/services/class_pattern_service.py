@@ -15,11 +15,13 @@ def get_day():
         "Enter day (MON, TUE, WED, THU, FRI): "
     ).strip().upper()
 
-    try:
-        return Day(day_input)
-    except ValueError:
+    valid_days = ("MON", "TUE", "WED", "THU", "FRI")
+
+    if day_input not in valid_days:
         print("Invalid day. Please enter MON, TUE, WED, THU, or FRI.")
         return None
+
+    return day_input
 
 
 def get_integer(prompt):
@@ -160,7 +162,7 @@ def view_class_patterns(time_slot_config: TimeSlotConfig):
             for j, meeting in enumerate(pattern.meetings, start=1):
                 print(
                     f"     {j}. "
-                    f"{meeting.day.value} "
+                    f"{meeting.day} "
                     f"{meeting.start_time or 'No start time'} "
                     f"({meeting.duration} min) "
                     f"Lab: {meeting.lab} "
@@ -251,7 +253,7 @@ def select_meeting(time_slot_config):
 
     for i, meeting in enumerate(pattern.meetings, start=1):
         print(
-            f"{i}. {meeting.day.value} "
+            f"{i}. {meeting.day} "
             f"{meeting.start_time or 'No start time'} "
             f"({meeting.duration} min) "
             f"Lab: {meeting.lab} "
@@ -316,7 +318,7 @@ def view_meetings(time_slot_config: TimeSlotConfig):
 
     for i, meeting in enumerate(pattern.meetings, start=1):
         print(
-            f"{i}. {meeting.day.value} "
+            f"{i}. {meeting.day} "
             f"{meeting.start_time or 'No start time'} "
             f"({meeting.duration} min) "
             f"Lab: {meeting.lab} "
