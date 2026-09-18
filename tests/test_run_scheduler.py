@@ -25,6 +25,7 @@ def make_schedule_instance(course="CS101", faculty="Dr. Smith", room="Room1", la
 
 
 # ---- run_scheduler(): missing / bad config -------------------------------
+# These return before ever reaching getTimeSlotConfig(), so no extra mock needed.
 
 
 def test_run_scheduler_missing_config(monkeypatch, capsys):
@@ -62,6 +63,7 @@ def test_run_scheduler_scheduler_init_fails(monkeypatch, capsys):
 
     with patch("run_scheduler.config_exists", return_value=True), \
          patch("run_scheduler.config_load", return_value=fake_config), \
+         patch("run_scheduler.getTimeSlotConfig", return_value=MagicMock()), \
          patch("run_scheduler.Scheduler", side_effect=RuntimeError("z3 init failed")):
         run_scheduler.run_scheduler()
 
@@ -93,6 +95,7 @@ def test_run_scheduler_no_valid_schedule(monkeypatch, capsys):
 
     with patch("run_scheduler.config_exists", return_value=True), \
          patch("run_scheduler.config_load", return_value=fake_config), \
+         patch("run_scheduler.getTimeSlotConfig", return_value=MagicMock()), \
          patch("run_scheduler.Scheduler", return_value=mock_scheduler_instance):
         run_scheduler.run_scheduler()
 
@@ -121,6 +124,7 @@ def test_run_scheduler_success(monkeypatch, capsys):
 
     with patch("run_scheduler.config_exists", return_value=True), \
          patch("run_scheduler.config_load", return_value=fake_config), \
+         patch("run_scheduler.getTimeSlotConfig", return_value=MagicMock()), \
          patch("run_scheduler.Scheduler", return_value=mock_scheduler_instance):
         run_scheduler.run_scheduler()
 
@@ -131,6 +135,26 @@ def test_run_scheduler_success(monkeypatch, capsys):
 
     mock_scheduler_instance.audit_schedule.assert_called_once_with(schedule)
     assert run_scheduler.generated_schedules == [schedule]
+
+
+def test_run_scheduler_assigns_time_slot_config(monkeypatch):
+    """The time slot config collected via getTimeSlotConfig() should be
+    assigned onto full_config before the Scheduler is constructed."""
+    monkeypatch.setattr("builtins.input", lambda _: "valid_config")
+    fake_config = MagicMock()
+    fake_time_slot_config = MagicMock()
+
+    mock_scheduler_instance = MagicMock()
+    mock_scheduler_instance.get_models.return_value = iter([[]])
+    mock_scheduler_instance.audit_schedule.return_value = MagicMock(is_valid=True)
+
+    with patch("run_scheduler.config_exists", return_value=True), \
+         patch("run_scheduler.config_load", return_value=fake_config), \
+         patch("run_scheduler.getTimeSlotConfig", return_value=fake_time_slot_config), \
+         patch("run_scheduler.Scheduler", return_value=mock_scheduler_instance):
+        run_scheduler.run_scheduler()
+
+    assert fake_config.time_slot_config is fake_time_slot_config
 
 
 # ---- view_schedules() ------------------------------------------------------
@@ -173,6 +197,7 @@ def test_confirm_yes_no_reprompts_on_invalid(monkeypatch, capsys):
 
 
 # ---- run_scheduler(): input handling ---------------------------------------
+# These return before reaching getTimeSlotConfig(), so no extra mock needed.
 
 
 def test_run_scheduler_strips_whitespace_from_config_name(monkeypatch):
@@ -195,6 +220,33 @@ def test_run_scheduler_empty_config_name(monkeypatch, capsys):
     assert "No saved configuration named ''" in capsys.readouterr().out
 
 
+# ---- run_scheduler(): getTimeSlotConfig() itself is invalid -----------------
+
+
+def test_run_scheduler_time_slot_config_invalid(monkeypatch, capsys):
+    """If assigning the collected time slot config fails validation, the
+    run should stop cleanly rather than proceed to build a Scheduler."""
+    monkeypatch.setattr("builtins.input", lambda _: "some_config")
+    fake_config = MagicMock()
+    # Simulate Pydantic's validate_assignment raising when the field is set.
+    type(fake_config).time_slot_config = property(
+        fget=lambda self: None,
+        fset=MagicMock(side_effect=ValueError("bad time slot config")),
+    )
+
+    with patch("run_scheduler.config_exists", return_value=True), \
+         patch("run_scheduler.config_load", return_value=fake_config), \
+         patch("run_scheduler.getTimeSlotConfig", return_value=MagicMock()), \
+         patch("run_scheduler.Scheduler") as mock_scheduler_cls:
+        run_scheduler.run_scheduler()
+
+    out = capsys.readouterr().out
+    assert "Configuration is invalid, cannot run scheduler" in out
+    assert "bad time slot config" in out
+    mock_scheduler_cls.assert_not_called()
+    assert run_scheduler.generated_schedules == []
+
+
 # ---- run_scheduler(): get_models() raises mid-search ------------------------
 
 
@@ -207,6 +259,7 @@ def test_run_scheduler_get_models_raises(monkeypatch, capsys):
 
     with patch("run_scheduler.config_exists", return_value=True), \
          patch("run_scheduler.config_load", return_value=fake_config), \
+         patch("run_scheduler.getTimeSlotConfig", return_value=MagicMock()), \
          patch("run_scheduler.Scheduler", return_value=mock_scheduler_instance):
         with pytest.raises(RuntimeError, match="z3 solver crashed"):
             run_scheduler.run_scheduler()
@@ -233,6 +286,7 @@ def test_run_scheduler_empty_schedule_is_still_success(monkeypatch, capsys):
 
     with patch("run_scheduler.config_exists", return_value=True), \
          patch("run_scheduler.config_load", return_value=fake_config), \
+         patch("run_scheduler.getTimeSlotConfig", return_value=MagicMock()), \
          patch("run_scheduler.Scheduler", return_value=mock_scheduler_instance):
         run_scheduler.run_scheduler()
 
@@ -256,6 +310,7 @@ def test_run_scheduler_audit_reports_invalid(monkeypatch, capsys):
 
     with patch("run_scheduler.config_exists", return_value=True), \
          patch("run_scheduler.config_load", return_value=fake_config), \
+         patch("run_scheduler.getTimeSlotConfig", return_value=MagicMock()), \
          patch("run_scheduler.Scheduler", return_value=mock_scheduler_instance):
         run_scheduler.run_scheduler()
 
@@ -286,6 +341,7 @@ def test_run_scheduler_multiple_runs_accumulate(monkeypatch):
 
     with patch("run_scheduler.config_exists", return_value=True), \
          patch("run_scheduler.config_load", return_value=fake_config), \
+         patch("run_scheduler.getTimeSlotConfig", return_value=MagicMock()), \
          patch("run_scheduler.Scheduler", side_effect=lambda cfg: next(schedulers)):
         run_scheduler.run_scheduler()
         run_scheduler.run_scheduler()
@@ -312,6 +368,7 @@ def test_run_scheduler_no_schedule_empty_diagnosis(monkeypatch, capsys):
 
     with patch("run_scheduler.config_exists", return_value=True), \
          patch("run_scheduler.config_load", return_value=fake_config), \
+         patch("run_scheduler.getTimeSlotConfig", return_value=MagicMock()), \
          patch("run_scheduler.Scheduler", return_value=mock_scheduler_instance):
         run_scheduler.run_scheduler()
 
