@@ -98,6 +98,8 @@ def config_dashboard():
         Command.parse("c|courses", "load course", courses),
         Command.parse("l|labs", "load lab", labs),
         Command.parse("r|rooms", "load room", rooms),
+        Command.parse("t|time slots", "time slots", time_slots),
+        Command.parse("p|class patterns", "class patterns", class_patterns),
         Command.parse("s|save", "save current config", save_current_config),
         Command.parse("h|home", "go to home page", home),
     ])
@@ -147,6 +149,32 @@ def rooms():
         Command.parse("d|delete", "delete room", lambda: delete_rooms(current_config.config.rooms)),
         Command.parse("v|view", "view room", lambda: view_rooms(current_config.config.rooms)),
         Command.parse("h|home", "go to home page", home)]
+    )
+
+def time_slots():
+    return Page(
+        "time slots",
+        [Command.parse("a|add", "add time block", lambda: add_time_block(current_config.time_slot_config)),
+        Command.parse("m|modify", "modify time block", lambda: modify_time_block(current_config.time_slot_config)),
+        Command.parse("d|delete", "delete time block", lambda: delete_time_block(current_config.time_slot_config)),
+        Command.parse("v|view", "view time blocks", lambda: view_time_blocks(current_config.time_slot_config)),
+        Command.parse("h|home", "go to home page", home)]
+    )
+
+
+def class_patterns():
+    return Page(
+        "class patterns",
+        [
+            Command.parse("a|add", "add class pattern", lambda: add_class_pattern(current_config.time_slot_config)),
+            Command.parse("m|modify", "modify class pattern", lambda: modify_class_pattern(current_config.time_slot_config)),
+            Command.parse("d|delete", "delete class pattern", lambda: delete_class_pattern(current_config.time_slot_config)),
+            Command.parse("v|view", "view class patterns", lambda: view_class_patterns(current_config.time_slot_config)),
+            Command.parse("am|add meeting", "add meeting", lambda: add_meeting(current_config.time_slot_config)),
+            Command.parse("mm|modify meeting", "modify meeting", lambda: modify_meeting(current_config.time_slot_config)),
+            Command.parse("dm|delete meeting", "delete meeting", lambda: delete_meeting(current_config.time_slot_config)),
+            Command.parse("vm|view meetings","view meetings", lambda: view_meetings(current_config.time_slot_config)),
+            Command.parse("h|home", "go to home page", home)]
     )
 
 
