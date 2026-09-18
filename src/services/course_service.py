@@ -5,12 +5,9 @@
 from scheduler.config import CourseConfig
 
 
-# list to hold the courses
-course_members = []
-
 # method to add a course to the list of courses
 # prompts for data and then uses CourseConfig to create the object
-def add_course():
+def add_course(course_members):
     # get information from user
 
     # check for duplicate courseIDs with the same sectionID
@@ -18,7 +15,7 @@ def add_course():
         course_id = get_course_id()
         section_id = get_section_id()
 
-        if course_exists(course_id, section_id):
+        if course_exists(course_members, course_id, section_id):
             print("That course section already exists. Please enter a different course or section.")
         else:
             break
@@ -75,14 +72,14 @@ def add_course():
     
 
 # method to allow user to pick a course and modify it
-def modify_course():
+def modify_course(course_members):
     # checks to make sure there is at least one course
     if not course_members:
         print("No courses found.")
         return
 
     # prints out courses
-    view_courses()
+    view_courses(course_members)
 
     try:
         index = int(input("Enter the number of the course to modify: ")) - 1
@@ -111,7 +108,7 @@ def modify_course():
                 new_course_id = get_course_id()
 
                 # validation check to ensure no courseID and sectionID combinations
-                if course_exists(new_course_id, selected_course.section_id, selected_course):
+                if course_exists(course_members, new_course_id, selected_course.section_id, selected_course):
                     print("That course section already exists.")
                     return
 
@@ -122,7 +119,7 @@ def modify_course():
                 new_section_id = get_section_id()
 
                 # validation check to ensure no courseID and sectionID combinations
-                if course_exists(selected_course.course_id, new_section_id, selected_course):
+                if course_exists(course_members, selected_course.course_id, new_section_id, selected_course):
                     print("That course section already exists.")
                     return
 
@@ -210,14 +207,14 @@ def modify_course():
 
 
 # method to delete a course from the courses list
-def delete_course():
+def delete_course(course_members):
     # checks to make sure there is at least one course
     if not course_members:
         print("No courses found.")
         return
 
     # prints out courses
-    view_courses()
+    view_courses(course_members)
 
     try:
         index = int(input("Enter the number of the course to delete: ")) - 1
@@ -233,7 +230,7 @@ def delete_course():
 
 
 # method to print out all the courses in the course list in a readable manner
-def view_courses():
+def view_courses(course_members):
     # checks to make sure there is at least one course
     if not course_members:
         print("No courses found.")
@@ -259,7 +256,7 @@ def view_courses():
         print("-" * 80)
 
 # helper to check for duplicate courseIDs with the same sectionID
-def course_exists(course_id, section_id, exclude=None):
+def course_exists(course_members, course_id, section_id, exclude=None):
     for course in course_members:
         if course is exclude:
             continue
