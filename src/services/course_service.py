@@ -5,14 +5,9 @@
 from scheduler.config import CourseConfig
 
 
-# list to hold the courses
-courses = []
-
-from conflict import modify_conflicts, conflicts_menu
-
 # method to add a course to the list of courses
 # prompts for data and then uses CourseConfig to create the object
-def add_course():
+def add_course(course_members):
     # get information from user
 
     # check for duplicate courseIDs with the same sectionID
@@ -20,7 +15,7 @@ def add_course():
         course_id = get_course_id()
         section_id = get_section_id()
 
-        if course_exists(course_id, section_id):
+        if course_exists(course_members, course_id, section_id):
             print("That course section already exists. Please enter a different course or section.")
         else:
             break
@@ -38,12 +33,12 @@ def add_course():
     required_room_features = get_required_room_features()
     required_lab_features = get_required_lab_features()
     reserve_room_during_lab = get_reserve_room()
-    conflicts = conflicts_menu(course_id)
+    conflicts = get_conflicts(course_members, course_id)
     faculty = get_faculty()
 
     # adds course to the list after using CourseConfig constructor
     try: 
-        courses.append(CourseConfig(
+        course_members.append(CourseConfig(
             course_id=course_id,
             section_id=section_id,
             credits=credits,
@@ -77,20 +72,20 @@ def add_course():
     
 
 # method to allow user to pick a course and modify it
-def modify_course():
+def modify_course(course_members):
     # checks to make sure there is at least one course
-    if not courses:
+    if not course_members:
         print("No courses found.")
         return
 
     # prints out courses
-    view_courses()
+    view_courses(course_members)
 
     try:
         index = int(input("Enter the number of the course to modify: ")) - 1
 
-        if 0 <= index < len(courses):
-            selected_course = courses[index]
+        if 0 <= index < len(course_members):
+            selected_course = course_members[index]
 
             print(f"Modifying course: {selected_course.course_id}")
             print("1. Course ID")
@@ -113,7 +108,7 @@ def modify_course():
                 new_course_id = get_course_id()
 
                 # validation check to ensure no courseID and sectionID combinations
-                if course_exists(new_course_id, selected_course.section_id, selected_course):
+                if course_exists(course_members, new_course_id, selected_course.section_id, selected_course):
                     print("That course section already exists.")
                     return
 
@@ -124,7 +119,7 @@ def modify_course():
                 new_section_id = get_section_id()
 
                 # validation check to ensure no courseID and sectionID combinations
-                if course_exists(selected_course.course_id, new_section_id, selected_course):
+                if course_exists(course_members, selected_course.course_id, new_section_id, selected_course):
                     print("That course section already exists.")
                     return
 
@@ -179,7 +174,7 @@ def modify_course():
             
             # conflicts
             elif choice == 11:
-                modify_conflicts(selected_course)
+                selected_course.conflicts = get_conflicts(course_members, selected_course.course_id)
             
             # faculty
             elif choice == 12:
@@ -212,20 +207,20 @@ def modify_course():
 
 
 # method to delete a course from the courses list
-def delete_course():
+def delete_course(course_members):
     # checks to make sure there is at least one course
-    if not courses:
+    if not course_members:
         print("No courses found.")
         return
 
     # prints out courses
-    view_courses()
+    view_courses(course_members)
 
     try:
         index = int(input("Enter the number of the course to delete: ")) - 1
 
-        if 0 <= index < len(courses):
-            deleted_course = courses.pop(index)
+        if 0 <= index < len(course_members):
+            deleted_course = course_members.pop(index)
             print(f"Deleted course: {deleted_course.course_id}")
         else:
             print("Invalid selection.")
@@ -235,16 +230,16 @@ def delete_course():
 
 
 # method to print out all the courses in the course list in a readable manner
-def view_courses():
+def view_courses(course_members):
     # checks to make sure there is at least one course
-    if not courses:
+    if not course_members:
         print("No courses found.")
         return
 
     print("\nCOURSES")
     print("-" * 80)
 
-    for i, course in enumerate(courses, start=1):
+    for i, course in enumerate(course_members, start=1):
         print(f"Course {i}:")
         print(f"  Course ID:       {course.course_id}")
         print(f"  Section ID:      {course.section_id}")
@@ -261,8 +256,8 @@ def view_courses():
         print("-" * 80)
 
 # helper to check for duplicate courseIDs with the same sectionID
-def course_exists(course_id, section_id, exclude=None):
-    for course in courses:
+def course_exists(course_members, course_id, section_id, exclude=None):
+    for course in course_members:
         if course is exclude:
             continue
 
@@ -356,7 +351,7 @@ def get_room():
         return get_room()
     
 # getter to get the conflicts between other courses
-def get_conflicts(course_id):
+def get_conflicts(course_members, course_id):
     try:
         conflicts = input("Enter conflicting courses (comma-separated): ")
 
@@ -375,14 +370,14 @@ def get_conflicts(course_id):
                 raise ValueError("A course cannot conflict with itself.")
 
             # ensures conflict is a valid course
-            if not any(course.course_id.lower() == conflict.lower() for course in courses):
+            if not any(course.course_id.lower() == conflict.lower() for course in course_members):
                 raise ValueError(f"Course '{conflict}' does not exist.")
 
         return conflicts
 
     except ValueError as e:
         print(f"Invalid input: {e}")
-        return get_conflicts(course_id)
+        return get_conflicts(course_members, course_id)
     
 # getter for the faculty that can teach the course
 def get_faculty():

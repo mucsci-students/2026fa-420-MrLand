@@ -159,7 +159,7 @@ def add_lab(labs):
             times=times,
         )
 
-        labs.append(lab)
+        labs_members.append(lab)
         print(f"'{name}' Added")
 
     except Exception as error:
@@ -202,7 +202,7 @@ def modify_lab(labs):
         print("Enter Valid Number.")
         return
 
-    if not 0 <= index < len(labs):
+    if not 0 <= index < len(labs_members):
         print("Invalid Selection.")
         return
 
@@ -286,7 +286,7 @@ def delete_lab(labs):
         print("Enter Valid Number.")
         return
 
-    if not 0 <= index < len(labs):
+    if not 0 <= index < len(labs_members):
         print("Invalid Selection.")
         return
 
@@ -295,7 +295,7 @@ def delete_lab(labs):
     confirm = input(f"Delete '{lab.name}'? (y/n): ").strip().lower()
 
     if confirm == "y":
-        labs.pop(index)
+        labs_members.pop(index)
         print(f"Deleted '{lab.name}'.")
     else:
         print("Deletion Cancelled.")
