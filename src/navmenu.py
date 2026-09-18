@@ -4,13 +4,9 @@ from services.lab_service import add_lab, modify_lab, delete_lab, view_labs
 from services.faculty_service import add_faculty, modify_faculty, delete_faculty, view_faculty
 from services.rooms_service import add_rooms, modify_rooms, delete_rooms, view_rooms
 from course import add_course, modify_course, delete_course, view_courses
-from run_scheduler import run_scheduler
-from services.time_block_service import add_time_block, modify_time_block, delete_time_block, view_time_blocks
-from services.class_pattern_service import add_class_pattern, modify_class_pattern, delete_class_pattern, view_class_patterns, add_meeting, modify_meeting, view_meetings, delete_meeting
 import services.config_service as config_service
-
-current_config = None
-config_name = None
+from config_state import state
+import run_scheduler
 
 @dataclass(frozen=True)
 class Command:
@@ -63,26 +59,22 @@ def config():
 
 
 def create():
-    global current_config, config_name
-
     name = input("Please enter a name for the configuration: ")
     if not name.strip():
         print("Configuration name cannot be empty.")
         return create()
 
-    current_config = config_service.create_draft_config()
-    config_name = name
+    state.draft_config = config_service.create_draft_config()
+    state.config_name = name
     print(f"Configuration '{name}' created. Add rooms, courses, and faculty before saving.")
     return config_dashboard()
 
 
 def load_get_name():
-    global current_config, config_name
-
     file_name = input("Please enter the name of the configuration: ")
     try:
-        current_config = config_service.load_config(file_name)
-        config_name = file_name
+        state.draft_config = config_service.load_config(file_name)
+        state.config_name = file_name
         print(f"Configuration '{file_name}' loaded successfully.")
     except FileNotFoundError as e:
         print(e)
@@ -92,8 +84,9 @@ def load_get_name():
 
 
 def save_current_config():
-    config_service.save_config(current_config, config_name)
+    config_service.save_config(state.draft_config, state.config_name)
     return None
+
 
 def config_dashboard():
     return Page("Configuration Dashboard", [
@@ -101,8 +94,6 @@ def config_dashboard():
         Command.parse("c|courses", "load course", courses),
         Command.parse("l|labs", "load lab", labs),
         Command.parse("r|rooms", "load room", rooms),
-        Command.parse("t|time slots", "time slots", time_slots),
-        Command.parse("p|class patterns", "class patterns", class_patterns),
         Command.parse("s|save", "save current config", save_current_config),
         Command.parse("h|home", "go to home page", home),
     ])
@@ -111,10 +102,10 @@ def config_dashboard():
 def faculty():
     return Page(
         "faculty",
-        [Command.parse("a|add", "add faculty", lambda: add_faculty(current_config.config.faculty)),
-        Command.parse("m|modify", "modify faculty", lambda: modify_faculty(current_config.config.faculty)),
-        Command.parse("d|delete", "delete faculty", lambda: delete_faculty(current_config.config.faculty)),
-        Command.parse("v|view", "view faculty", lambda: view_faculty(current_config.config.faculty)),
+        [Command.parse("a|add", "add faculty", lambda: add_faculty(state.draft_config.config.faculty)),
+        Command.parse("m|modify", "modify faculty", lambda: modify_faculty(state.draft_config.config.faculty)),
+        Command.parse("d|delete", "delete faculty", lambda: delete_faculty(state.draft_config.config.faculty)),
+        Command.parse("v|view", "view faculty", lambda: view_faculty(state.draft_config.config.faculty)),
         Command.parse("h|home", "go to home page", home)]
     )
 
@@ -123,10 +114,10 @@ def courses():
     return Page(
         "courses",
         [
-            Command.parse("a|add", "add course", add_course),
-            Command.parse("m|modify", "modify course", modify_course),
-            Command.parse("d|delete", "delete course", delete_course),
-            Command.parse("v|view", "view course", view_courses),
+            Command.parse("a|add", "add course", lambda: add_course(state.draft_config.config.courses)),
+            Command.parse("m|modify", "modify course", lambda: modify_course(state.draft_config.config.courses)),
+            Command.parse("d|delete", "delete course", lambda: delete_course(state.draft_config.config.courses)),
+            Command.parse("v|view", "view course", lambda: view_courses(state.draft_config.config.courses)),
             Command.parse("h|home", "go to home page", home),
         ]
     )
@@ -135,10 +126,10 @@ def labs():
     return Page(
         "labs",
         [
-            Command.parse("a|add", "add lab", lambda: add_lab(current_config.config.labs)),
-            Command.parse("m|modify", "modify lab", lambda: modify_lab(current_config.config.labs)),
-            Command.parse("d|delete", "delete lab", lambda: delete_lab(current_config.config.labs)),
-            Command.parse("v|view", "view lab", lambda: view_labs(current_config.config.labs)),
+            Command.parse("a|add", "add lab", lambda: add_lab(state.draft_config.config.labs)),
+            Command.parse("m|modify", "modify lab", lambda: modify_lab(state.draft_config.config.labs)),
+            Command.parse("d|delete", "delete lab", lambda: delete_lab(state.draft_config.config.labs)),
+            Command.parse("v|view", "view lab", lambda: view_labs(state.draft_config.config.labs)),
             Command.parse("h|home", "go to home page", home),
         ]
     )
@@ -147,37 +138,11 @@ def labs():
 def rooms():
     return Page(
         "rooms",
-        [Command.parse("a|add", "add room", lambda: add_rooms(current_config.config.rooms)),
-        Command.parse("m|modify", "modify room", lambda: modify_rooms(current_config.config.rooms)),
-        Command.parse("d|delete", "delete room", lambda: delete_rooms(current_config.config.rooms)),
-        Command.parse("v|view", "view room", lambda: view_rooms(current_config.config.rooms)),
+        [Command.parse("a|add", "add room", lambda: add_rooms(state.draft_config.config.rooms)),
+        Command.parse("m|modify", "modify room", lambda: modify_rooms(state.draft_config.config.rooms)),
+        Command.parse("d|delete", "delete room", lambda: delete_rooms(state.draft_config.config.rooms)),
+        Command.parse("v|view", "view room", lambda: view_rooms(state.draft_config.config.rooms)),
         Command.parse("h|home", "go to home page", home)]
-    )
-
-def time_slots():
-    return Page(
-        "time slots",
-        [Command.parse("a|add", "add time block", lambda: add_time_block(current_config.time_slot_config)),
-        Command.parse("m|modify", "modify time block", lambda: modify_time_block(current_config.time_slot_config)),
-        Command.parse("d|delete", "delete time block", lambda: delete_time_block(current_config.time_slot_config)),
-        Command.parse("v|view", "view time blocks", lambda: view_time_blocks(current_config.time_slot_config)),
-        Command.parse("h|home", "go to home page", home)]
-    )
-
-
-def class_patterns():
-    return Page(
-        "class patterns",
-        [
-            Command.parse("a|add", "add class pattern", lambda: add_class_pattern(current_config.time_slot_config)),
-            Command.parse("m|modify", "modify class pattern", lambda: modify_class_pattern(current_config.time_slot_config)),
-            Command.parse("d|delete", "delete class pattern", lambda: delete_class_pattern(current_config.time_slot_config)),
-            Command.parse("v|view", "view class patterns", lambda: view_class_patterns(current_config.time_slot_config)),
-            Command.parse("am|add meeting", "add meeting", lambda: add_meeting(current_config.time_slot_config)),
-            Command.parse("mm|modify meeting", "modify meeting", lambda: modify_meeting(current_config.time_slot_config)),
-            Command.parse("dm|delete meeting", "delete meeting", lambda: delete_meeting(current_config.time_slot_config)),
-            Command.parse("vm|view meetings","view meetings", lambda: view_meetings(current_config.time_slot_config)),
-            Command.parse("h|home", "go to home page", home)]
     )
 
 
@@ -185,8 +150,8 @@ def schedule():
     return Page(
         "schedule",
         [
-            Command.parse("r|run", "run the scheduler", run_scheduler),
-            Command.parse("h|home", "go to home page", home),
+            Command.parse("r|run", "run the scheduler on a configuration", run_scheduler.run_scheduler),
+            Command.parse("v|view", "view the schedule of a configuration", view_schedule),
         ]
     )
 
