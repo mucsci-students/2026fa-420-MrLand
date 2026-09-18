@@ -33,7 +33,7 @@ def add_course(course_members):
     required_room_features = get_required_room_features()
     required_lab_features = get_required_lab_features()
     reserve_room_during_lab = get_reserve_room()
-    conflicts = get_conflicts(course_id)
+    conflicts = get_conflicts(course_members, course_id)
     faculty = get_faculty()
 
     # adds course to the list after using CourseConfig constructor
@@ -174,7 +174,7 @@ def modify_course(course_members):
             
             # conflicts
             elif choice == 11:
-                selected_course.conflicts = get_conflicts(selected_course.course_id)
+                selected_course.conflicts = get_conflicts(course_members, selected_course.course_id)
             
             # faculty
             elif choice == 12:
@@ -351,7 +351,7 @@ def get_room():
         return get_room()
     
 # getter to get the conflicts between other courses
-def get_conflicts(course_id):
+def get_conflicts(course_members, course_id):
     try:
         conflicts = input("Enter conflicting courses (comma-separated): ")
 
@@ -377,7 +377,7 @@ def get_conflicts(course_id):
 
     except ValueError as e:
         print(f"Invalid input: {e}")
-        return get_conflicts(course_id)
+        return get_conflicts(course_members, course_id)
     
 # getter for the faculty that can teach the course
 def get_faculty():
