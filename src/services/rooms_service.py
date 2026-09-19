@@ -48,6 +48,35 @@ def get_room_features():
 
     return features
 
+def delete_room_features(room):
+    while True:
+        if not room.features:
+            print("No Features To Delete")
+            return
+
+        print("\nCurrent Features:")
+        features = list(room.features)
+        for number, feature in enumerate(features, start=1):
+            print(f"{number}. {feature}")
+
+        print("Enter Number of Feature To Delete or 'done' to quit")
+        choice = input("==> ").strip()
+
+        if choice.lower() == "done":
+            break
+
+        try:
+            number = int(choice)
+            if number < 1 or number > len(features):
+                print("Invalid Feature Number.")
+                continue
+
+            feature = features[number - 1]
+            room.features.remove(feature)
+            print(f"Deleted '{feature}'.")
+        except ValueError:
+            print("Enter a valid feature number.")
+
 # Gets room availability from user input, ensuring valid day and time range formats
 def get_room_availability():
     availability = {}
@@ -156,7 +185,30 @@ def modify_rooms(rooms):
         elif choice == 2:
             room.capacity = get_room_capacity()
         elif choice == 3:
-            room.features = get_room_features()
+            print("Enter d: Delete Current Features")
+            print("Enter a: Add More Features")
+
+            feature_choice = input().strip().lower()
+
+            if feature_choice == "d":
+                delete_room_features(room)
+                print("Features Updated")
+                return
+
+            if feature_choice != "a":
+                print("Invalid choice. No changes made.")
+                return
+
+            print("Enter New Features. Type 'done' When Finished.")
+            new_features = set()
+            while True:
+                feature = input("Feature: ").strip()
+                if feature.lower() == "done":
+                    break
+                if feature:
+                    new_features.add(feature)
+
+            room.features = set(room.features) | new_features
         elif choice == 4:
             room.times = get_room_availability()
         else:
