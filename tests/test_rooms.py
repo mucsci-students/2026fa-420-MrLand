@@ -9,8 +9,7 @@ import src.services.rooms_service as rooms_service
 class TestRoomCRUD(unittest.TestCase):
 
     def setUp(self):
-        # Clear the room list before every test
-        rooms_service.rooms.clear()
+        self.rooms = []
 
     def test_add_room(self):
         # Inputs for add_rooms()
@@ -24,13 +23,13 @@ class TestRoomCRUD(unittest.TestCase):
         ]
 
         with patch("builtins.input", side_effect=inputs):
-            rooms_service.add_rooms()
+            rooms_service.add_rooms(self.rooms)
 
         # Check that one room was added
-        self.assertEqual(len(rooms_service.rooms), 1)
+        self.assertEqual(len(self.rooms), 1)
 
         # Check the information that was entered
-        new_room = rooms_service.rooms[0]
+        new_room = self.rooms[0]
 
         self.assertEqual(new_room.name, "Room 101")
         self.assertEqual(new_room.capacity, 30)
@@ -57,11 +56,11 @@ class TestRoomCRUD(unittest.TestCase):
             }
         )
 
-        rooms_service.rooms.append(room)
+        self.rooms.append(room)
 
         # Capture what view_rooms() prints
         with patch("builtins.print") as mock_print:
-            rooms_service.view_rooms()
+            rooms_service.view_rooms(self.rooms)
 
         # Check that the room's information was printed
         printed_text = "\n".join(
@@ -83,7 +82,7 @@ class TestRoomCRUD(unittest.TestCase):
             }
         )
 
-        rooms_service.rooms.append(room)
+        self.rooms.append(room)
 
         # Modify room capacity
         # First input = room number
@@ -96,13 +95,45 @@ class TestRoomCRUD(unittest.TestCase):
         ]
 
         with patch("builtins.input", side_effect=inputs):
-            rooms_service.modify_rooms()
+            rooms_service.modify_rooms(self.rooms)
 
         # Check that capacity changed
         self.assertEqual(
-            rooms_service.rooms[0].capacity,
+            self.rooms[0].capacity,
             40
         )
+
+    def test_modify_room_adds_features(self):
+        room = rooms_service.RoomConfig(
+            name="Room 101",
+            capacity=30,
+            features=["Projector"],
+            times={}
+        )
+        self.rooms.append(room)
+
+        inputs = ["1", "3", "a", "Whiteboard", "Projector", "done"]
+        with patch("builtins.input", side_effect=inputs):
+            rooms_service.modify_rooms(self.rooms)
+
+        self.assertEqual(self.rooms[0].features, {"Projector", "Whiteboard"})
+
+    def test_modify_room_deletes_feature(self):
+        room = rooms_service.RoomConfig(
+            name="Room 101",
+            capacity=30,
+            features=["Projector", "Whiteboard"],
+            times={}
+        )
+        self.rooms.append(room)
+        original_features = set(room.features)
+
+        inputs = ["1", "3", "d", "1", "done"]
+        with patch("builtins.input", side_effect=inputs):
+            rooms_service.modify_rooms(self.rooms)
+
+        self.assertEqual(len(self.rooms[0].features), 1)
+        self.assertLess(set(self.rooms[0].features), original_features)
 
     def test_delete_room(self):
         # Add a room directly
@@ -115,29 +146,29 @@ class TestRoomCRUD(unittest.TestCase):
             }
         )
 
-        rooms_service.rooms.append(room)
+        self.rooms.append(room)
 
-        self.assertEqual(len(rooms_service.rooms), 1)
+        self.assertEqual(len(self.rooms), 1)
 
         # Delete the first room
         with patch("builtins.input", return_value="1"):
-            rooms_service.delete_rooms()
+            rooms_service.delete_rooms(self.rooms)
 
         # Check that the room was deleted
-        self.assertEqual(len(rooms_service.rooms), 0)
+        self.assertEqual(len(self.rooms), 0)
 
 
 class TestGetRoomName(unittest.TestCase):
 
     def setUp(self):
-        rooms_service.rooms.clear()
+        self.rooms = []
 
     @patch("builtins.input")
     @patch("builtins.print")
     def test_blank_name_retries_until_valid(self, mock_print, mock_input):
         mock_input.side_effect = ["", "   ", "Room 101"]
 
-        result = rooms_service.get_room_name()
+        result = rooms_service.get_room_name(self.rooms)
 
         self.assertEqual(result, "Room 101")
         self.assertEqual(mock_input.call_count, 3)
@@ -146,7 +177,7 @@ class TestGetRoomName(unittest.TestCase):
     @patch("builtins.input")
     @patch("builtins.print")
     def test_duplicate_name_retries_until_unique(self, mock_print, mock_input):
-        rooms_service.rooms.append(
+        self.rooms.append(
             rooms_service.RoomConfig(
                 name="Room 101",
                 capacity=20,
@@ -156,7 +187,7 @@ class TestGetRoomName(unittest.TestCase):
         )
         mock_input.side_effect = ["Room 101", "Room 202"]
 
-        result = rooms_service.get_room_name()
+        result = rooms_service.get_room_name(self.rooms)
 
         self.assertEqual(result, "Room 202")
         self.assertEqual(mock_input.call_count, 2)
