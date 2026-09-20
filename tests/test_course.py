@@ -1,3 +1,4 @@
+
 # file name: test_course.py
 # Primary author: Dylan Groff
 # run with: python -m unittest tests/test_course.py
@@ -18,6 +19,7 @@ assertRaises(...)	        code should produce an exception
 @patch("builtins.input", return_value="___") mocks an input value from the user
 @patch("builtins.input", side_effect=["___"]) mocks multiple inputs
 """
+
 import unittest
 from unittest.mock import patch
 from src.services import course_service
@@ -27,46 +29,56 @@ from scheduler.config import CourseConfig
 class TestCourse(unittest.TestCase):
 
     def setUp(self):
-        course_service.course_members.clear()
+        self.course_members = []
 
-    #--------- add, modify, delete tests --------------
+    # --------- add, modify, delete tests --------------
 
     # tests add_course
     @patch("builtins.input", side_effect=[
-    "CS 101",                   # course_service ID
-    "A",                        # section ID
-    "3",                        # credits
-    "28",                       # capacity
-    "hybrid",                   # modality
-    "Room A, Room B",           # room
-    "Lab 1",                    # lab
-    "accessible",               # room features
-    "gpu",                      # lab features
-    "no",                       # reserve room
-    "",                         # conflicts
-    "Dr. Smith, Dr. Johnson"    # faculty
-])
-    
+        "CS 101",                   # course ID
+        "A",                        # section ID
+        "3",                        # credits
+        "28",                       # capacity
+        "hybrid",                   # modality
+        "Room A, Room B",           # room
+        "Lab 1",                    # lab
+        "accessible",               # room features
+        "gpu",                      # lab features
+        "no",                       # reserve room
+        "",                         # conflicts
+        "Dr. Smith, Dr. Johnson"    # faculty
+    ])
     def test_add_course(self, mock_input):
-        course_service.course_members = []
-        course_service.add_course()
+        course_service.add_course(self.course_members)
 
-        self.assertEqual(len(course_service.course_members), 1)
-        self.assertEqual(course_service.course_members[0].course_id, "CS 101")
-        self.assertEqual(course_service.course_members[0].section_id, "A")
-        self.assertEqual(course_service.course_members[0].credits, 3)
-        self.assertEqual(course_service.course_members[0].capacity, 28)
-        self.assertEqual(course_service.course_members[0].modality, "hybrid")
-        self.assertEqual(course_service.course_members[0].room, ["Room A", "Room B"])
-        self.assertEqual(course_service.course_members[0].lab, ["Lab 1"])
-        self.assertEqual(course_service.course_members[0].required_room_features, {"accessible"})
-        self.assertEqual(course_service.course_members[0].required_lab_features, {"gpu"})
-        self.assertEqual(course_service.course_members[0].reserve_room_during_lab, False)
-        self.assertEqual(course_service.course_members[0].conflicts, [])
-        self.assertEqual(course_service.course_members[0].faculty, ["Dr. Smith", "Dr. Johnson"])
+        self.assertEqual(len(self.course_members), 1)
+        self.assertEqual(self.course_members[0].course_id, "CS 101")
+        self.assertEqual(self.course_members[0].section_id, "A")
+        self.assertEqual(self.course_members[0].credits, 3)
+        self.assertEqual(self.course_members[0].capacity, 28)
+        self.assertEqual(self.course_members[0].modality, "hybrid")
+        self.assertEqual(self.course_members[0].room, ["Room A", "Room B"])
+        self.assertEqual(self.course_members[0].lab, ["Lab 1"])
+        self.assertEqual(
+            self.course_members[0].required_room_features,
+            {"accessible"}
+        )
+        self.assertEqual(
+            self.course_members[0].required_lab_features,
+            {"gpu"}
+        )
+        self.assertEqual(
+            self.course_members[0].reserve_room_during_lab,
+            False
+        )
+        self.assertEqual(self.course_members[0].conflicts, [])
+        self.assertEqual(
+            self.course_members[0].faculty,
+            ["Dr. Smith", "Dr. Johnson"]
+        )
 
     @patch("builtins.input", side_effect=[
-        "CS101",       # course_service ID
+        "CS101",       # course ID
         "001",         # section ID
         "3",           # credits
         "30",          # capacity
@@ -80,13 +92,13 @@ class TestCourse(unittest.TestCase):
         "none"         # faculty
     ])
     def test_add_course_basic(self, mock_input):
-        course_service.add_course()
+        course_service.add_course(self.course_members)
 
-        self.assertEqual(len(course_service.course_members), 1)
-        self.assertEqual(course_service.course_members[0].course_id, "CS101")
-        self.assertEqual(course_service.course_members[0].section_id, "001")
-        self.assertEqual(course_service.course_members[0].credits, 3)
-        self.assertEqual(course_service.course_members[0].capacity, 30)
+        self.assertEqual(len(self.course_members), 1)
+        self.assertEqual(self.course_members[0].course_id, "CS101")
+        self.assertEqual(self.course_members[0].section_id, "001")
+        self.assertEqual(self.course_members[0].credits, 3)
+        self.assertEqual(self.course_members[0].capacity, 30)
 
     @patch("builtins.input", side_effect=[
         "CS101",
@@ -106,7 +118,7 @@ class TestCourse(unittest.TestCase):
         "CS101",
         "001",
 
-        # Enter a different course_service after duplicate is rejected
+        # Enter a different course after duplicate is rejected
         "CS102",
         "001",
         "3",
@@ -121,12 +133,12 @@ class TestCourse(unittest.TestCase):
         "none"
     ])
     def test_add_duplicate_course(self, mock_input):
-        course_service.add_course()
-        course_service.add_course()
+        course_service.add_course(self.course_members)
+        course_service.add_course(self.course_members)
 
-        self.assertEqual(len(course_service.course_members), 2)
-        self.assertEqual(course_service.course_members[0].course_id, "CS101")
-        self.assertEqual(course_service.course_members[1].course_id, "CS102")
+        self.assertEqual(len(self.course_members), 2)
+        self.assertEqual(self.course_members[0].course_id, "CS101")
+        self.assertEqual(self.course_members[1].course_id, "CS102")
 
     @patch("builtins.input", side_effect=[
         "CS101",
@@ -144,10 +156,10 @@ class TestCourse(unittest.TestCase):
         "none"
     ])
     def test_add_course_invalid_credits(self, mock_input):
-        course_service.add_course()
+        course_service.add_course(self.course_members)
 
-        self.assertEqual(len(course_service.course_members), 1)
-        self.assertEqual(course_service.course_members[0].credits, 3)
+        self.assertEqual(len(self.course_members), 1)
+        self.assertEqual(self.course_members[0].credits, 3)
 
     @patch("builtins.input", side_effect=[
         "CS101",
@@ -165,10 +177,10 @@ class TestCourse(unittest.TestCase):
         "none"
     ])
     def test_add_course_invalid_capacity(self, mock_input):
-        course_service.add_course()
+        course_service.add_course(self.course_members)
 
-        self.assertEqual(len(course_service.course_members), 1)
-        self.assertEqual(course_service.course_members[0].capacity, 30)
+        self.assertEqual(len(self.course_members), 1)
+        self.assertEqual(self.course_members[0].capacity, 30)
 
     @patch("builtins.input", side_effect=[
         "CS101",
@@ -183,12 +195,12 @@ class TestCourse(unittest.TestCase):
         "none"
     ])
     def test_add_online_course(self, mock_input):
-        course_service.add_course()
+        course_service.add_course(self.course_members)
 
-        self.assertEqual(len(course_service.course_members), 1)
-        self.assertEqual(course_service.course_members[0].modality, "online")
-        self.assertEqual(course_service.course_members[0].room, [])
-        self.assertEqual(course_service.course_members[0].lab, [])
+        self.assertEqual(len(self.course_members), 1)
+        self.assertEqual(self.course_members[0].modality, "online")
+        self.assertEqual(self.course_members[0].room, [])
+        self.assertEqual(self.course_members[0].lab, [])
 
     # tests modify_course
     @patch("builtins.input", side_effect=[
@@ -206,16 +218,16 @@ class TestCourse(unittest.TestCase):
         "none"
     ])
     def test_modify_course_id(self, mock_input):
-        course_service.add_course()
+        course_service.add_course(self.course_members)
 
         with patch("builtins.input", side_effect=[
-            "1",       # course_service number
+            "1",       # course number
             "1",       # field: Course ID
-            "CS102"    # new course_service ID
+            "CS102"    # new course ID
         ]):
-            course_service.modify_course()
+            course_service.modify_course(self.course_members)
 
-        self.assertEqual(course_service.course_members[0].course_id, "CS102")
+        self.assertEqual(self.course_members[0].course_id, "CS102")
 
     @patch("builtins.input", side_effect=[
         "CS101",
@@ -232,16 +244,16 @@ class TestCourse(unittest.TestCase):
         "none"
     ])
     def test_modify_course_credits(self, mock_input):
-        course_service.add_course()
+        course_service.add_course(self.course_members)
 
         with patch("builtins.input", side_effect=[
-            "1",       # course_service number
+            "1",       # course number
             "3",       # field: Credits
             "4"        # new credits
         ]):
-            course_service.modify_course()
+            course_service.modify_course(self.course_members)
 
-        self.assertEqual(course_service.course_members[0].credits, 4)
+        self.assertEqual(self.course_members[0].credits, 4)
 
     @patch("builtins.input", side_effect=[
         "CS101",
@@ -258,16 +270,16 @@ class TestCourse(unittest.TestCase):
         "none"
     ])
     def test_modify_course_capacity(self, mock_input):
-        course_service.add_course()
+        course_service.add_course(self.course_members)
 
         with patch("builtins.input", side_effect=[
-            "1",       # course_service number
+            "1",       # course number
             "4",       # field: Capacity
             "50"       # new capacity
         ]):
-            course_service.modify_course()
+            course_service.modify_course(self.course_members)
 
-        self.assertEqual(course_service.course_members[0].capacity, 50)
+        self.assertEqual(self.course_members[0].capacity, 50)
 
     @patch("builtins.input", side_effect=[
         "CS101",
@@ -284,19 +296,18 @@ class TestCourse(unittest.TestCase):
         "none"
     ])
     def test_modify_course_modality(self, mock_input):
-        course_service.add_course()
+        course_service.add_course(self.course_members)
 
         with patch("builtins.input", side_effect=[
-            "1",        # course_service number
+            "1",        # course number
             "5",        # field: Modality
             "online"    # new modality
         ]):
-            course_service.modify_course()
+            course_service.modify_course(self.course_members)
 
-        self.assertEqual(course_service.course_members[0].modality, "online")
-        self.assertEqual(course_service.course_members[0].room, [])
-        self.assertEqual(course_service.course_members[0].lab, [])
-
+        self.assertEqual(self.course_members[0].modality, "online")
+        self.assertEqual(self.course_members[0].room, [])
+        self.assertEqual(self.course_members[0].lab, [])
 
     # tests delete_course
     def test_delete_course(self):
@@ -315,12 +326,12 @@ class TestCourse(unittest.TestCase):
             faculty=None
         )
 
-        course_service.course_members.append(course)
+        self.course_members.append(course)
 
         with patch("builtins.input", return_value="1"):
-            course_service.delete_course()
+            course_service.delete_course(self.course_members)
 
-        self.assertEqual(len(course_service.course_members), 0)
+        self.assertEqual(len(self.course_members), 0)
 
     @patch("builtins.input", side_effect=[
         "CS101",
@@ -350,25 +361,22 @@ class TestCourse(unittest.TestCase):
         "none"
     ])
     def test_delete_correct_course(self, mock_input):
-        course_service.add_course()
-        course_service.add_course()
+        course_service.add_course(self.course_members)
+        course_service.add_course(self.course_members)
 
         with patch("builtins.input", return_value="1"):
-            course_service.delete_course()
+            course_service.delete_course(self.course_members)
 
-        self.assertEqual(len(course_service.course_members), 1)
-        self.assertEqual(course_service.course_members[0].course_id, "CS102")
+        self.assertEqual(len(self.course_members), 1)
+        self.assertEqual(self.course_members[0].course_id, "CS102")
 
     def test_delete_course_when_empty(self):
-        course_service.delete_course()
+        course_service.delete_course(self.course_members)
 
-        self.assertEqual(len(course_service.course_members), 0)
+        self.assertEqual(len(self.course_members), 0)
 
+    # ------- test getters -----------------------------
 
-
-
-
-    #------- test getters -----------------------------
     # -------------------------
     # get_course_id()
     # -------------------------
@@ -386,7 +394,6 @@ class TestCourse(unittest.TestCase):
         self.assertEqual(result, "CS101")
         self.assertEqual(mock_input.call_count, 2)
 
-
     # -------------------------
     # get_section_id()
     # -------------------------
@@ -402,7 +409,6 @@ class TestCourse(unittest.TestCase):
         result = course_service.get_section_id()
 
         self.assertIsNone(result)
-
 
     # -------------------------
     # get_credits()
@@ -421,7 +427,6 @@ class TestCourse(unittest.TestCase):
         self.assertEqual(result, 3)
         self.assertEqual(mock_input.call_count, 2)
 
-
     # -------------------------
     # get_capacity()
     # -------------------------
@@ -438,7 +443,6 @@ class TestCourse(unittest.TestCase):
 
         self.assertEqual(result, 30)
         self.assertEqual(mock_input.call_count, 2)
-
 
     # -------------------------
     # get_modality()
@@ -457,7 +461,6 @@ class TestCourse(unittest.TestCase):
         self.assertEqual(result, "online")
         self.assertEqual(mock_input.call_count, 2)
 
-
     # -------------------------
     # get_room()
     # -------------------------
@@ -475,7 +478,6 @@ class TestCourse(unittest.TestCase):
         self.assertEqual(result, ["S101", "S102"])
         self.assertEqual(mock_input.call_count, 2)
 
-
     # -------------------------
     # get_lab()
     # -------------------------
@@ -492,7 +494,6 @@ class TestCourse(unittest.TestCase):
 
         self.assertEqual(result, ["L101", "L102"])
         self.assertEqual(mock_input.call_count, 2)
-
 
     # -------------------------
     # get_required_room_features()
@@ -514,7 +515,6 @@ class TestCourse(unittest.TestCase):
         self.assertEqual(result, {"projector", "whiteboard"})
         self.assertEqual(mock_input.call_count, 2)
 
-
     # -------------------------
     # get_required_lab_features()
     # -------------------------
@@ -535,7 +535,6 @@ class TestCourse(unittest.TestCase):
         self.assertEqual(result, {"computers", "software"})
         self.assertEqual(mock_input.call_count, 2)
 
-
     # -------------------------
     # get_reserve_room()
     # -------------------------
@@ -553,17 +552,15 @@ class TestCourse(unittest.TestCase):
         self.assertFalse(result)
         self.assertEqual(mock_input.call_count, 2)
 
-
     # -------------------------
     # get_conflicts()
     # -------------------------
 
     @patch("builtins.input", return_value="")
     def test_get_conflicts_empty(self, mock_input):
-        result = course_service.get_conflicts("CS101")
+        result = course_service.get_conflicts(self.course_members, "CS101")
 
         self.assertEqual(result, [])
-
 
     # -------------------------
     # get_faculty()
@@ -580,3 +577,4 @@ class TestCourse(unittest.TestCase):
         result = course_service.get_faculty()
 
         self.assertIsNone(result)
+
