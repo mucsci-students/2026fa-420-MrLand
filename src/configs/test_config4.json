@@ -276,6 +276,6 @@
         "max_time_gap": 30,
         "min_time_overlap": 45
     },
-    "limit": 5,
+    "limit": 1,
     "optimizer_flags": []
 }
