@@ -8,7 +8,20 @@
                 "times": null
             }
         ],
-        "labs": [],
+        "labs": [
+            {
+                "name": "lab1",
+                "capacity": 29,
+                "features": [],
+                "times": null
+            },
+            {
+                "name": "lab2",
+                "capacity": 29,
+                "features": [],
+                "times": null
+            }
+        ],
         "courses": [
             {
                 "course_id": "CS 101",
