@@ -14,6 +14,8 @@ from services.time_block_service import (
 import services.config_service as config_service
 from run_scheduler import run_scheduler
 from services.schedule_service import view_schedules, export_schedules
+import services.settings_service as settings_service
+import services.time_slot_settings_service as time_slot_settings_service
 
 current_config = None
 config_name = None
@@ -116,10 +118,20 @@ def config_dashboard():
         Command.parse("l|labs", "load lab", labs),
         Command.parse("r|rooms", "load room", rooms),
         Command.parse("t|timeslots", "manage time blocks and class patterns", time_slots),
+        Command.parse("g|settings", "manage global settings", settings),
         Command.parse("s|save", "save current config", save_current_config),
         Command.parse("h|home", "go to home page", home),
     ])
-
+def settings():
+    return Page(
+        "global settings",
+        [
+            Command.parse("v|view", "view global settings", lambda: settings_service.view_settings(current_config)),
+            Command.parse("m|modify", "modify global settings", lambda: settings_service.modify_settings(current_config)),
+            Command.parse("r|reset", "reset global settings", lambda: settings_service.reset_settings(current_config)),
+            Command.parse("h|home", "go to home page", home),
+        ]
+    )
 #FACULTY FUNCTIONS
 def faculty():
     return Page(
@@ -174,10 +186,10 @@ def time_slots():
         [
             Command.parse("tb|timeblocks", "manage time blocks", time_blocks),
             Command.parse("cp|classpatterns", "manage class patterns", class_patterns),
+            Command.parse("s|settings", "manage time slot settings", time_slot_settings),
             Command.parse("h|home", "go to home page", home),
         ]
     )
-
 
 def time_blocks():
     return Page(
@@ -207,7 +219,16 @@ def class_patterns():
             Command.parse("h|home", "go to home page", home),
         ]
     )
-
+def time_slot_settings():
+    return Page(
+        "time slot settings",
+        [
+            Command.parse("v|view", "view time slot settings", lambda: time_slot_settings_service.view_time_slot_settings(current_config.time_slot_config)),
+            Command.parse("m|modify", "modify time slot settings", lambda: time_slot_settings_service.modify_time_slot_settings(current_config.time_slot_config)),
+            Command.parse("r|reset", "reset time slot settings", lambda: time_slot_settings_service.reset_time_slot_settings(current_config.time_slot_config)),
+            Command.parse("h|home", "go to home page", home),
+        ]
+    )
 
 def schedule():
     return Page(
@@ -215,7 +236,7 @@ def schedule():
         [
             Command.parse("r|run", "run scheduler on a saved config", lambda: run_scheduler(cur_schedules)),
             Command.parse("v|view", "view generated schedules", lambda: view_schedules(cur_schedules)),
-            Command.parse("e|export", "export schedules to csv", lambda: export_schedules(cur_schedules)),
+            Command.parse("e|export", "export schedules to csv or json", lambda: export_schedules(cur_schedules)),
             Command.parse("h|home", "go to home page", home),
         ]
     )

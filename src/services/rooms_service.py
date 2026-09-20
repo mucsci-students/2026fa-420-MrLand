@@ -79,40 +79,55 @@ def delete_room_features(room):
 
 # Gets room availability from user input, ensuring valid day and time range formats
 def get_room_availability():
-    availability = {}
-    valid_days = ["MON", "TUE", "WED", "THU", "FRI"]
-
-    print("Enter availability entries one at a time.")
+    print("Enter room availability.")
+    print("Type 'unrestricted' for unrestricted availability.")
+    print("Otherwise, enter entries one at a time.")
     print("Format: DAY HH:MM-HH:MM (e.g., MON 09:00-10:00)")
     print("Type 'done' when finished.")
 
+    first_entry = input("Enter availability: ").strip()
+
+    if first_entry.lower() == "unrestricted":
+        return None
+
+    availability = {}
+    valid_days = ["MON", "TUE", "WED", "THU", "FRI"]
+
     while True:
-        entry = input("Enter availability: ").strip()
+        entry = first_entry
 
         if entry.lower() == "done":
             break
 
         parts = entry.split()
+
         if len(parts) != 2:
             print("Invalid format. Please use the format: DAY HH:MM-HH:MM")
-            continue
+        else:
+            day = parts[0].upper()
+            time_range = parts[1]
 
-        day = parts[0].upper()
-        time_range = parts[1]
+            if day not in valid_days:
+                print(
+                    f"Invalid day. Please use one of the following: "
+                    f"{', '.join(valid_days)}"
+                )
+            else:
+                try:
+                    validated_range = TimeRange.from_string(time_range)
 
-        if day not in valid_days:
-            print(f"Invalid day. Please use one of the following: {', '.join(valid_days)}")
-            continue
+                    if day not in availability:
+                        availability[day] = []
 
-        try:
-            validated_range = TimeRange.from_string(time_range)
-        except (ValueError, TypeError):
-            print("Invalid time range. Use HH:MM-HH:MM with end after start.")
-            continue
+                    availability[day].append(validated_range)
 
-        if day not in availability:
-            availability[day] = []
-        availability[day].append(validated_range)
+                except (ValueError, TypeError):
+                    print(
+                        "Invalid time range. "
+                        "Use HH:MM-HH:MM with end after start."
+                    )
+
+        first_entry = input("Enter availability: ").strip()
 
     return availability
 

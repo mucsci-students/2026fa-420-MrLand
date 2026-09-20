@@ -2,90 +2,78 @@
     "config": {
         "rooms": [
             {
-                "name": "Room 101",
-                "capacity": 40,
+                "name": "Room",
+                "capacity": 30,
                 "features": [],
                 "times": null
             }
         ],
-        "labs": [],
+        "labs": [
+            {
+                "name": "Lab",
+                "capacity": 30,
+                "features": [],
+                "times": null
+            }
+        ],
         "courses": [
             {
-                "course_id": "CS 101",
+                "course_id": "CS 121",
                 "section_id": null,
-                "credits": 3,
-                "capacity": 24,
+                "credits": 4,
+                "capacity": 25,
                 "room": [
-                    "Room 101"
+                    "Room"
                 ],
-                "lab": [],
+                "lab": [
+                    "Lab"
+                ],
                 "conflicts": [],
                 "faculty": [
-                    "Dr. Smith"
+                    "Dr. Adrian"
                 ],
                 "modality": "in_person",
                 "required_room_features": [],
                 "required_lab_features": [],
-                "reserve_room_during_lab": true
+                "reserve_room_during_lab": false
             }
         ],
         "faculty": [
             {
-                "name": "Dr. Smith",
-                "maximum_credits": 12,
-                "maximum_days": 5,
-                "minimum_credits": 3,
-                "unique_course_limit": 3,
-                "times": {
-                    "MON": [
-                        {
-                            "start": "09:00",
-                            "end": "17:00"
-                        }
-                    ]
-                },
-                "course_preferences": {},
-                "room_preferences": {},
-                "lab_preferences": {},
-                "mandatory_days": [
-                    "MON"
-                ]
-            },
-            {
-                "name": "Dr Paul",
-                "maximum_credits": 4,
-                "maximum_days": 5,
-                "minimum_credits": 3,
+                "name": "Dr. Adrian",
+                "maximum_credits": 8,
+                "maximum_days": 4,
+                "minimum_credits": 1,
                 "unique_course_limit": 2,
                 "times": {
                     "MON": [
                         {
-                            "start": "10:00",
-                            "end": "12:00"
+                            "start": "01:00",
+                            "end": "14:00"
                         }
                     ],
                     "TUE": [
                         {
-                            "start": "10:00",
-                            "end": "12:00"
+                            "start": "01:00",
+                            "end": "14:00"
                         }
                     ],
                     "WED": [
                         {
-                            "start": "10:00",
-                            "end": "12:00"
+                            "start": "01:00",
+                            "end": "14:00"
                         }
                     ],
                     "THU": [
                         {
-                            "start": "10:00",
-                            "end": "12:00"
+                            "start": "01:00",
+                            "end": "14:00"
                         }
                     ],
                     "FRI": [
                         {
-                            "start": "10:00",
-                            "end": "12:00"
+                            "start": "01:00",
+                            "end": "14:00"
                         }
                     ]
                 },
@@ -93,9 +81,8 @@
                 "room_preferences": {},
                 "lab_preferences": {},
                 "mandatory_days": [
-                    "WED",
-                    "THU",
                     "MON",
+                    "WED",
                     "FRI"
                 ]
             }
@@ -105,48 +92,62 @@
         "times": {
             "MON": [
                 {
-                    "start": "09:00",
+                    "start": "10:00",
                     "spacing": 60,
-                    "end": "17:00"
+                    "end": "11:00"
                 }
             ],
             "TUE": [
                 {
-                    "start": "09:00",
+                    "start": "10:00",
                     "spacing": 60,
-                    "end": "17:00"
+                    "end": "11:00"
                 }
             ],
             "WED": [
                 {
-                    "start": "09:00",
+                    "start": "10:00",
                     "spacing": 60,
-                    "end": "17:00"
+                    "end": "11:00"
                 }
             ],
             "THU": [
                 {
-                    "start": "09:00",
+                    "start": "10:00",
                     "spacing": 60,
-                    "end": "17:00"
+                    "end": "11:00"
                 }
             ],
             "FRI": [
                 {
-                    "start": "09:00",
+                    "start": "10:00",
                     "spacing": 60,
-                    "end": "17:00"
+                    "end": "11:00"
                 }
             ]
         },
         "classes": [
             {
-                "credits": 3,
+                "credits": 4,
                 "meetings": [
                     {
                         "day": "MON",
                         "start_time": null,
-                        "duration": 150,
+                        "duration": 60,
+                        "lab": false,
+                        "delivery": "in_person"
+                    },
+                    {
+                        "day": "WED",
+                        "start_time": null,
+                        "duration": 60,
+                        "lab": true,
+                        "delivery": "in_person"
+                    },
+                    {
+                        "day": "FRI",
+                        "start_time": null,
+                        "duration": 60,
                         "lab": false,
                         "delivery": "in_person"
                     }
