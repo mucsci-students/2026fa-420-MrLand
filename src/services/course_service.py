@@ -27,12 +27,15 @@ def add_course(course_members):
     if modality != "online": 
         room = get_room()
         lab = get_lab()
+        required_room_features = get_required_room_features()
+        required_lab_features = get_required_lab_features()
+        reserve_room_during_lab = get_reserve_room()
     else:
         room = []
         lab = []
-    required_room_features = get_required_room_features()
-    required_lab_features = get_required_lab_features()
-    reserve_room_during_lab = get_reserve_room()
+        required_room_features = set()
+        required_lab_features = set()
+        reserve_room_during_lab = False
     conflicts = get_conflicts(course_members, course_id)
     faculty = get_faculty()
 
@@ -66,7 +69,7 @@ def add_course(course_members):
             choice = input()
 
         if choice == "r":
-            add_course()
+            add_course(course_members)
         else:
             return
     
@@ -137,10 +140,13 @@ def modify_course(course_members):
             elif choice == 5:
                 new_modality = get_modality()
 
-                # adds check to take away room
+                # adds check to take away room and lab
                 if new_modality == "online":
                     selected_course.room = []
                     selected_course.lab = []
+                    selected_course.required_room_features = set()
+                    selected_course.required_lab_features = set()
+                    selected_course.reserve_room_during_lab = False
                 
                 selected_course.modality = new_modality
 
@@ -162,15 +168,24 @@ def modify_course(course_members):
             
             # required room features
             elif choice == 8:
-                selected_course.required_room_features = get_required_room_features()
+                if selected_course.modality != "online":
+                    selected_course.required_room_features = get_required_room_features()
+                else:
+                    print("Online classes can not have required room features.")
 
             # required lab features
             elif choice == 9:
-                selected_course.required_lab_features = get_required_lab_features()
+                if selected_course.modality != "online":
+                    selected_course.required_lab_features = get_required_lab_features()
+                else: 
+                    print("Online classes can not have required lab features.")
             
             # reserve room
             elif choice == 10:
-                selected_course.reserve_room_during_lab = get_reserve_room()
+                if selected_course.modality != "online":
+                    selected_course.reserve_room_during_lab = get_reserve_room()
+                else:
+                    print("Online classes can not reserve rooms during labs.")
             
             # conflicts
             elif choice == 11:
@@ -201,7 +216,7 @@ def modify_course(course_members):
             choice = input()
 
         if choice == "r":
-            modify_course()
+            modify_course(course_members)
         else:
             return
 
@@ -246,10 +261,10 @@ def view_courses(course_members):
         print(f"  Credits:         {course.credits}")
         print(f"  Capacity:        {course.capacity}")
         print(f"  Modality:        {course.modality}")
-        print(f"  Room:           {course.room}")
-        print(f"  Lab:            {course.lab}")
-        print(f"  Room Features:   {course.required_room_features}")
-        print(f"  Lab Features:    {course.required_lab_features}")
+        print(f"  Room:            {course.room or 'None'}")
+        print(f"  Lab:             {course.lab or 'None'}")
+        print(f"  Room Features:   {course.required_room_features or 'None'}")
+        print(f"  Lab Features:    {course.required_lab_features or 'None'}")
         print(f"  Reserve Room:    {course.reserve_room_during_lab}")
         print(f"  Conflicts:       {course.conflicts}")
         print(f"  Faculty:         {course.faculty}")
