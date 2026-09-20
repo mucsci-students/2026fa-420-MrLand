@@ -229,6 +229,16 @@ def modify_faculty(faculty_members):
             choice = int(input("Enter the number of the attribute to modify: "))
         except ValueError:
             print("Invalid input. Please enter a valid number.")
+            print("Commands:\n  (r)etry\n  (f)aculty\n")
+            retry_choice = input()
+
+            while retry_choice not in ["r", "f"]:
+                print("INVALID COMMAND.\n  (r)etry\n  (f)aculty\n")
+                retry_choice = input()
+
+            if retry_choice == "f":
+                return
+
             continue
 
         if choice not in range(1, 11):
