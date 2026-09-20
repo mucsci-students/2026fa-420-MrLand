@@ -159,7 +159,7 @@ def add_lab(labs):
             times=times,
         )
 
-        labs_members.append(lab)
+        labs.append(lab)
         print(f"'{name}' Added")
 
     except Exception as error:
