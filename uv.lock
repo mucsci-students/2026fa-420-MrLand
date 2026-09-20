@@ -8,10 +8,14 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "course-constraint-scheduler" },
+    { name = "pydantic" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "course-constraint-scheduler" }]
+requires-dist = [
+    { name = "course-constraint-scheduler" },
+    { name = "pydantic" },
+]
 
 [[package]]
 name = "annotated-doc"

@@ -5,6 +5,7 @@ description = "CLI interface for generating and viewing class schedules"
 requires-python = ">=3.12"
 dependencies = [
     "course-constraint-scheduler",
+    "pydantic",
 ]
 
 [build-system]
