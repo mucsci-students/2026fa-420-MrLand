@@ -3,30 +3,41 @@
         "rooms": [
             {
                 "name": "Roddy 136",
-                "capacity": 28
+                "capacity": 28,
+                "features": [],
+                "times": null
             },
             {
                 "name": "Roddy 140",
-                "capacity": 28
+                "capacity": 28,
+                "features": [],
+                "times": null
             },
             {
                 "name": "Roddy 147",
-                "capacity": 28
+                "capacity": 28,
+                "features": [],
+                "times": null
             }
         ],
         "labs": [
             {
                 "name": "Linux",
-                "capacity": 28
+                "capacity": 28,
+                "features": [],
+                "times": null
             },
             {
                 "name": "Mac",
-                "capacity": 28
+                "capacity": 28,
+                "features": [],
+                "times": null
             }
         ],
         "courses": [
             {
                 "course_id": "CMSC 140",
+                "section_id": null,
                 "credits": 4,
                 "capacity": 28,
                 "room": [
@@ -39,10 +50,15 @@
                     "CMSC 161",
                     "CMSC 162"
                 ],
-                "faculty": null
+                "faculty": null,
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": true
             },
             {
                 "course_id": "CMSC 140",
+                "section_id": null,
                 "credits": 4,
                 "capacity": 28,
                 "room": [
@@ -55,10 +71,15 @@
                     "CMSC 161",
                     "CMSC 162"
                 ],
-                "faculty": null
+                "faculty": null,
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": true
             },
             {
                 "course_id": "CMSC 152",
+                "section_id": null,
                 "credits": 4,
                 "capacity": 28,
                 "room": [
@@ -71,10 +92,15 @@
                     "Linux"
                 ],
                 "conflicts": [],
-                "faculty": null
+                "faculty": null,
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": true
             },
             {
                 "course_id": "CMSC 161",
+                "section_id": null,
                 "credits": 4,
                 "capacity": 28,
                 "room": [
@@ -88,10 +114,15 @@
                 ],
                 "faculty": [
                     "Zoppetti"
-                ]
+                ],
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": true
             },
             {
                 "course_id": "CMSC 161",
+                "section_id": null,
                 "credits": 4,
                 "capacity": 28,
                 "room": [
@@ -103,10 +134,15 @@
                     "Linux"
                 ],
                 "conflicts": [],
-                "faculty": null
+                "faculty": null,
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": true
             },
             {
                 "course_id": "CMSC 161",
+                "section_id": null,
                 "credits": 4,
                 "capacity": 28,
                 "room": [
@@ -120,10 +156,15 @@
                 "conflicts": [
                     "CMSC 140"
                 ],
-                "faculty": null
+                "faculty": null,
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": true
             },
             {
                 "course_id": "CMSC 162",
+                "section_id": null,
                 "credits": 4,
                 "capacity": 28,
                 "room": [
@@ -135,10 +176,15 @@
                 "conflicts": [
                     "CMSC 140"
                 ],
-                "faculty": null
+                "faculty": null,
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": true
             },
             {
                 "course_id": "CMSC 330",
+                "section_id": null,
                 "credits": 4,
                 "capacity": 28,
                 "room": [
@@ -154,10 +200,15 @@
                     "CMSC 362",
                     "CMSC 366"
                 ],
-                "faculty": null
+                "faculty": null,
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": true
             },
             {
                 "course_id": "CMSC 340",
+                "section_id": null,
                 "credits": 4,
                 "capacity": 28,
                 "room": [
@@ -175,10 +226,15 @@
                     "CMSC 453",
                     "CMSC 476"
                 ],
-                "faculty": null
+                "faculty": null,
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": true
             },
             {
                 "course_id": "CMSC 340",
+                "section_id": null,
                 "credits": 4,
                 "capacity": 28,
                 "room": [
@@ -195,10 +251,15 @@
                     "CMSC 366",
                     "CMSC 330"
                 ],
-                "faculty": null
+                "faculty": null,
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": true
             },
             {
                 "course_id": "CMSC 362",
+                "section_id": null,
                 "credits": 4,
                 "capacity": 28,
                 "room": [
@@ -211,10 +272,15 @@
                     "CMSC 330",
                     "CMSC 366"
                 ],
-                "faculty": null
+                "faculty": null,
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": true
             },
             {
                 "course_id": "CMSC 366",
+                "section_id": null,
                 "credits": 4,
                 "capacity": 28,
                 "room": [
@@ -231,10 +297,15 @@
                     "CMSC 362",
                     "CMSC 330"
                 ],
-                "faculty": null
+                "faculty": null,
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": true
             },
             {
                 "course_id": "CMSC 366",
+                "section_id": null,
                 "credits": 4,
                 "capacity": 28,
                 "room": [
@@ -250,10 +321,15 @@
                     "CMSC 362",
                     "CMSC 330"
                 ],
-                "faculty": null
+                "faculty": null,
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": true
             },
             {
                 "course_id": "CMSC 380",
+                "section_id": null,
                 "credits": 4,
                 "capacity": 28,
                 "room": [
@@ -268,10 +344,15 @@
                     "CMSC 453",
                     "CMSC 476"
                 ],
-                "faculty": null
+                "faculty": null,
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": true
             },
             {
                 "course_id": "CMSC 420",
+                "section_id": null,
                 "credits": 4,
                 "capacity": 28,
                 "room": [
@@ -285,10 +366,15 @@
                     "CMSC 453",
                     "CMSC 476"
                 ],
-                "faculty": null
+                "faculty": null,
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": true
             },
             {
                 "course_id": "CMSC 453",
+                "section_id": null,
                 "credits": 4,
                 "capacity": 28,
                 "room": [
@@ -305,10 +391,15 @@
                     "CMSC 420",
                     "CMSC 476"
                 ],
-                "faculty": null
+                "faculty": null,
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": true
             },
             {
                 "course_id": "CMSC 476",
+                "section_id": null,
                 "credits": 4,
                 "capacity": 28,
                 "room": [
@@ -322,29 +413,45 @@
                     "CMSC 420",
                     "CMSC 453"
                 ],
-                "faculty": null
+                "faculty": null,
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": true
             }
         ],
         "faculty": [
             {
                 "name": "Zoppetti",
                 "maximum_credits": 12,
+                "maximum_days": 4,
                 "minimum_credits": 12,
                 "unique_course_limit": 3,
-                "maximum_days": 4,
                 "times": {
                     "MON": [
-                        "11:00-16:00"
+                        {
+                            "start": "11:00",
+                            "end": "16:00"
+                        }
                     ],
                     "TUE": [],
                     "WED": [
-                        "10:00-15:00"
+                        {
+                            "start": "10:00",
+                            "end": "15:00"
+                        }
                     ],
                     "THU": [
-                        "10:00-17:00"
+                        {
+                            "start": "10:00",
+                            "end": "17:00"
+                        }
                     ],
                     "FRI": [
-                        "11:00-16:00"
+                        {
+                            "start": "11:00",
+                            "end": "16:00"
+                        }
                     ]
                 },
                 "course_preferences": {
@@ -360,34 +467,45 @@
                 "lab_preferences": {
                     "Linux": 5,
                     "Mac": 1
-                }
+                },
+                "mandatory_days": []
             },
             {
                 "name": "Hardy",
                 "maximum_credits": 14,
+                "maximum_days": 4,
                 "minimum_credits": 12,
                 "unique_course_limit": 2,
-                "maximum_days": 4,
-                "mandatory_days": [
-                    "MON",
-                    "WED",
-                    "FRI"
-                ],
                 "times": {
                     "MON": [
-                        "09:00-15:00"
+                        {
+                            "start": "09:00",
+                            "end": "15:00"
+                        }
                     ],
                     "TUE": [
-                        "09:00-15:00"
+                        {
+                            "start": "09:00",
+                            "end": "15:00"
+                        }
                     ],
                     "WED": [
-                        "09:00-15:00"
+                        {
+                            "start": "09:00",
+                            "end": "15:00"
+                        }
                     ],
                     "THU": [
-                        "09:00-15:00"
+                        {
+                            "start": "09:00",
+                            "end": "15:00"
+                        }
                     ],
                     "FRI": [
-                        "09:00-15:00"
+                        {
+                            "start": "09:00",
+                            "end": "15:00"
+                        }
                     ]
                 },
                 "course_preferences": {
@@ -402,33 +520,49 @@
                 "lab_preferences": {
                     "Linux": 3,
                     "Mac": 3
-                }
+                },
+                "mandatory_days": [
+                    "FRI",
+                    "WED",
+                    "MON"
+                ]
             },
             {
                 "name": "Hogg",
                 "maximum_credits": 8,
+                "maximum_days": 4,
                 "minimum_credits": 8,
                 "unique_course_limit": 2,
-                "maximum_days": 4,
-                "mandatory_days": [
-                    "MON",
-                    "WED"
-                ],
                 "times": {
                     "MON": [
-                        "09:00-13:00"
+                        {
+                            "start": "09:00",
+                            "end": "13:00"
+                        }
                     ],
                     "TUE": [
-                        "09:00-15:00"
+                        {
+                            "start": "09:00",
+                            "end": "15:00"
+                        }
                     ],
                     "WED": [
-                        "09:00-15:00"
+                        {
+                            "start": "09:00",
+                            "end": "15:00"
+                        }
                     ],
                     "THU": [
-                        "09:00-15:00"
+                        {
+                            "start": "09:00",
+                            "end": "15:00"
+                        }
                     ],
                     "FRI": [
-                        "09:00-15:00"
+                        {
+                            "start": "09:00",
+                            "end": "15:00"
+                        }
                     ]
                 },
                 "course_preferences": {
@@ -443,32 +577,48 @@
                 "lab_preferences": {
                     "Linux": 5,
                     "Mac": 1
-                }
+                },
+                "mandatory_days": [
+                    "WED",
+                    "MON"
+                ]
             },
             {
                 "name": "Xie",
                 "maximum_credits": 12,
+                "maximum_days": 4,
                 "minimum_credits": 12,
                 "unique_course_limit": 2,
-                "maximum_days": 4,
-                "mandatory_days": [
-                    "WED"
-                ],
                 "times": {
                     "MON": [
-                        "09:00-15:00"
+                        {
+                            "start": "09:00",
+                            "end": "15:00"
+                        }
                     ],
                     "TUE": [
-                        "09:00-15:00"
+                        {
+                            "start": "09:00",
+                            "end": "15:00"
+                        }
                     ],
                     "WED": [
-                        "09:00-15:00"
+                        {
+                            "start": "09:00",
+                            "end": "15:00"
+                        }
                     ],
                     "THU": [
-                        "09:00-15:00"
+                        {
+                            "start": "09:00",
+                            "end": "15:00"
+                        }
                     ],
                     "FRI": [
-                        "09:00-15:00"
+                        {
+                            "start": "09:00",
+                            "end": "15:00"
+                        }
                     ]
                 },
                 "course_preferences": {
@@ -483,25 +633,41 @@
                 "lab_preferences": {
                     "Linux": 3,
                     "Mac": 3
-                }
+                },
+                "mandatory_days": [
+                    "WED"
+                ]
             },
             {
                 "name": "Rogers",
                 "maximum_credits": 4,
+                "maximum_days": 5,
                 "minimum_credits": 0,
                 "unique_course_limit": 1,
                 "times": {
                     "MON": [
-                        "17:00-21:00"
+                        {
+                            "start": "17:00",
+                            "end": "21:00"
+                        }
                     ],
                     "TUE": [
-                        "17:00-21:00"
+                        {
+                            "start": "17:00",
+                            "end": "21:00"
+                        }
                     ],
                     "WED": [
-                        "17:00-21:00"
+                        {
+                            "start": "17:00",
+                            "end": "21:00"
+                        }
                     ],
                     "THU": [
-                        "17:00-21:00"
+                        {
+                            "start": "17:00",
+                            "end": "21:00"
+                        }
                     ],
                     "FRI": []
                 },
@@ -516,21 +682,29 @@
                 "lab_preferences": {
                     "Linux": 5,
                     "Mac": 1
-                }
+                },
+                "mandatory_days": []
             },
             {
                 "name": "Wertz",
                 "maximum_credits": 4,
+                "maximum_days": 5,
                 "minimum_credits": 0,
                 "unique_course_limit": 1,
                 "times": {
                     "MON": [],
                     "TUE": [
-                        "08:00-10:00"
+                        {
+                            "start": "08:00",
+                            "end": "10:00"
+                        }
                     ],
                     "WED": [],
                     "THU": [
-                        "08:00-10:00"
+                        {
+                            "start": "08:00",
+                            "end": "10:00"
+                        }
                     ],
                     "FRI": []
                 },
@@ -545,25 +719,39 @@
                 "lab_preferences": {
                     "Linux": 5,
                     "Mac": 1
-                }
+                },
+                "mandatory_days": []
             },
             {
                 "name": "Hobbs",
                 "maximum_credits": 4,
+                "maximum_days": 5,
                 "minimum_credits": 0,
                 "unique_course_limit": 1,
                 "times": {
                     "MON": [
-                        "16:00-19:00"
+                        {
+                            "start": "16:00",
+                            "end": "19:00"
+                        }
                     ],
                     "TUE": [
-                        "16:00-19:00"
+                        {
+                            "start": "16:00",
+                            "end": "19:00"
+                        }
                     ],
                     "WED": [
-                        "16:00-19:00"
+                        {
+                            "start": "16:00",
+                            "end": "19:00"
+                        }
                     ],
                     "THU": [
-                        "16:00-19:00"
+                        {
+                            "start": "16:00",
+                            "end": "19:00"
+                        }
                     ],
                     "FRI": []
                 },
@@ -578,32 +766,45 @@
                 "lab_preferences": {
                     "Mac": 5,
                     "Linux": 1
-                }
+                },
+                "mandatory_days": []
             },
             {
                 "name": "Yang",
                 "maximum_credits": 12,
+                "maximum_days": 4,
                 "minimum_credits": 12,
                 "unique_course_limit": 2,
-                "maximum_days": 4,
-                "mandatory_days": [
-                    "WED"
-                ],
                 "times": {
                     "MON": [
-                        "09:00-17:00"
+                        {
+                            "start": "09:00",
+                            "end": "17:00"
+                        }
                     ],
                     "TUE": [
-                        "09:00-17:00"
+                        {
+                            "start": "09:00",
+                            "end": "17:00"
+                        }
                     ],
                     "WED": [
-                        "09:00-15:00"
+                        {
+                            "start": "09:00",
+                            "end": "15:00"
+                        }
                     ],
                     "THU": [
-                        "09:00-17:00"
+                        {
+                            "start": "09:00",
+                            "end": "17:00"
+                        }
                     ],
                     "FRI": [
-                        "09:00-17:00"
+                        {
+                            "start": "09:00",
+                            "end": "17:00"
+                        }
                     ]
                 },
                 "course_preferences": {
@@ -618,11 +819,15 @@
                 "lab_preferences": {
                     "Mac": 3,
                     "Linux": 3
-                }
+                },
+                "mandatory_days": [
+                    "WED"
+                ]
             },
             {
                 "name": "Schwartz",
                 "maximum_credits": 0,
+                "maximum_days": 5,
                 "minimum_credits": 0,
                 "unique_course_limit": 1,
                 "times": {
@@ -641,7 +846,8 @@
                 "lab_preferences": {
                     "Mac": 5,
                     "Linux": 1
-                }
+                },
+                "mandatory_days": []
             }
         ]
     },
@@ -709,57 +915,90 @@
                 "meetings": [
                     {
                         "day": "MON",
-                        "duration": 50
+                        "start_time": null,
+                        "duration": 50,
+                        "lab": false,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "WED",
-                        "duration": 50
+                        "start_time": null,
+                        "duration": 50,
+                        "lab": false,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "FRI",
-                        "duration": 50
+                        "start_time": null,
+                        "duration": 50,
+                        "lab": false,
+                        "delivery": "in_person"
                     }
-                ]
+                ],
+                "disabled": false,
+                "start_time": null
             },
             {
                 "credits": 3,
                 "meetings": [
                     {
                         "day": "TUE",
-                        "duration": 75
+                        "start_time": null,
+                        "duration": 75,
+                        "lab": false,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "THU",
-                        "duration": 75
-                    }
-                ]
-            },
-            {
-                "credits": 4,
-                "meetings": [
-                    {
-                        "day": "MON",
-                        "duration": 110
-                    },
-                    {
-                        "day": "WED",
-                        "duration": 110
-                    }
-                ]
-            },
-            {
-                "credits": 4,
-                "meetings": [
-                    {
-                        "day": "MON",
-                        "duration": 110,
-                        "lab": true
-                    },
-                    {
-                        "day": "WED",
-                        "duration": 110
+                        "start_time": null,
+                        "duration": 75,
+                        "lab": false,
+                        "delivery": "in_person"
                     }
                 ],
+                "disabled": false,
+                "start_time": null
+            },
+            {
+                "credits": 4,
+                "meetings": [
+                    {
+                        "day": "MON",
+                        "start_time": null,
+                        "duration": 110,
+                        "lab": false,
+                        "delivery": "in_person"
+                    },
+                    {
+                        "day": "WED",
+                        "start_time": null,
+                        "duration": 110,
+                        "lab": false,
+                        "delivery": "in_person"
+                    }
+                ],
+                "disabled": false,
+                "start_time": null
+            },
+            {
+                "credits": 4,
+                "meetings": [
+                    {
+                        "day": "MON",
+                        "start_time": null,
+                        "duration": 110,
+                        "lab": true,
+                        "delivery": "in_person"
+                    },
+                    {
+                        "day": "WED",
+                        "start_time": null,
+                        "duration": 110,
+                        "lab": false,
+                        "delivery": "in_person"
+                    }
+                ],
+                "disabled": false,
                 "start_time": "16:00"
             },
             {
@@ -767,221 +1006,320 @@
                 "meetings": [
                     {
                         "day": "MON",
+                        "start_time": null,
                         "duration": 110,
-                        "lab": true
+                        "lab": true,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "FRI",
-                        "duration": 110
+                        "start_time": null,
+                        "duration": 110,
+                        "lab": false,
+                        "delivery": "in_person"
                     }
                 ],
-                "disabled": true
+                "disabled": true,
+                "start_time": null
             },
             {
                 "credits": 4,
                 "meetings": [
                     {
                         "day": "TUE",
+                        "start_time": null,
                         "duration": 110,
-                        "lab": true
+                        "lab": true,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "THU",
-                        "duration": 110
+                        "start_time": null,
+                        "duration": 110,
+                        "lab": false,
+                        "delivery": "in_person"
                     }
-                ]
+                ],
+                "disabled": false,
+                "start_time": null
             },
             {
                 "credits": 4,
                 "meetings": [
                     {
                         "day": "TUE",
-                        "duration": 110
+                        "start_time": null,
+                        "duration": 110,
+                        "lab": false,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "THU",
+                        "start_time": null,
                         "duration": 110,
-                        "lab": true
+                        "lab": true,
+                        "delivery": "in_person"
                     }
-                ]
+                ],
+                "disabled": false,
+                "start_time": null
             },
             {
                 "credits": 4,
                 "meetings": [
                     {
                         "day": "MON",
-                        "duration": 50
+                        "start_time": null,
+                        "duration": 50,
+                        "lab": false,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "TUE",
+                        "start_time": null,
                         "duration": 110,
-                        "lab": true
+                        "lab": true,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "FRI",
-                        "duration": 50
+                        "start_time": null,
+                        "duration": 50,
+                        "lab": false,
+                        "delivery": "in_person"
                     }
-                ]
+                ],
+                "disabled": false,
+                "start_time": null
             },
             {
                 "credits": 4,
                 "meetings": [
                     {
                         "day": "MON",
-                        "duration": 50
+                        "start_time": null,
+                        "duration": 50,
+                        "lab": false,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "WED",
+                        "start_time": null,
                         "duration": 110,
-                        "lab": true
+                        "lab": true,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "FRI",
-                        "duration": 50
+                        "start_time": null,
+                        "duration": 50,
+                        "lab": false,
+                        "delivery": "in_person"
                     }
-                ]
+                ],
+                "disabled": false,
+                "start_time": null
             },
             {
                 "credits": 4,
                 "meetings": [
                     {
                         "day": "MON",
-                        "duration": 50
+                        "start_time": null,
+                        "duration": 50,
+                        "lab": false,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "THU",
+                        "start_time": null,
                         "duration": 110,
-                        "lab": true
+                        "lab": true,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "FRI",
-                        "duration": 50
+                        "start_time": null,
+                        "duration": 50,
+                        "lab": false,
+                        "delivery": "in_person"
                     }
-                ]
+                ],
+                "disabled": false,
+                "start_time": null
             },
             {
                 "credits": 4,
                 "meetings": [
                     {
                         "day": "MON",
+                        "start_time": null,
                         "duration": 110,
-                        "lab": true
+                        "lab": true,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "TUE",
-                        "duration": 50
+                        "start_time": null,
+                        "duration": 50,
+                        "lab": false,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "FRI",
-                        "duration": 50
+                        "start_time": null,
+                        "duration": 50,
+                        "lab": false,
+                        "delivery": "in_person"
                     }
                 ],
-                "disabled": true
+                "disabled": true,
+                "start_time": null
             },
             {
                 "credits": 4,
                 "meetings": [
                     {
                         "day": "MON",
+                        "start_time": null,
                         "duration": 110,
-                        "lab": true
+                        "lab": true,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "WED",
-                        "duration": 50
+                        "start_time": null,
+                        "duration": 50,
+                        "lab": false,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "FRI",
-                        "duration": 50
+                        "start_time": null,
+                        "duration": 50,
+                        "lab": false,
+                        "delivery": "in_person"
                     }
                 ],
-                "disabled": true
+                "disabled": true,
+                "start_time": null
             },
             {
                 "credits": 4,
                 "meetings": [
                     {
                         "day": "MON",
+                        "start_time": null,
                         "duration": 110,
-                        "lab": true
+                        "lab": true,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "THU",
-                        "duration": 50
+                        "start_time": null,
+                        "duration": 50,
+                        "lab": false,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "FRI",
-                        "duration": 50
+                        "start_time": null,
+                        "duration": 50,
+                        "lab": false,
+                        "delivery": "in_person"
                     }
                 ],
-                "disabled": true
+                "disabled": true,
+                "start_time": null
             },
             {
                 "credits": 4,
                 "meetings": [
                     {
                         "day": "MON",
-                        "duration": 50
+                        "start_time": null,
+                        "duration": 50,
+                        "lab": false,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "TUE",
-                        "duration": 50
+                        "start_time": null,
+                        "duration": 50,
+                        "lab": false,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "FRI",
+                        "start_time": null,
                         "duration": 110,
-                        "lab": true
+                        "lab": true,
+                        "delivery": "in_person"
                     }
                 ],
-                "disabled": true
+                "disabled": true,
+                "start_time": null
             },
             {
                 "credits": 4,
                 "meetings": [
                     {
                         "day": "MON",
-                        "duration": 50
+                        "start_time": null,
+                        "duration": 50,
+                        "lab": false,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "WED",
-                        "duration": 50
+                        "start_time": null,
+                        "duration": 50,
+                        "lab": false,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "FRI",
+                        "start_time": null,
                         "duration": 110,
-                        "lab": true
+                        "lab": true,
+                        "delivery": "in_person"
                     }
                 ],
-                "disabled": true
+                "disabled": true,
+                "start_time": null
             },
             {
                 "credits": 4,
                 "meetings": [
                     {
                         "day": "MON",
-                        "duration": 50
+                        "start_time": null,
+                        "duration": 50,
+                        "lab": false,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "THU",
-                        "duration": 50
+                        "start_time": null,
+                        "duration": 50,
+                        "lab": false,
+                        "delivery": "in_person"
                     },
                     {
                         "day": "FRI",
+                        "start_time": null,
                         "duration": 110,
-                        "lab": true
+                        "lab": true,
+                        "delivery": "in_person"
                     }
                 ],
-                "disabled": true
+                "disabled": true,
+                "start_time": null
             }
-        ]
+        ],
+        "max_time_gap": 30,
+        "min_time_overlap": 45
     },
-    "limit": 100,
-    "optimizer_flags": [
-        "faculty_course",
-        "faculty_room",
-        "faculty_lab",
-        "same_room",
-        "same_lab",
-        "pack_rooms"
-    ]
+    "limit": 2,
+    "optimizer_flags": []
 }

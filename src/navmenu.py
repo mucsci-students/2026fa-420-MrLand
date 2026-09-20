@@ -14,6 +14,7 @@ from services.time_block_service import (
 import services.config_service as config_service
 from run_scheduler import run_scheduler
 from services.schedule_service import view_schedules, export_schedules
+import services.settings_service as settings_service
 
 current_config = None
 config_name = None
@@ -116,10 +117,32 @@ def config_dashboard():
         Command.parse("l|labs", "load lab", labs),
         Command.parse("r|rooms", "load room", rooms),
         Command.parse("t|timeslots", "manage time blocks and class patterns", time_slots),
+        Command.parse("g|settings", "manage global settings", settings),
         Command.parse("s|save", "save current config", save_current_config),
         Command.parse("h|home", "go to home page", home),
     ])
-
+def settings():
+    return Page(
+        "global settings",
+        [
+            Command.parse(
+                "v|view",
+                "view global settings",
+                lambda: settings_service.view_settings(current_config)
+            ),
+            Command.parse(
+                "m|modify",
+                "modify global settings",
+                lambda: settings_service.modify_settings(current_config)
+            ),
+            Command.parse(
+                "r|reset",
+                "reset global settings",
+                lambda: settings_service.reset_settings(current_config)
+            ),
+            Command.parse("h|home", "go to home page", home),
+        ]
+    )
 #FACULTY FUNCTIONS
 def faculty():
     return Page(
