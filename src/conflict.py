@@ -1,10 +1,8 @@
 # conflict.py
-from course import courses
-
 
 # ---- validation helpers -----------------------------------------------
 
-def _is_valid_conflict_candidate(course_id, candidate):
+def _is_valid_conflict_candidate(course_id, candidate, courses):
     """True if candidate is a real, different course_id (case-insensitive)."""
     if candidate.lower() == course_id.lower():
         print(f"'{candidate}': a course cannot conflict with itself. Skipped.")
@@ -27,7 +25,7 @@ def _find_existing(conflicts, candidate):
 
 # ---- actions (operate on a plain course_id + conflicts list) ----------
 
-def add_conflicts(course_id, conflicts):
+def add_conflicts(course_id, conflicts, courses):
     """Add one or more new conflicts. Accepts a single course number or a
     comma-separated list. Skips invalid or already-present entries."""
     raw = input("Enter course(s) to add as conflicts (comma-separated): ").strip()
@@ -37,7 +35,7 @@ def add_conflicts(course_id, conflicts):
 
     added = []
     for candidate in _parse_course_ids(raw):
-        if not _is_valid_conflict_candidate(course_id, candidate):
+        if not _is_valid_conflict_candidate(course_id, candidate, courses):
             continue
         if _find_existing(conflicts, candidate) is not None:
             print(f"'{candidate}' is already a conflict for this course.")
@@ -74,7 +72,7 @@ def delete_conflicts(course_id, conflicts):
     return conflicts
 
 
-def toggle_conflicts(course_id, conflicts):
+def toggle_conflicts(course_id, conflicts, courses):
     """Modify conflicts by toggling presence. Accepts a single course
     number or a comma-separated list: each one is removed if it's already
     a conflict, or added if it isn't (after the usual validation)."""
@@ -84,7 +82,7 @@ def toggle_conflicts(course_id, conflicts):
         return conflicts
 
     for candidate in _parse_course_ids(raw):
-        if not _is_valid_conflict_candidate(course_id, candidate):
+        if not _is_valid_conflict_candidate(course_id, candidate, courses):
             continue
         match = _find_existing(conflicts, candidate)
         if match is not None:
@@ -104,16 +102,17 @@ def view_conflicts_list(course_id, conflicts):
 
 # ---- menu ---------------------------------------------------------------
 
-def conflicts_menu(course_id, conflicts=None):
+def conflicts_menu(course_id, courses, conflicts=None):
     """Interactive add/modify/delete/view loop for a course's conflicts.
 
-    Works both before a CourseConfig exists -- e.g. course.py's add_course()
-    calling `conflicts = conflicts_menu(course_id)` while building up a new
-    course -- and after, via modify_conflicts() below. Returns the final
-    conflicts list once the user types "done"; the caller is responsible
-    for persisting it (either passing it straight to CourseConfig(...) at
-    creation time, or reassigning course.conflicts = ... at modify time so
-    Pydantic's validate_assignment runs).
+    Works both before a CourseConfig exists -- e.g. courses_service.py's
+    add_course() calling `conflicts = conflicts_menu(course_id, courses)`
+    while building up a new course -- and after, via modify_conflicts()
+    below. Returns the final conflicts list once the user types "done";
+    the caller is responsible for persisting it (either passing it
+    straight to CourseConfig(...) at creation time, or reassigning
+    course.conflicts = ... at modify time so Pydantic's
+    validate_assignment runs).
     """
     conflicts = list(conflicts) if conflicts else []
 
@@ -125,9 +124,9 @@ def conflicts_menu(course_id, conflicts=None):
         choice = input("Enter an option: ").strip().lower()
 
         if choice == "add":
-            conflicts = add_conflicts(course_id, conflicts)
+            conflicts = add_conflicts(course_id, conflicts, courses)
         elif choice == "modify":
-            conflicts = toggle_conflicts(course_id, conflicts)
+            conflicts = toggle_conflicts(course_id, conflicts, courses)
         elif choice == "delete":
             conflicts = delete_conflicts(course_id, conflicts)
         elif choice == "view":
@@ -138,18 +137,18 @@ def conflicts_menu(course_id, conflicts=None):
             print("Invalid selection.")
 
 
-def modify_conflicts(course):
+def modify_conflicts(course, courses):
     """
     Entry point for the conflict submenu, called by modify_course() once a
     course has been selected, e.g.:
 
         elif choice == N:  # "conflict"
-            modify_conflicts(selected_course)
+            modify_conflicts(selected_course, courses)
 
     Runs the interactive conflicts_menu() and persists the result back onto
     the course in a single validated reassignment when the user is done.
     """
-    updated_conflicts = conflicts_menu(course.course_id, course.conflicts)
+    updated_conflicts = conflicts_menu(course.course_id, courses, course.conflicts)
 
     try:
         course.conflicts = updated_conflicts

@@ -3,14 +3,21 @@ from typing import Callable, Optional
 from services.lab_service import add_lab, modify_lab, delete_lab, view_labs
 from services.faculty_service import add_faculty, modify_faculty, delete_faculty, view_faculty
 from services.rooms_service import add_rooms, modify_rooms, delete_rooms, view_rooms
-from course import add_course, modify_course, delete_course, view_courses
-from run_scheduler import run_scheduler
-from services.time_block_service import add_time_block, modify_time_block, delete_time_block, view_time_blocks
-from services.class_pattern_service import add_class_pattern, modify_class_pattern, delete_class_pattern, view_class_patterns, add_meeting, modify_meeting, view_meetings, delete_meeting
+from services.course_service import add_course, modify_course, delete_course, view_courses
+from services.class_pattern_service import (
+    add_class_pattern, modify_class_pattern, delete_class_pattern, view_class_patterns,
+    add_meeting, modify_meeting, delete_meeting, view_meetings,
+)
+from services.time_block_service import (
+    add_time_block, modify_time_block, delete_time_block, view_time_blocks,
+)
 import services.config_service as config_service
+from run_scheduler import run_scheduler
+from services.schedule_service import view_schedules, export_schedules
 
 current_config = None
 config_name = None
+cur_schedules = []
 
 @dataclass(frozen=True)
 class Command:
@@ -54,6 +61,12 @@ def home():
     ])
 
 
+def reset_config_state():
+    global current_config, config_name
+    current_config = None
+    config_name = None
+
+
 def config():
     return Page("config", [
         Command.parse("c|create", "create new configuration", create),
@@ -95,14 +108,14 @@ def save_current_config():
     config_service.save_config(current_config, config_name)
     return None
 
+
 def config_dashboard():
     return Page("Configuration Dashboard", [
         Command.parse("f|faculty", "faculty", faculty),
         Command.parse("c|courses", "load course", courses),
         Command.parse("l|labs", "load lab", labs),
         Command.parse("r|rooms", "load room", rooms),
-        Command.parse("t|time slots", "time slots", time_slots),
-        Command.parse("p|class patterns", "class patterns", class_patterns),
+        Command.parse("t|timeslots", "manage time blocks and class patterns", time_slots),
         Command.parse("s|save", "save current config", save_current_config),
         Command.parse("h|home", "go to home page", home),
     ])
@@ -123,10 +136,10 @@ def courses():
     return Page(
         "courses",
         [
-            Command.parse("a|add", "add course", add_course),
-            Command.parse("m|modify", "modify course", modify_course),
-            Command.parse("d|delete", "delete course", delete_course),
-            Command.parse("v|view", "view course", view_courses),
+            Command.parse("a|add", "add course", lambda: add_course(current_config.config.courses)),
+            Command.parse("m|modify", "modify course", lambda: modify_course(current_config.config.courses)),
+            Command.parse("d|delete", "delete course", lambda: delete_course(current_config.config.courses)),
+            Command.parse("v|view", "view course", lambda: view_courses(current_config.config.courses)),
             Command.parse("h|home", "go to home page", home),
         ]
     )
@@ -154,14 +167,28 @@ def rooms():
         Command.parse("h|home", "go to home page", home)]
     )
 
+
 def time_slots():
     return Page(
         "time slots",
-        [Command.parse("a|add", "add time block", lambda: add_time_block(current_config.time_slot_config)),
-        Command.parse("m|modify", "modify time block", lambda: modify_time_block(current_config.time_slot_config)),
-        Command.parse("d|delete", "delete time block", lambda: delete_time_block(current_config.time_slot_config)),
-        Command.parse("v|view", "view time blocks", lambda: view_time_blocks(current_config.time_slot_config)),
-        Command.parse("h|home", "go to home page", home)]
+        [
+            Command.parse("tb|timeblocks", "manage time blocks", time_blocks),
+            Command.parse("cp|classpatterns", "manage class patterns", class_patterns),
+            Command.parse("h|home", "go to home page", home),
+        ]
+    )
+
+
+def time_blocks():
+    return Page(
+        "time blocks",
+        [
+            Command.parse("a|add", "add time block", lambda: add_time_block(current_config.time_slot_config)),
+            Command.parse("m|modify", "modify time block", lambda: modify_time_block(current_config.time_slot_config)),
+            Command.parse("d|delete", "delete time block", lambda: delete_time_block(current_config.time_slot_config)),
+            Command.parse("v|view", "view time blocks", lambda: view_time_blocks(current_config.time_slot_config)),
+            Command.parse("h|home", "go to home page", home),
+        ]
     )
 
 
@@ -173,11 +200,12 @@ def class_patterns():
             Command.parse("m|modify", "modify class pattern", lambda: modify_class_pattern(current_config.time_slot_config)),
             Command.parse("d|delete", "delete class pattern", lambda: delete_class_pattern(current_config.time_slot_config)),
             Command.parse("v|view", "view class patterns", lambda: view_class_patterns(current_config.time_slot_config)),
-            Command.parse("am|add meeting", "add meeting", lambda: add_meeting(current_config.time_slot_config)),
-            Command.parse("mm|modify meeting", "modify meeting", lambda: modify_meeting(current_config.time_slot_config)),
-            Command.parse("dm|delete meeting", "delete meeting", lambda: delete_meeting(current_config.time_slot_config)),
-            Command.parse("vm|view meetings","view meetings", lambda: view_meetings(current_config.time_slot_config)),
-            Command.parse("h|home", "go to home page", home)]
+            Command.parse("am|addmeeting", "add meeting", lambda: add_meeting(current_config.time_slot_config)),
+            Command.parse("mm|modifymeeting", "modify meeting", lambda: modify_meeting(current_config.time_slot_config)),
+            Command.parse("dm|deletemeeting", "delete meeting", lambda: delete_meeting(current_config.time_slot_config)),
+            Command.parse("vm|viewmeetings", "view meetings", lambda: view_meetings(current_config.time_slot_config)),
+            Command.parse("h|home", "go to home page", home),
+        ]
     )
 
 
@@ -185,7 +213,9 @@ def schedule():
     return Page(
         "schedule",
         [
-            Command.parse("r|run", "run the scheduler", run_scheduler),
+            Command.parse("r|run", "run scheduler on a saved config", lambda: run_scheduler(cur_schedules)),
+            Command.parse("v|view", "view generated schedules", lambda: view_schedules(cur_schedules)),
+            Command.parse("e|export", "export schedules to csv", lambda: export_schedules(cur_schedules)),
             Command.parse("h|home", "go to home page", home),
         ]
     )
@@ -244,6 +274,8 @@ def main():
             if result is None:
                 break
             current_page = result
+            if current_page.name == "home":
+                reset_config_state()
             continue
 
         command = current_page.find(user_input)
@@ -252,13 +284,15 @@ def main():
             continue
 
         history.append(current_page)
-
         result = command.action()
 
         if result is not None:
             current_page = result
         else:
             current_page = history.pop()
+
+        if current_page.name == "home":
+            reset_config_state()
 
 if __name__ == "__main__":
     main()
