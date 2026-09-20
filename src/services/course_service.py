@@ -1,17 +1,21 @@
-# courses_service.py
+# File name: course.py
+# Primary Author: Dylan Groff
+
 
 from scheduler.config import CourseConfig
-from conflict import modify_conflicts, conflicts_menu
 
 
 # method to add a course to the list of courses
 # prompts for data and then uses CourseConfig to create the object
-def add_course(courses):
+def add_course(course_members):
+    # get information from user
+
+    # check for duplicate courseIDs with the same sectionID
     while True:
         course_id = get_course_id()
         section_id = get_section_id()
 
-        if course_exists(courses, course_id, section_id):
+        if course_exists(course_members, course_id, section_id):
             print("That course section already exists. Please enter a different course or section.")
         else:
             break
@@ -20,7 +24,7 @@ def add_course(courses):
     capacity = get_capacity()
     modality = get_modality()
     # Does not let user choose a room or lab if the class is online
-    if modality != "online":
+    if modality != "online": 
         room = get_room()
         lab = get_lab()
     else:
@@ -29,11 +33,12 @@ def add_course(courses):
     required_room_features = get_required_room_features()
     required_lab_features = get_required_lab_features()
     reserve_room_during_lab = get_reserve_room()
-    conflicts = conflicts_menu(course_id, courses)
+    conflicts = get_conflicts(course_members, course_id)
     faculty = get_faculty()
 
-    try:
-        courses.append(CourseConfig(
+    # adds course to the list after using CourseConfig constructor
+    try: 
+        course_members.append(CourseConfig(
             course_id=course_id,
             section_id=section_id,
             credits=credits,
@@ -53,165 +58,188 @@ def add_course(courses):
         print(f"Error occurred while adding course: {e}")
         print("Course was not added.")
 
-        choice = input("Commands:\n  (r)etry\n  (c)ourses\n")
+        # command interface to let user retry or quit to courses
+        choice = input()
+
         while choice not in ["r", "c"]:
             print("INVALID COMMAND.\n  (r)etry\n  (c)ourses\n")
             choice = input()
 
         if choice == "r":
-            add_course(courses)
+            add_course()
         else:
             return
-
+    
 
 # method to allow user to pick a course and modify it
-def modify_course(courses):
-    if not courses:
+def modify_course(course_members):
+    # checks to make sure there is at least one course
+    if not course_members:
         print("No courses found.")
         return
 
-    view_courses(courses)
+    # prints out courses
+    view_courses(course_members)
 
     try:
         index = int(input("Enter the number of the course to modify: ")) - 1
-    except ValueError:
-        print("Invalid input. Please enter a valid number.")
-        return
 
-    if not (0 <= index < len(courses)):
-        print("Invalid selection.")
-        return
+        if 0 <= index < len(course_members):
+            selected_course = course_members[index]
 
-    selected_course = courses[index]
+            print(f"Modifying course: {selected_course.course_id}")
+            print("1. Course ID")
+            print("2. Section ID")
+            print("3. Credits")
+            print("4. Capacity")
+            print("5. Modality")
+            print("6. Room")
+            print("7. Lab")
+            print("8. Required Room Features")
+            print("9. Required Lab Features")
+            print("10. Reserve Room During Lab")
+            print("11. Conflicts")
+            print("12. Faculty")
 
-    print(f"Modifying course: {selected_course.course_id}")
-    print("1. Course ID")
-    print("2. Section ID")
-    print("3. Credits")
-    print("4. Capacity")
-    print("5. Modality")
-    print("6. Room")
-    print("7. Lab")
-    print("8. Required Room Features")
-    print("9. Required Lab Features")
-    print("10. Reserve Room During Lab")
-    print("11. Conflicts")
-    print("12. Faculty")
+            choice = int(input("Enter the number of the field to modify: "))
 
-    try:
-        choice = int(input("Enter the number of the field to modify: "))
-    except ValueError:
-        print("Invalid selection.")
-        return
+            # course_id
+            if choice == 1:
+                new_course_id = get_course_id()
 
-    try:
-        if choice == 1:
-            new_course_id = get_course_id()
-            if course_exists(courses, new_course_id, selected_course.section_id, exclude=selected_course):
-                print("That course section already exists.")
-                return
-            selected_course.course_id = new_course_id
+                # validation check to ensure no courseID and sectionID combinations
+                if course_exists(course_members, new_course_id, selected_course.section_id, selected_course):
+                    print("That course section already exists.")
+                    return
 
-        elif choice == 2:
-            new_section_id = get_section_id()
-            if course_exists(courses, selected_course.course_id, new_section_id, exclude=selected_course):
-                print("That course section already exists.")
-                return
-            selected_course.section_id = new_section_id
+                selected_course.course_id = new_course_id
 
-        elif choice == 3:
-            selected_course.credits = get_credits()
+            # section_id
+            elif choice == 2:
+                new_section_id = get_section_id()
 
-        elif choice == 4:
-            selected_course.capacity = get_capacity()
+                # validation check to ensure no courseID and sectionID combinations
+                if course_exists(course_members, selected_course.course_id, new_section_id, selected_course):
+                    print("That course section already exists.")
+                    return
 
-        elif choice == 5:
-            new_modality = get_modality()
-            if new_modality == "online":
-                selected_course.room = []
-                selected_course.lab = []
-            selected_course.modality = new_modality
+                selected_course.section_id = new_section_id
 
-        elif choice == 6:
-            if selected_course.modality != "online":
-                selected_course.room = get_room()
+            # credits
+            elif choice == 3:
+                selected_course.credits = get_credits()
+
+            # capacity
+            elif choice == 4:
+                selected_course.capacity = get_capacity()
+
+            # modality
+            elif choice == 5:
+                new_modality = get_modality()
+
+                # adds check to take away room
+                if new_modality == "online":
+                    selected_course.room = []
+                    selected_course.lab = []
+                
+                selected_course.modality = new_modality
+
+            # rooms
+            elif choice == 6:
+                # adds check for online modality
+                if selected_course.modality != "online":
+                    selected_course.room = get_room()
+                else:
+                    print("Online classes can not have rooms.")
+
+            # labs
+            elif choice == 7:
+                # adds check for online modality
+                if selected_course.modality != "online":
+                    selected_course.lab = get_lab()
+                else:
+                    print("Online classes can not have labs.")
+            
+            # required room features
+            elif choice == 8:
+                selected_course.required_room_features = get_required_room_features()
+
+            # required lab features
+            elif choice == 9:
+                selected_course.required_lab_features = get_required_lab_features()
+            
+            # reserve room
+            elif choice == 10:
+                selected_course.reserve_room_during_lab = get_reserve_room()
+            
+            # conflicts
+            elif choice == 11:
+                selected_course.conflicts = get_conflicts(course_members, selected_course.course_id)
+            
+            # faculty
+            elif choice == 12:
+                selected_course.faculty = get_faculty()
+                 
             else:
-                print("Online classes can not have rooms.")
+                print("Invalid selection.")
+                return
 
-        elif choice == 7:
-            if selected_course.modality != "online":
-                selected_course.lab = get_lab()
-            else:
-                print("Online classes can not have labs.")
-
-        elif choice == 8:
-            selected_course.required_room_features = get_required_room_features()
-
-        elif choice == 9:
-            selected_course.required_lab_features = get_required_lab_features()
-
-        elif choice == 10:
-            selected_course.reserve_room_during_lab = get_reserve_room()
-
-        elif choice == 11:
-            modify_conflicts(selected_course, courses)
-
-        elif choice == 12:
-            selected_course.faculty = get_faculty()
+            print(f"Updated course: {selected_course.course_id}")
 
         else:
             print("Invalid selection.")
-            return
-
-        print(f"Updated course: {selected_course.course_id}")
 
     except Exception as e:
         print(f"Error occurred while modifying course: {e}")
         print("Course was not modified.")
         print("Commands:\n  (r)etry\n  (c)ourses\n")
 
-        retry_choice = input()
-        while retry_choice not in ["r", "c"]:
-            print("INVALID COMMAND.\n  (r)etry\n  (c)ourses\n")
-            retry_choice = input()
+        choice = input()
 
-        if retry_choice == "r":
-            modify_course(courses)
+        while choice not in ["r", "c"]:
+            print("INVALID COMMAND.\n  (r)etry\n  (c)ourses\n")
+            choice = input()
+
+        if choice == "r":
+            modify_course()
         else:
             return
 
 
 # method to delete a course from the courses list
-def delete_course(courses):
-    if not courses:
+def delete_course(course_members):
+    # checks to make sure there is at least one course
+    if not course_members:
         print("No courses found.")
         return
 
-    view_courses(courses)
+    # prints out courses
+    view_courses(course_members)
 
     try:
         index = int(input("Enter the number of the course to delete: ")) - 1
+
+        if 0 <= index < len(course_members):
+            deleted_course = course_members.pop(index)
+            print(f"Deleted course: {deleted_course.course_id}")
+        else:
+            print("Invalid selection.")
+
     except ValueError:
         print("Invalid input. Please enter a valid number.")
-        return
-
-    if 0 <= index < len(courses):
-        deleted_course = courses.pop(index)
-        print(f"Deleted course: {deleted_course.course_id}")
-    else:
-        print("Invalid selection.")
 
 
 # method to print out all the courses in the course list in a readable manner
-def view_courses(courses):
-    if not courses:
+def view_courses(course_members):
+    # checks to make sure there is at least one course
+    if not course_members:
         print("No courses found.")
         return
 
     print("\nCOURSES")
     print("-" * 80)
 
-    for i, course in enumerate(courses, start=1):
+    for i, course in enumerate(course_members, start=1):
         print(f"Course {i}:")
         print(f"  Course ID:       {course.course_id}")
         print(f"  Section ID:      {course.section_id}")
@@ -227,82 +255,133 @@ def view_courses(courses):
         print(f"  Faculty:         {course.faculty}")
         print("-" * 80)
 
-
 # helper to check for duplicate courseIDs with the same sectionID
-def course_exists(courses, course_id, section_id, exclude=None):
-    for course in courses:
+def course_exists(course_members, course_id, section_id, exclude=None):
+    for course in course_members:
         if course is exclude:
             continue
+
         if (course.course_id.lower() == course_id.lower() and
                 course.section_id == section_id):
             return True
+
     return False
 
 
-# ------------------- Getters for course data -----------------------------
 
+#------------------- Getters for course data -----------------------------
+
+# getter to get the course ID
 def get_course_id():
-    while True:
+    try:
         course_id = input("Enter course ID: ")
+
         if not course_id.strip():
-            print("Invalid input: Course ID cannot be empty.")
-            continue
+            raise ValueError("Course ID cannot be empty.")
+
         return course_id
 
-
+    except ValueError as e:
+        print(f"Invalid input: {e}")
+        return get_course_id()
+    
+# getter to get the number of credits for the course
 def get_credits():
-    while True:
-        try:
-            credits = int(input("Enter number of credits: "))
-        except ValueError:
-            print("Invalid input: Credits must be a valid integer.")
-            continue
+    try:
+        credits = int(input("Enter number of credits: "))
+
         if credits <= 0:
-            print("Invalid input: Credits must be greater than 0.")
-            continue
+            raise ValueError("Credits must be greater than 0.")
+
         return credits
 
-
+    except ValueError as e:
+        print(f"Invalid input: {e}")
+        return get_credits()
+    
+# getter to get the capacity of students for the course
 def get_capacity():
-    while True:
-        try:
-            capacity = int(input("Enter course capacity: "))
-        except ValueError:
-            print("Invalid input: Capacity must be a valid integer.")
-            continue
+    try:
+        capacity = int(input("Enter course capacity: "))
+
         if capacity <= 0:
-            print("Invalid input: Capacity must be greater than 0.")
-            continue
+            raise ValueError("Capacity must be greater than 0.")
+
         return capacity
 
-
+    except ValueError as e:
+        print(f"Invalid input: {e}")
+        return get_capacity()
+    
+# getter to get the section ID for a course
 def get_section_id():
-    section_id = input("Enter section ID (or press Enter for none): ")
-    if not section_id.strip():
-        return None
-    return section_id
+    try:
+        section_id = input("Enter section ID (or press Enter for none): ")
 
+        if not section_id.strip():
+            return None
 
+        return section_id
+
+    except ValueError as e:
+        print(f"Invalid input: {e}")
+        return get_section_id()
+    
+# getter to get the possible rooms the course could be in
 def get_room():
-    while True:
+    try:
         rooms = input("Enter available rooms (comma-separated): ")
+
         rooms = [room.strip() for room in rooms.split(",")]
 
         if not rooms or rooms == [""]:
-            print("Invalid input: At least one room must be entered.")
-            continue
+            raise ValueError("At least one room must be entered.")
+        
         if any(not room for room in rooms):
-            print("Invalid input: Room names cannot be empty.")
-            continue
+            raise ValueError("Room names cannot be empty.")
+
+        # checks for duplicates
         if len(rooms) != len(set(rooms)):
-            print("Invalid input: Duplicate rooms are not allowed.")
-            continue
+            raise ValueError("Duplicate rooms are not allowed.")
 
         return rooms
 
+    except ValueError as e:
+        print(f"Invalid input: {e}")
+        return get_room()
+    
+# getter to get the conflicts between other courses
+def get_conflicts(course_members, course_id):
+    try:
+        conflicts = input("Enter conflicting courses (comma-separated): ")
 
+        if not conflicts.strip():
+            return []
+
+        conflicts = [course.strip() for course in conflicts.split(",")]
+
+        # checks for duplicates
+        if len(conflicts) != len(set(conflicts)):
+            raise ValueError("Duplicate conflicts are not allowed.")
+
+        for conflict in conflicts:
+            # ensures course does not conflict with itself
+            if conflict.lower() == course_id.lower():
+                raise ValueError("A course cannot conflict with itself.")
+
+            # ensures conflict is a valid course
+            if not any(course.course_id.lower() == conflict.lower() for course in course_members):
+                raise ValueError(f"Course '{conflict}' does not exist.")
+
+        return conflicts
+
+    except ValueError as e:
+        print(f"Invalid input: {e}")
+        return get_conflicts(course_members, course_id)
+    
+# getter for the faculty that can teach the course
 def get_faculty():
-    while True:
+    try:
         faculty = input("Enter faculty (comma-separated), or enter 'none': ")
 
         if faculty.lower().strip() == "none":
@@ -310,21 +389,25 @@ def get_faculty():
 
         faculty = [person.strip() for person in faculty.split(",")]
 
-        if not faculty or faculty == [""]:
-            print("Invalid input: Faculty list cannot be empty.")
-            continue
         if any(not person for person in faculty):
-            print("Invalid input: Faculty names cannot be empty.")
-            continue
+            raise ValueError("Faculty names cannot be empty.")
+
+        if not faculty or faculty == [""]:
+            raise ValueError("Faculty list cannot be empty.")
+
+        # checks for duplicate faculty members
         if len(faculty) != len(set(faculty)):
-            print("Invalid input: Duplicate faculty members are not allowed.")
-            continue
+            raise ValueError("Duplicate faculty members are not allowed.")
 
         return faculty
 
-
+    except ValueError as e:
+        print(f"Invalid input: {e}")
+        return get_faculty()
+    
+# getter to get the possible lab rooms for the course
 def get_lab():
-    while True:
+    try:
         labs = input("Enter available labs (comma-separated): ")
 
         if not labs.strip():
@@ -333,26 +416,35 @@ def get_lab():
         labs = [lab.strip() for lab in labs.split(",")]
 
         if any(not lab for lab in labs):
-            print("Invalid input: Lab names cannot be empty.")
-            continue
+            raise ValueError("Lab names cannot be empty.")
+
+        # checks for duplicates
         if len(labs) != len(set(labs)):
-            print("Invalid input: Duplicate labs are not allowed.")
-            continue
+            raise ValueError("Duplicate labs are not allowed.")
 
         return labs
 
-
+    except ValueError as e:
+        print(f"Invalid input: {e}")
+        return get_lab()
+    
+# getter to get the modality of the course
 def get_modality():
-    while True:
+    try:
         modality = input("Enter course modality (in_person, online, hybrid): ").lower()
+
         if modality not in ["in_person", "online", "hybrid"]:
-            print("Invalid input: Modality must be in_person, online, or hybrid.")
-            continue
+            raise ValueError("Modality must be in_person, online, or hybrid.")
+
         return modality
 
-
+    except ValueError as e:
+        print(f"Invalid input: {e}")
+        return get_modality()
+        
+# getter to get required features of the room
 def get_required_room_features():
-    while True:
+    try:
         features = input("Enter required room features (comma-separated): ")
 
         if not features.strip():
@@ -361,17 +453,21 @@ def get_required_room_features():
         features = [feature.strip() for feature in features.split(",")]
 
         if any(not feature for feature in features):
-            print("Invalid input: Room feature names cannot be empty.")
-            continue
+            raise ValueError("Room feature names cannot be empty.")
+        
+        # checks for duplicates
         if len(features) != len(set(features)):
-            print("Invalid input: Duplicate room features are not allowed.")
-            continue
+            raise ValueError("Duplicate room features are not allowed.")
 
         return set(features)
 
-
+    except ValueError as e:
+        print(f"Invalid input: {e}")
+        return get_required_room_features()
+    
+# getter to get the required features of the lab
 def get_required_lab_features():
-    while True:
+    try:
         features = input("Enter required lab features (comma-separated): ")
 
         if not features.strip():
@@ -379,19 +475,33 @@ def get_required_lab_features():
 
         features = [feature.strip() for feature in features.split(",")]
 
+        if any(not feature for feature in features):
+            raise ValueError("Lab feature names cannot be empty.")
+
+        # checks for duplicates
         if len(features) != len(set(features)):
-            print("Invalid input: Duplicate lab features are not allowed.")
-            continue
+            raise ValueError("Duplicate lab features are not allowed.")
 
         return set(features)
 
-
+    except ValueError as e:
+        print(f"Invalid input: {e}")
+        return get_required_lab_features()
+    
+# getter to get a bool to reserve a room or not
 def get_reserve_room():
-    while True:
+    try:
         reserve_room = input("Reserve room during lab? (yes/no): ").lower()
+
         if reserve_room == "yes":
             return True
         elif reserve_room == "no":
             return False
         else:
-            print("Invalid input: Please enter yes or no.")
+            raise ValueError("Please enter yes or no.")
+
+    except ValueError as e:
+        print(f"Invalid input: {e}")
+        return get_reserve_room()
+    
+
