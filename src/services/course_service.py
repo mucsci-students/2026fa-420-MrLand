@@ -201,7 +201,7 @@ def modify_course(course_members):
             choice = input()
 
         if choice == "r":
-            modify_course()
+            modify_course(course_members)
         else:
             return
 

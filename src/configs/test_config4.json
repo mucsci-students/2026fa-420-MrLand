@@ -87,6 +87,43 @@
                 "required_room_features": [],
                 "required_lab_features": [],
                 "reserve_room_during_lab": false
+            },
+            {
+                "course_id": "CS 150",
+                "section_id": null,
+                "credits": 4,
+                "capacity": 25,
+                "room": [
+                    "Room 101",
+                    "Room 102"
+                ],
+                "lab": [],
+                "conflicts": [],
+                "faculty": [
+                    "Dr. Jones"
+                ],
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": false
+            },
+            {
+                "course_id": "cs 200",
+                "section_id": null,
+                "credits": 4,
+                "capacity": 20,
+                "room": [
+                    "Room 101"
+                ],
+                "lab": [],
+                "conflicts": [],
+                "faculty": [
+                    "Dr. Smith"
+                ],
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": false
             }
         ],
         "faculty": [
@@ -215,6 +252,20 @@
                         "start_time": null,
                         "duration": 150,
                         "lab": true,
+                        "delivery": "in_person"
+                    }
+                ],
+                "disabled": false,
+                "start_time": null
+            },
+            {
+                "credits": 4,
+                "meetings": [
+                    {
+                        "day": "MON",
+                        "start_time": null,
+                        "duration": 60,
+                        "lab": false,
                         "delivery": "in_person"
                     }
                 ],
