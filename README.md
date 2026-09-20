@@ -198,7 +198,7 @@ The project includes automated tests for the application's scheduling components
 Tests are located in the tests/ directory.
 To run the test suite, use:
 ``` bash
-python -m unittest discover
+uv run pytest
 ```
 The test suite includes tests for:
   - Courses
