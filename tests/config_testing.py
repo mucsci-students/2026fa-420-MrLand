@@ -1,4 +1,4 @@
-"""Quick smoke tests for src/config_io.py (save/load/exists/print)."""
+"""Quick smoke tests for src/services/config_io.py (write/read/exists/print)."""
 
 import os
 import sys
@@ -9,10 +9,10 @@ _SRC_DIR = os.path.normpath(os.path.join(_TESTS_DIR, "..", "src"))
 if _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
 
-from config_io import config_exists, config_load, config_print, config_save, filepath
+from services.config_io import config_file_exists, read_config_file, print_config, write_config_file, filepath
 from scheduler.config import CombinedConfig
 
-TEST_CONFIG_NAME = "test_config"
+TEST_CONFIG_NAME = "test_config_io_smoke"
 
 # Minimal valid CombinedConfig: one room, one course (no lab, in-person),
 # one faculty member, and a single enabled 3-credit class pattern with
@@ -74,42 +74,42 @@ def reset_test_file():
 
 def test_does_not_exist_before_save():
     reset_test_file()
-    assert not config_exists(TEST_CONFIG_NAME), "Config should not exist before saving"
-    print("PASS: config_exists is False before save")
+    assert not config_file_exists(TEST_CONFIG_NAME), "Config should not exist before saving"
+    print("PASS: config_file_exists is False before save")
 
 
 def test_save_creates_file():
-    config_save(SAMPLE_CONFIG, TEST_CONFIG_NAME)
+    write_config_file(SAMPLE_CONFIG, TEST_CONFIG_NAME)
     expected_path = _test_file_path()
     assert os.path.isfile(expected_path), f"Expected file at {expected_path}"
-    print(f"PASS: config_save wrote a file to {expected_path}")
+    print(f"PASS: write_config_file wrote a file to {expected_path}")
 
 
 def test_exists_after_save():
-    assert config_exists(TEST_CONFIG_NAME), "Config should exist after saving"
-    print("PASS: config_exists is True after save")
+    assert config_file_exists(TEST_CONFIG_NAME), "Config should exist after saving"
+    print("PASS: config_file_exists is True after save")
 
 
 def test_load_round_trip():
-    loaded = config_load(TEST_CONFIG_NAME)
+    loaded = read_config_file(TEST_CONFIG_NAME)
     assert isinstance(loaded, CombinedConfig), "Loaded object should be a CombinedConfig"
     assert loaded.model_dump() == SAMPLE_CONFIG.model_dump(), "Loaded config should match saved config"
-    print("PASS: config_load round-trips to an equal CombinedConfig")
+    print("PASS: read_config_file round-trips to an equal CombinedConfig")
 
 
 def test_load_missing_raises():
     try:
-        config_load("does_not_exist_xyz")
+        read_config_file("does_not_exist_xyz")
     except FileNotFoundError:
-        print("PASS: config_load raises FileNotFoundError for missing config")
+        print("PASS: read_config_file raises FileNotFoundError for missing config")
     else:
         raise AssertionError("Expected FileNotFoundError for missing config")
 
 
 def test_print_smoke():
     # Just confirm it runs without raising.
-    config_print(SAMPLE_CONFIG)
-    print("PASS: config_print ran without error")
+    print_config(SAMPLE_CONFIG)
+    print("PASS: print_config ran without error")
 
 
 if __name__ == "__main__":
