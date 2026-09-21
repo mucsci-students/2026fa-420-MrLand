@@ -1,0 +1,281 @@
+{
+    "config": {
+        "rooms": [
+            {
+                "name": "Room 101",
+                "capacity": 40,
+                "features": [],
+                "times": null
+            },
+            {
+                "name": "Room 102",
+                "capacity": 30,
+                "features": [
+                    "projector"
+                ],
+                "times": null
+            }
+        ],
+        "labs": [
+            {
+                "name": "Lab 101",
+                "capacity": 30,
+                "features": [],
+                "times": null
+            }
+        ],
+        "courses": [
+            {
+                "course_id": "CS 101",
+                "section_id": null,
+                "credits": 3,
+                "capacity": 24,
+                "room": [
+                    "Room 101",
+                    "Room 102"
+                ],
+                "lab": [
+                    "Lab 101"
+                ],
+                "conflicts": [],
+                "faculty": [
+                    "Dr. Smith",
+                    "Dr. Jones"
+                ],
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": true
+            },
+            {
+                "course_id": "CS 102",
+                "section_id": null,
+                "credits": 3,
+                "capacity": 24,
+                "room": [
+                    "Room 101",
+                    "Room 102"
+                ],
+                "lab": [],
+                "conflicts": [
+                    "CS 101"
+                ],
+                "faculty": [
+                    "Dr. Smith",
+                    "Dr. Jones"
+                ],
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": true
+            },
+            {
+                "course_id": "CS 201",
+                "section_id": null,
+                "credits": 3,
+                "capacity": 20,
+                "room": [
+                    "Room 101",
+                    "Room 102"
+                ],
+                "lab": [],
+                "conflicts": [],
+                "faculty": [
+                    "Dr. Smith"
+                ],
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": false
+            },
+            {
+                "course_id": "CS 150",
+                "section_id": null,
+                "credits": 4,
+                "capacity": 25,
+                "room": [
+                    "Room 101",
+                    "Room 102"
+                ],
+                "lab": [],
+                "conflicts": [],
+                "faculty": [
+                    "Dr. Jones"
+                ],
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": false
+            },
+            {
+                "course_id": "cs 200",
+                "section_id": null,
+                "credits": 4,
+                "capacity": 20,
+                "room": [
+                    "Room 101"
+                ],
+                "lab": [],
+                "conflicts": [],
+                "faculty": [
+                    "Dr. Smith"
+                ],
+                "modality": "in_person",
+                "required_room_features": [],
+                "required_lab_features": [],
+                "reserve_room_during_lab": false
+            }
+        ],
+        "faculty": [
+            {
+                "name": "Dr. Smith",
+                "maximum_credits": 12,
+                "maximum_days": 5,
+                "minimum_credits": 0,
+                "unique_course_limit": 3,
+                "times": {
+                    "MON": [
+                        {
+                            "start": "09:00",
+                            "end": "17:00"
+                        }
+                    ],
+                    "WED": [
+                        {
+                            "start": "09:00",
+                            "end": "17:00"
+                        }
+                    ]
+                },
+                "course_preferences": {
+                    "CS 101": 5,
+                    "CS 102": 5
+                },
+                "room_preferences": {},
+                "lab_preferences": {},
+                "mandatory_days": []
+            },
+            {
+                "name": "Dr. Jones",
+                "maximum_credits": 12,
+                "maximum_days": 5,
+                "minimum_credits": 0,
+                "unique_course_limit": 3,
+                "times": {
+                    "MON": [
+                        {
+                            "start": "09:00",
+                            "end": "17:00"
+                        }
+                    ],
+                    "TUE": [
+                        {
+                            "start": "09:00",
+                            "end": "17:00"
+                        }
+                    ],
+                    "WED": [
+                        {
+                            "start": "09:00",
+                            "end": "17:00"
+                        }
+                    ]
+                },
+                "course_preferences": {
+                    "CS 101": 5,
+                    "CS 102": 5
+                },
+                "room_preferences": {},
+                "lab_preferences": {},
+                "mandatory_days": []
+            }
+        ]
+    },
+    "time_slot_config": {
+        "times": {
+            "MON": [
+                {
+                    "start": "09:00",
+                    "spacing": 60,
+                    "end": "17:00"
+                }
+            ],
+            "TUE": [
+                {
+                    "start": "09:00",
+                    "spacing": 60,
+                    "end": "17:00"
+                }
+            ],
+            "WED": [
+                {
+                    "start": "09:00",
+                    "spacing": 60,
+                    "end": "17:00"
+                }
+            ],
+            "THU": [
+                {
+                    "start": "09:00",
+                    "spacing": 60,
+                    "end": "17:00"
+                }
+            ],
+            "FRI": [
+                {
+                    "start": "09:00",
+                    "spacing": 60,
+                    "end": "17:00"
+                }
+            ]
+        },
+        "classes": [
+            {
+                "credits": 3,
+                "meetings": [
+                    {
+                        "day": "MON",
+                        "start_time": null,
+                        "duration": 150,
+                        "lab": false,
+                        "delivery": "in_person"
+                    }
+                ],
+                "disabled": false,
+                "start_time": null
+            },
+            {
+                "credits": 3,
+                "meetings": [
+                    {
+                        "day": "TUE",
+                        "start_time": null,
+                        "duration": 150,
+                        "lab": true,
+                        "delivery": "in_person"
+                    }
+                ],
+                "disabled": false,
+                "start_time": null
+            },
+            {
+                "credits": 4,
+                "meetings": [
+                    {
+                        "day": "MON",
+                        "start_time": null,
+                        "duration": 60,
+                        "lab": false,
+                        "delivery": "in_person"
+                    }
+                ],
+                "disabled": false,
+                "start_time": null
+            }
+        ],
+        "max_time_gap": 30,
+        "min_time_overlap": 45
+    },
+    "limit": 1,
+    "optimizer_flags": []
+}

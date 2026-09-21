@@ -1,0 +1,37 @@
+[
+    {
+        "course": "CS 101.01",
+        "faculty": "Dr. Jones",
+        "room": "Room 101",
+        "lab": "Lab 101",
+        "times": "[TimeInstance(day=TUE, start=TimePoint(timepoint=540), duration=Duration(duration=150), delivery='in_person')]"
+    },
+    {
+        "course": "CS 102.01",
+        "faculty": "Dr. Jones",
+        "room": "Room 102",
+        "lab": "None",
+        "times": "[TimeInstance(day=MON, start=TimePoint(timepoint=600), duration=Duration(duration=150), delivery='in_person')]"
+    },
+    {
+        "course": "CS 201.01",
+        "faculty": "Dr. Smith",
+        "room": "Room 101",
+        "lab": "None",
+        "times": "[TimeInstance(day=MON, start=TimePoint(timepoint=600), duration=Duration(duration=150), delivery='in_person')]"
+    },
+    {
+        "course": "CS 150.01",
+        "faculty": "Dr. Jones",
+        "room": "Room 101",
+        "lab": "None",
+        "times": "[TimeInstance(day=MON, start=TimePoint(timepoint=840), duration=Duration(duration=60), delivery='in_person')]"
+    },
+    {
+        "course": "cs 200.01",
+        "faculty": "Dr. Smith",
+        "room": "Room 101",
+        "lab": "None",
+        "times": "[TimeInstance(day=MON, start=TimePoint(timepoint=960), duration=Duration(duration=60), delivery='in_person')]"
+    }
+]
