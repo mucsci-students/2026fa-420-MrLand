@@ -2,35 +2,6 @@
 # Primary Author: Dylan Groff
 
 
-"""
-General Use case examples:
-
-schedule = load_schedule_csv("schedule.csv")
-resource_schedule = create_resource_schedule(schedule)
-print(resource_schedule)
-
-"""
-
-import csv
-
-
-def load_schedule_csv(filename):
-    """
-    Load the generated schedule CSV file.
-
-    Returns:
-        A list of dictionaries, one for each course.
-    """
-    schedule = []
-
-    with open(filename, "r", newline="") as file:
-        reader = csv.DictReader(file)
-
-        for row in reader:
-            schedule.append(row)
-
-    return schedule
-
 
 def create_resource_schedule(schedule):
     """
@@ -130,34 +101,22 @@ def sort_schedule(schedule, column=None, descending=False):
         reverse=descending
     )
 
-
+# Return only meetings using the specified room or lab.
 def filter_by_resource(schedule, resource):
-    """
-    Return only meetings using the specified room or lab.
-    """
-
     return [
         row for row in schedule
         if row["resource"] == resource
     ]
 
-
+ #Return only meetings for the specified faculty member.
 def filter_by_faculty(schedule, faculty):
-    """
-    Return only meetings for the specified faculty member.
-    """
-
-    return [
+       return [
         row for row in schedule
         if row["faculty"] == faculty
     ]
 
-
+# Return only meetings for the specified course.
 def filter_by_course(schedule, course):
-    """
-    Return only meetings for the specified course.
-    """
-
     return [
         row for row in schedule
         if row["course"] == course
