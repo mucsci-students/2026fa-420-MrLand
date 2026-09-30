@@ -1,6 +1,6 @@
 from scheduler.config import CombinedConfig
 
-from services.config_service import ConfigService
+from src.services.config_service import ConfigService
 
 
 class ConfigurationController:

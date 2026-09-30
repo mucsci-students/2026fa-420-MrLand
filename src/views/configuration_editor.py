@@ -1,7 +1,7 @@
 from nicegui import ui
 
-from common import coming_soon, section_header
-from controllers.configuration_controller import ConfigurationController
+from src.views.common import coming_soon, section_header
+from src.controllers.configuration_controller import ConfigurationController
 
 controller = ConfigurationController()
 
@@ -18,7 +18,7 @@ def configuration_editor() -> None:
             ui.button(
                 "Load configuration",
                 icon="folder_open",
-                on_click=controller.load,
+                on_click=controller.load_configuration,
             ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
             ui.button(
                 "Create configuration",
@@ -28,7 +28,7 @@ def configuration_editor() -> None:
             ui.button(
                 "Save configuration",
                 icon="save",
-                on_click=controller.save,
+                on_click=controller.save_configuration,
             ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
 
         with ui.card().classes("w-full border border-[#29404b] bg-[#182630] p-6"):

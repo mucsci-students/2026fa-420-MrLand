@@ -1,6 +1,6 @@
 from scheduler.config import CombinedConfig
 
-from services.config_io import (
+from src.services.config_io import (
     config_exists,
     load_config,
     save_config,

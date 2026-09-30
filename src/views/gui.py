@@ -2,9 +2,9 @@ import os
 
 from nicegui import ui
 
-from configuration_editor import configuration_editor
-from schedule_generator import schedule_generator
-from schedule_viewer import schedule_viewer
+from src.views.configuration_editor import configuration_editor
+from src.views.schedule_generator import schedule_generator
+from src.views.schedule_viewer import schedule_viewer
 
 BACKGROUND = "#101820"
 ACCENT = "#75e6da"
