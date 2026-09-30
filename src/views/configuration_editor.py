@@ -5,6 +5,7 @@ from courses_gui import courses_gui
 from faculty_gui import faculty_gui
 from labs_gui import labs_gui
 from rooms_gui import rooms_gui
+from time_blocks_gui import time_blocks_gui
 
 
 def configuration_editor() -> None:
@@ -12,6 +13,7 @@ def configuration_editor() -> None:
     rooms = []
     faculty_members = []
     labs = []
+    time_blocks = {}
     with ui.column().classes("w-full gap-6"):
         section_header(
             "Workspace",
@@ -74,26 +76,40 @@ def configuration_editor() -> None:
             labs_panel.set_visibility(False)
             labs_gui(labs)
 
+        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as time_blocks_panel:
+            time_blocks_panel.set_visibility(False)
+            time_blocks_gui(time_blocks)
+
     def show_page(action: str) -> None:
         if action == "Courses":
             rooms_panel.set_visibility(False)
             faculty_panel.set_visibility(False)
             courses_panel.set_visibility(True)
             labs_panel.set_visibility(False)
+            time_blocks_panel.set_visibility(False)
         elif action == "Rooms":
             rooms_panel.set_visibility(True)
             faculty_panel.set_visibility(False)
             courses_panel.set_visibility(False)
             labs_panel.set_visibility(False)
+            time_blocks_panel.set_visibility(False)
         elif action == "Faculty":
             rooms_panel.set_visibility(False)
             faculty_panel.set_visibility(True)
             courses_panel.set_visibility(False)
             labs_panel.set_visibility(False)
+            time_blocks_panel.set_visibility(False)
         elif action == "Labs":
             rooms_panel.set_visibility(False)
             faculty_panel.set_visibility(False)
             courses_panel.set_visibility(False)
             labs_panel.set_visibility(True)
+            time_blocks_panel.set_visibility(False)
+        elif action == "Time blocks":
+            rooms_panel.set_visibility(False)
+            faculty_panel.set_visibility(False)
+            courses_panel.set_visibility(False)
+            labs_panel.set_visibility(False)
+            time_blocks_panel.set_visibility(True)
         else:
             coming_soon(action)
