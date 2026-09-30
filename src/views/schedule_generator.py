@@ -48,8 +48,8 @@ def _reset_scheduler_state() -> None:
 
 def _scheduler_worker(
     config_name: str,
-    limit: int,
-    selected_flags: list[str],
+    limit_override: int | None,
+    optimizer_override: list[str] | None,
 ) -> None:
     """
     Run the scheduler in a background thread.
@@ -60,7 +60,6 @@ def _scheduler_worker(
     try:
         with _scheduler_lock:
             _scheduler_state["config_name"] = config_name
-            _scheduler_state["requested"] = limit
             _scheduler_state["message"] = (
                 f"Loading configuration '{config_name}'..."
             )
@@ -71,11 +70,23 @@ def _scheduler_worker(
 
         full_config = config_load(config_name)
 
-        # Apply settings from the GUI.
-        full_config.limit = limit
-        full_config.optimizer_flags = selected_flags
+        # --------------------------------------------------------------
+        # Apply temporary GUI overrides.
+        #
+        # If no override was supplied, keep the values from the
+        # saved configuration.
+        # --------------------------------------------------------------
+
+        if limit_override is not None:
+            full_config.limit = limit_override
+
+        if optimizer_override is not None:
+            full_config.optimizer_flags = optimizer_override
+
+        limit = full_config.limit
 
         with _scheduler_lock:
+            _scheduler_state["requested"] = limit
             _scheduler_state["message"] = "Starting Z3 scheduler..."
 
         # --------------------------------------------------------------
@@ -207,28 +218,52 @@ def schedule_generator() -> None:
     ).classes("w-full max-w-xl").props("dark outlined")
 
     # ------------------------------------------------------------------
-    # Generation Limit
+    # Configured Generation Limit
     # ------------------------------------------------------------------
 
-    generation_limit = ui.input(
-        label="Generation Limit",
-        value="10",
-    ).classes("w-full max-w-xl").props("dark outlined")
+    ui.label("Generation Limit").classes(
+        "text-lg font-semibold text-white mt-4"
+    )
+
+    configured_limit = ui.input(
+        label="Configured Generation Limit",
+        value="",
+    ).classes("w-full max-w-xl").props(
+        "dark outlined readonly"
+    )
 
     ui.label(
-        "Maximum number of schedules to generate."
+        "The generation limit saved in the selected configuration."
+    ).classes("text-sm text-gray-400")
+
+    # ------------------------------------------------------------------
+    # Temporary Generation Limit Override
+    # ------------------------------------------------------------------
+
+    generation_limit_override = ui.input(
+        label="Temporary Generation Limit Override",
+        value="",
+        placeholder="Leave blank to use configured limit",
+    ).classes("w-full max-w-xl mt-2").props(
+        "dark outlined"
+    )
+
+    ui.label(
+        "Optional. This only applies to the current generation and "
+        "does not change the saved configuration."
     ).classes("text-sm text-gray-400 mb-6")
 
     # ------------------------------------------------------------------
     # Optimizer Flags
     # ------------------------------------------------------------------
 
-    ui.label("Optimizer Flags").classes(
+    ui.label("Optimizer Options").classes(
         "text-lg font-semibold text-white"
     )
 
     ui.label(
-        "Select any optimization preferences to apply while generating schedules."
+        "Configured optimizer options are shown below. "
+        "Temporary overrides can be enabled separately."
     ).classes("text-sm text-gray-400 mb-2")
 
     optimizer_flags = {
@@ -241,13 +276,137 @@ def schedule_generator() -> None:
         "Pack Labs": "pack_labs",
     }
 
-    optimizer_checkboxes = {}
+    # ------------------------------------------------------------------
+    # Configured Optimizer Options
+    # ------------------------------------------------------------------
 
-    with ui.column().classes("gap-1 mb-6"):
+    ui.label("Configured Optimizer Options").classes(
+        "text-md font-semibold text-white mt-2"
+    )
+
+    configured_optimizer_checkboxes = {}
+
+    with ui.column().classes("gap-1"):
         for label, value in optimizer_flags.items():
-            optimizer_checkboxes[value] = ui.checkbox(
-            label
-        ).props("dark").classes("text-gray-400")
+            configured_optimizer_checkboxes[value] = ui.checkbox(
+                label
+            ).props(
+                "dark disable"
+            ).classes("text-gray-400")
+
+    # ------------------------------------------------------------------
+    # Temporary Optimizer Overrides
+    # ------------------------------------------------------------------
+
+    optimizer_override_enabled = ui.checkbox(
+        "Use temporary optimizer overrides"
+    ).props("dark").classes("text-gray-300 mt-4")
+
+    ui.label(
+        "When enabled, the selections below replace the configured "
+        "optimizer options for this generation only."
+    ).classes("text-sm text-gray-400")
+
+    temporary_optimizer_checkboxes = {}
+
+    with ui.column().classes("gap-1 mt-2 mb-6"):
+        for label, value in optimizer_flags.items():
+            temporary_optimizer_checkboxes[value] = ui.checkbox(
+                label
+            ).props("dark").classes("text-gray-400")
+
+    # Disable temporary optimizer controls until override mode is enabled.
+    for checkbox in temporary_optimizer_checkboxes.values():
+        checkbox.disable()
+
+    def update_optimizer_override_state() -> None:
+        """Enable or disable the temporary optimizer controls."""
+
+        if optimizer_override_enabled.value:
+            for checkbox in temporary_optimizer_checkboxes.values():
+                checkbox.enable()
+        else:
+            for checkbox in temporary_optimizer_checkboxes.values():
+                checkbox.disable()
+
+    optimizer_override_enabled.on_value_change(
+        update_optimizer_override_state
+    )
+
+    # ------------------------------------------------------------------
+    # Load Configuration Settings
+    # ------------------------------------------------------------------
+
+    def load_selected_config() -> None:
+        """Load the selected configuration into the GUI."""
+
+        config_name = config_select.value
+
+        if not config_name:
+            configured_limit.value = ""
+
+            for checkbox in configured_optimizer_checkboxes.values():
+                checkbox.value = False
+
+            generation_limit_override.value = ""
+
+            optimizer_override_enabled.value = False
+
+            for checkbox in temporary_optimizer_checkboxes.values():
+                checkbox.value = False
+
+            update_optimizer_override_state()
+
+            return
+
+        try:
+            config = config_load(config_name)
+
+            # ----------------------------------------------------------
+            # Show configured generation limit.
+            # ----------------------------------------------------------
+
+            configured_limit.value = str(config.limit)
+
+            # ----------------------------------------------------------
+            # Show configured optimizer options.
+            # ----------------------------------------------------------
+
+            configured_flags = set(config.optimizer_flags)
+
+            for value, checkbox in configured_optimizer_checkboxes.items():
+                checkbox.value = value in configured_flags
+
+            # ----------------------------------------------------------
+            # Clear temporary overrides whenever the configuration
+            # changes.
+            # ----------------------------------------------------------
+
+            generation_limit_override.value = ""
+
+            optimizer_override_enabled.value = False
+
+            for checkbox in temporary_optimizer_checkboxes.values():
+                checkbox.value = False
+
+            update_optimizer_override_state()
+
+        except Exception:
+            configured_limit.value = ""
+
+            for checkbox in configured_optimizer_checkboxes.values():
+                checkbox.value = False
+
+            generation_limit_override.value = ""
+
+            optimizer_override_enabled.value = False
+
+            for checkbox in temporary_optimizer_checkboxes.values():
+                checkbox.value = False
+
+            update_optimizer_override_state()
+
+    config_select.on_value_change(load_selected_config)
 
     # ------------------------------------------------------------------
     # Progress Area
@@ -267,9 +426,13 @@ def schedule_generator() -> None:
         progress = ui.linear_progress(
             value=0
         ).classes("w-full")
+        
+        progress_percentage = ui.label(
+            "0%"
+        ).classes("text-sm text-gray-300")
 
         progress_status = ui.label(
-            ""
+            "0%"
         ).classes("text-sm text-gray-400")
 
         with ui.row().classes("items-center gap-2"):
@@ -290,7 +453,7 @@ def schedule_generator() -> None:
     )
 
     # ------------------------------------------------------------------
-    # Poll background scheduler
+    # Poll Background Scheduler
     # ------------------------------------------------------------------
 
     def update_progress() -> None:
@@ -315,10 +478,13 @@ def schedule_generator() -> None:
         # --------------------------------------------------------------
 
         if requested > 0:
-            progress.value = min(
-                generated / requested,
-                1.0,
-            )
+            percentage = min(
+                (generated / requested) * 100,
+                100,
+                )
+
+        progress.value = percentage / 100
+        progress_percentage.text = f"{percentage:.0f}%"
 
         progress_label.text = message
 
@@ -368,6 +534,7 @@ def schedule_generator() -> None:
 
         if generated == 0:
             progress.value = 0
+            progress_percentage.text = "0%"
 
             progress_label.text = (
                 "No valid schedules could be generated."
@@ -486,33 +653,42 @@ def schedule_generator() -> None:
             return
 
         # --------------------------------------------------------------
-        # Validate generation limit
+        # Validate temporary generation limit override
         # --------------------------------------------------------------
 
-        try:
-            limit = int(generation_limit.value)
+        limit_override = None
 
-            if limit <= 0:
-                raise ValueError
+        override_value = generation_limit_override.value
 
-        except (TypeError, ValueError):
-            with result_container:
-                ui.label(
-                    "Generation limit must be a positive "
-                    "whole number."
-                ).classes("text-red-400")
+        if override_value is not None and str(override_value).strip():
+            try:
+                limit_override = int(override_value)
 
-            return
+                if limit_override <= 0:
+                    raise ValueError
+
+            except (TypeError, ValueError):
+                with result_container:
+                    ui.label(
+                        "Temporary generation limit must be a "
+                        "positive whole number."
+                    ).classes("text-red-400")
+
+                return
 
         # --------------------------------------------------------------
-        # Get optimizer flags
+        # Get temporary optimizer override
         # --------------------------------------------------------------
 
-        selected_flags = [
-            value
-            for value, checkbox in optimizer_checkboxes.items()
-            if checkbox.value
-        ]
+        optimizer_override = None
+
+        if optimizer_override_enabled.value:
+            optimizer_override = [
+                value
+                for value, checkbox
+                in temporary_optimizer_checkboxes.items()
+                if checkbox.value
+            ]
 
         # --------------------------------------------------------------
         # Reset state
@@ -522,9 +698,36 @@ def schedule_generator() -> None:
 
         _reset_scheduler_state()
 
+        # --------------------------------------------------------------
+        # Determine the limit that will actually be used.
+        #
+        # This is only for displaying the progress correctly.
+        # The worker loads the configuration and applies the override.
+        # --------------------------------------------------------------
+
+        try:
+            config = config_load(config_name)
+
+            if limit_override is not None:
+                requested_limit = limit_override
+            else:
+                requested_limit = config.limit
+
+        except Exception as e:
+            with result_container:
+                ui.label(
+                    f"Could not load configuration: {e}"
+                ).classes("text-red-400")
+
+            with _scheduler_lock:
+                _scheduler_state["running"] = False
+                _scheduler_state["finished"] = True
+
+            return
+
         with _scheduler_lock:
             _scheduler_state["config_name"] = config_name
-            _scheduler_state["requested"] = limit
+            _scheduler_state["requested"] = requested_limit
 
         # --------------------------------------------------------------
         # Reset UI
@@ -534,12 +737,19 @@ def schedule_generator() -> None:
 
         progress.value = 0
 
-        progress_label.text = (
-            f"Starting scheduler for '{config_name}'..."
-        )
+        if limit_override is not None:
+            progress_label.text = (
+                f"Starting scheduler for '{config_name}' "
+                f"with temporary limit override of {limit_override}..."
+            )
+        else:
+            progress_label.text = (
+                f"Starting scheduler for '{config_name}' "
+                f"using configured limit of {requested_limit}..."
+            )
 
         progress_status.text = (
-            f"Generated 0 of {limit} schedules"
+            f"Generated 0 of {requested_limit} schedules"
         )
 
         spinner.visible = True
@@ -556,8 +766,8 @@ def schedule_generator() -> None:
             target=_scheduler_worker,
             args=(
                 config_name,
-                limit,
-                selected_flags,
+                limit_override,
+                optimizer_override,
             ),
             daemon=True,
         )
