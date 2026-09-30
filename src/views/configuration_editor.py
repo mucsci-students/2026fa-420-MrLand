@@ -1,11 +1,13 @@
 from nicegui import ui
 
 from common import coming_soon, section_header
+from faculty_gui import faculty_gui
 from roomsgui import roomsgui
 
 
 def configuration_editor() -> None:
     rooms = []
+    faculty_members = []
     with ui.column().classes("w-full gap-6"):
         section_header(
             "Workspace",
@@ -56,8 +58,16 @@ def configuration_editor() -> None:
             rooms_panel.set_visibility(False)
             roomsgui(rooms)
 
+        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as faculty_panel:
+            faculty_panel.set_visibility(False)
+            faculty_gui(faculty_members)
+
     def show_page(action: str) -> None:
         if action == "Rooms":
             rooms_panel.set_visibility(True)
+            faculty_panel.set_visibility(False)
+        elif action == "Faculty":
+            rooms_panel.set_visibility(False)
+            faculty_panel.set_visibility(True)
         else:
             coming_soon(action)
