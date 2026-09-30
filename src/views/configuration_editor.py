@@ -4,9 +4,11 @@ from class_patterns_gui import class_patterns_gui
 from common import coming_soon, section_header
 from courses_gui import courses_gui
 from faculty_gui import faculty_gui
+from global_settings_gui import global_settings_gui
 from labs_gui import labs_gui
 from rooms_gui import rooms_gui
 from time_blocks_gui import time_blocks_gui
+from services.config_service import create_draft_config
 
 
 def configuration_editor() -> None:
@@ -16,6 +18,7 @@ def configuration_editor() -> None:
     labs = []
     time_blocks = {}
     class_patterns = []
+    settings_config = create_draft_config()
     with ui.column().classes("w-full gap-6"):
         section_header(
             "Workspace",
@@ -86,6 +89,10 @@ def configuration_editor() -> None:
             class_patterns_panel.set_visibility(False)
             class_patterns_gui(class_patterns)
 
+        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as global_settings_panel:
+            global_settings_panel.set_visibility(False)
+            global_settings_gui(settings_config)
+
     panels = {
         "Courses": courses_panel,
         "Faculty": faculty_panel,
@@ -93,6 +100,7 @@ def configuration_editor() -> None:
         "Labs": labs_panel,
         "Time blocks": time_blocks_panel,
         "Class patterns": class_patterns_panel,
+        "Global settings": global_settings_panel,
     }
 
     def show_page(action: str) -> None:

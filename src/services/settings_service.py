@@ -5,6 +5,28 @@ DEFAULT_LIMIT = 10
 DEFAULT_OPTIMIZER_FLAGS = []
 
 
+def update_settings_from_values(combined_config, limit, optimizer_flags):
+    """Validate and apply settings supplied by a non-interactive caller."""
+    if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
+        raise ValueError("Generation limit must be a positive integer.")
+
+    try:
+        validated_flags = [OptimizerFlags(flag) for flag in optimizer_flags]
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"Invalid optimizer flag: {exc}") from exc
+
+    combined_config.limit = limit
+    combined_config.optimizer_flags = validated_flags
+    return combined_config
+
+
+def reset_settings_values(combined_config):
+    """Restore default settings without CLI output for GUI callers."""
+    return update_settings_from_values(
+        combined_config, DEFAULT_LIMIT, list(DEFAULT_OPTIMIZER_FLAGS)
+    )
+
+
 def view_settings(combined_config: CombinedConfig):
     """Display the current global scheduler settings."""
     print("\nGLOBAL SETTINGS")
@@ -73,7 +95,6 @@ def modify_settings(combined_config: CombinedConfig):
 
 def reset_settings(combined_config: CombinedConfig):
     """Reset global scheduler settings to their default values."""
-    combined_config.limit = DEFAULT_LIMIT
-    combined_config.optimizer_flags = []
+    reset_settings_values(combined_config)
 
     print("Global settings reset successfully.")
