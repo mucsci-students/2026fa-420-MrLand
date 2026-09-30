@@ -1,6 +1,6 @@
 from nicegui import ui
 
-from services.class_pattern_service import (
+from src.services.class_pattern_service import (
     add_class_pattern_from_values,
     delete_class_pattern_from_values,
     update_class_pattern_from_values,

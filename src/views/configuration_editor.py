@@ -1,14 +1,14 @@
 from nicegui import ui
 
-from class_patterns_gui import class_patterns_gui
+from src.views.class_patterns_gui import class_patterns_gui
 from src.views.common import coming_soon, section_header
-from courses_gui import courses_gui
-from faculty_gui import faculty_gui
-from global_settings_gui import global_settings_gui
-from labs_gui import labs_gui
-from rooms_gui import rooms_gui
-from time_blocks_gui import time_blocks_gui
-from services.config_service import create_draft_config
+from src.views.courses_gui import courses_gui
+from src.views.faculty_gui import faculty_gui
+from src.views.global_settings_gui import global_settings_gui
+from src.views.labs_gui import labs_gui
+from src.views.rooms_gui import rooms_gui
+from src.views.time_blocks_gui import time_blocks_gui
+# from src.services.config_service import ConfigService
 from src.controllers.configuration_controller import ConfigurationController
 
 controller = ConfigurationController()
@@ -21,7 +21,7 @@ def configuration_editor() -> None:
     labs = []
     time_blocks = {}
     class_patterns = []
-    settings_config = create_draft_config()
+    # settings_config = create_draft_config()
     with ui.column().classes("w-full gap-6"):
         section_header(
             "Workspace",
@@ -94,7 +94,7 @@ def configuration_editor() -> None:
 
         with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as global_settings_panel:
             global_settings_panel.set_visibility(False)
-            global_settings_gui(settings_config)
+            # global_settings_gui(settings_config)
 
     panels = {
         "Courses": courses_panel,

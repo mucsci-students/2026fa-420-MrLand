@@ -1,6 +1,6 @@
 from nicegui import ui
 
-from services.rooms_service import (
+from src.services.rooms_service import (
     add_room_from_values,
     delete_room_from_values,
     update_room_from_values,

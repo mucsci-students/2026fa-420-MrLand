@@ -1,6 +1,6 @@
 from nicegui import ui
 
-from services.time_block_service import (
+from src.services.time_block_service import (
     add_time_block_from_values,
     delete_time_block_from_values,
     update_time_block_from_values,

@@ -1,6 +1,6 @@
 from nicegui import ui
 
-from services.faculty_service import (
+from src.services.faculty_service import (
     add_faculty_from_values,
     delete_faculty_from_values,
     update_faculty_from_values,
