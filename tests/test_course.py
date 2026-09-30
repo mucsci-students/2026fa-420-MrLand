@@ -33,6 +33,203 @@ class TestCourse(unittest.TestCase):
 
     # --------- add, modify, delete tests --------------
 
+    def test_add_course_from_values(self):
+        course = course_service.add_course_from_values(
+            self.course_members,
+            "CS101",
+            "001",
+            3,
+            30,
+            "in_person",
+            ["S101"],
+            ["L101"],
+            ["projector"],
+            ["gpu"],
+            True,
+            [],
+            ["Dr. Smith"],
+        )
+
+        self.assertIs(self.course_members[0], course)
+        self.assertEqual(course.course_id, "CS101")
+        self.assertEqual(course.section_id, "001")
+        self.assertEqual(course.room, ["S101"])
+        self.assertEqual(course.lab, ["L101"])
+        self.assertEqual(course.required_room_features, {"projector"})
+        self.assertEqual(course.required_lab_features, {"gpu"})
+        self.assertEqual(course.faculty, ["Dr. Smith"])
+
+    def test_online_course_clears_room_and_lab_fields(self):
+        course = course_service.add_course_from_values(
+            self.course_members,
+            "CS102",
+            None,
+            3,
+            30,
+            "online",
+            ["S101"],
+            ["L101"],
+            ["projector"],
+            ["gpu"],
+            True,
+            [],
+            None,
+        )
+
+        self.assertEqual(course.room, [])
+        self.assertEqual(course.lab, [])
+        self.assertEqual(course.required_room_features, set())
+        self.assertEqual(course.required_lab_features, set())
+        self.assertFalse(course.reserve_room_during_lab)
+
+    def test_update_course_from_values(self):
+        original = course_service.add_course_from_values(
+            self.course_members,
+            "CS101",
+            "001",
+            3,
+            30,
+            "in_person",
+            ["S101"],
+            [],
+            [],
+            [],
+            True,
+            [],
+            ["Dr. Smith"],
+        )
+        other = course_service.add_course_from_values(
+            self.course_members,
+            "CS102",
+            "001",
+            3,
+            30,
+            "in_person",
+            ["S102"],
+            [],
+            [],
+            [],
+            True,
+            [],
+            ["Dr. Jones"],
+        )
+
+        updated = course_service.update_course_from_values(
+            self.course_members,
+            original,
+            "CS101",
+            "001",
+            4,
+            40,
+            "hybrid",
+            ["S103"],
+            [],
+            ["accessible"],
+            [],
+            False,
+            ["CS102"],
+            ["Dr. Smith"],
+        )
+
+        self.assertIs(self.course_members[0], updated)
+        self.assertIs(self.course_members[1], other)
+        self.assertEqual(updated.credits, 4)
+        self.assertEqual(updated.capacity, 40)
+        self.assertEqual(updated.conflicts, ["CS102"])
+
+    def test_duplicate_course_update_preserves_original(self):
+        original = course_service.add_course_from_values(
+            self.course_members,
+            "CS101",
+            "001",
+            3,
+            30,
+            "in_person",
+            ["S101"],
+            [],
+            [],
+            [],
+            True,
+            [],
+            None,
+        )
+        course_service.add_course_from_values(
+            self.course_members,
+            "CS102",
+            "001",
+            3,
+            30,
+            "in_person",
+            ["S102"],
+            [],
+            [],
+            [],
+            True,
+            [],
+            None,
+        )
+
+        with self.assertRaisesRegex(ValueError, "already exists"):
+            course_service.update_course_from_values(
+                self.course_members,
+                original,
+                "CS102",
+                "001",
+                4,
+                40,
+                "in_person",
+                ["S103"],
+                [],
+                [],
+                [],
+                True,
+                [],
+                None,
+            )
+
+        self.assertIs(self.course_members[0], original)
+        self.assertEqual(original.credits, 3)
+
+    def test_delete_course_from_values_removes_selected_course(self):
+        first = course_service.add_course_from_values(
+            self.course_members,
+            "CS101",
+            "001",
+            3,
+            30,
+            "in_person",
+            ["S101"],
+            [],
+            [],
+            [],
+            True,
+            [],
+            None,
+        )
+        selected = course_service.add_course_from_values(
+            self.course_members,
+            "CS102",
+            "001",
+            3,
+            30,
+            "in_person",
+            ["S102"],
+            [],
+            [],
+            [],
+            True,
+            [],
+            None,
+        )
+
+        self.assertIs(
+            course_service.delete_course_from_values(
+                self.course_members, selected
+            ),
+            selected,
+        )
+        self.assertEqual(self.course_members, [first])
+
     # tests add_course
     @patch("builtins.input", side_effect=[
         "CS 101",                   # course ID
