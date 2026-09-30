@@ -3,13 +3,15 @@ from nicegui import ui
 from common import coming_soon, section_header
 from courses_gui import courses_gui
 from faculty_gui import faculty_gui
-from roomsgui import roomsgui
+from labs_gui import labs_gui
+from rooms_gui import rooms_gui
 
 
 def configuration_editor() -> None:
     courses = []
     rooms = []
     faculty_members = []
+    labs = []
     with ui.column().classes("w-full gap-6"):
         section_header(
             "Workspace",
@@ -58,7 +60,7 @@ def configuration_editor() -> None:
 
         with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as rooms_panel:
             rooms_panel.set_visibility(False)
-            roomsgui(rooms)
+            rooms_gui(rooms)
 
         with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as faculty_panel:
             faculty_panel.set_visibility(False)
@@ -68,18 +70,30 @@ def configuration_editor() -> None:
             courses_panel.set_visibility(False)
             courses_gui(courses)
 
+        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as labs_panel:
+            labs_panel.set_visibility(False)
+            labs_gui(labs)
+
     def show_page(action: str) -> None:
         if action == "Courses":
             rooms_panel.set_visibility(False)
             faculty_panel.set_visibility(False)
             courses_panel.set_visibility(True)
+            labs_panel.set_visibility(False)
         elif action == "Rooms":
             rooms_panel.set_visibility(True)
             faculty_panel.set_visibility(False)
             courses_panel.set_visibility(False)
+            labs_panel.set_visibility(False)
         elif action == "Faculty":
             rooms_panel.set_visibility(False)
             faculty_panel.set_visibility(True)
             courses_panel.set_visibility(False)
+            labs_panel.set_visibility(False)
+        elif action == "Labs":
+            rooms_panel.set_visibility(False)
+            faculty_panel.set_visibility(False)
+            courses_panel.set_visibility(False)
+            labs_panel.set_visibility(True)
         else:
             coming_soon(action)

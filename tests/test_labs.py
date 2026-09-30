@@ -287,6 +287,86 @@ class TestAddLab(unittest.TestCase):
         mock_print.assert_any_call("Failed To Create Lab: boom")
 
 
+class TestLabValueCRUD(unittest.TestCase):
+
+    def setUp(self):
+        self.labs = []
+
+    def test_add_lab_from_values(self):
+        lab = lab_service.add_lab_from_values(
+            self.labs,
+            "Chemistry Lab",
+            24,
+            ["Projector", "Fume hood"],
+            {"MON": ["09:00-12:00"]},
+        )
+
+        self.assertIs(self.labs[0], lab)
+        self.assertEqual(lab.name, "Chemistry Lab")
+        self.assertEqual(lab.capacity, 24)
+        self.assertEqual(lab.features, {"Projector", "Fume hood"})
+        self.assertEqual(lab.times["MON"][0].start, "09:00")
+
+    def test_duplicate_lab_name_is_rejected(self):
+        original = lab_service.add_lab_from_values(
+            self.labs, "Chemistry Lab", 24, [], None
+        )
+
+        with self.assertRaisesRegex(ValueError, "already exists"):
+            lab_service.add_lab_from_values(
+                self.labs, "chemistry lab", 30, [], None
+            )
+
+        self.assertEqual(self.labs, [original])
+
+    def test_update_lab_from_values(self):
+        original = lab_service.add_lab_from_values(
+            self.labs, "Chemistry Lab", 24, ["Fume hood"], None
+        )
+        other = lab_service.add_lab_from_values(
+            self.labs, "Physics Lab", 20, [], None
+        )
+
+        updated = lab_service.update_lab_from_values(
+            self.labs,
+            original,
+            "Chemistry Lab",
+            30,
+            ["Projector"],
+            {"TUE": ["10:00-13:00"]},
+        )
+
+        self.assertIs(self.labs[0], updated)
+        self.assertIs(self.labs[1], other)
+        self.assertEqual(updated.capacity, 30)
+        self.assertEqual(updated.features, {"Projector"})
+        self.assertEqual(updated.times["TUE"][0].start, "10:00")
+
+    def test_invalid_lab_update_preserves_original(self):
+        original = lab_service.add_lab_from_values(
+            self.labs, "Chemistry Lab", 24, [], None
+        )
+
+        with self.assertRaises(ValueError):
+            lab_service.update_lab_from_values(
+                self.labs, original, "Chemistry Lab", 0, [], None
+            )
+
+        self.assertIs(self.labs[0], original)
+        self.assertEqual(original.capacity, 24)
+
+    def test_delete_lab_from_values_removes_selected_lab(self):
+        first = lab_service.add_lab_from_values(
+            self.labs, "Chemistry Lab", 24, [], None
+        )
+        selected = lab_service.add_lab_from_values(
+            self.labs, "Physics Lab", 20, [], None
+        )
+
+        self.assertIs(lab_service.delete_lab_from_values(self.labs, selected), selected)
+        self.assertEqual(self.labs, [first])
+
+
 class TestViewLabs(unittest.TestCase):
 
     def setUp(self):
