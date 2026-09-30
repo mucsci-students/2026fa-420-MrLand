@@ -1,4 +1,4 @@
-import os
+import json
 import threading
 from typing import Any
 
@@ -34,6 +34,7 @@ _scheduler_lock = threading.Lock()
 
 def _reset_scheduler_state() -> None:
     """Reset the shared scheduler state before a new generation."""
+
     with _scheduler_lock:
         _scheduler_state["running"] = True
         _scheduler_state["finished"] = False
@@ -45,6 +46,10 @@ def _reset_scheduler_state() -> None:
         _scheduler_state["message"] = "Starting scheduler..."
         _scheduler_state["diagnosis"] = None
 
+
+# ----------------------------------------------------------------------
+# Background Scheduler
+# ----------------------------------------------------------------------
 
 def _scheduler_worker(
     config_name: str,
@@ -72,9 +77,6 @@ def _scheduler_worker(
 
         # --------------------------------------------------------------
         # Apply temporary GUI overrides.
-        #
-        # If no override was supplied, keep the values from the
-        # saved configuration.
         # --------------------------------------------------------------
 
         if limit_override is not None:
@@ -87,7 +89,9 @@ def _scheduler_worker(
 
         with _scheduler_lock:
             _scheduler_state["requested"] = limit
-            _scheduler_state["message"] = "Starting Z3 scheduler..."
+            _scheduler_state["message"] = (
+                "Starting Z3 scheduler..."
+            )
 
         # --------------------------------------------------------------
         # Start scheduler
@@ -96,7 +100,9 @@ def _scheduler_worker(
         sched = Scheduler(full_config)
 
         with _scheduler_lock:
-            _scheduler_state["message"] = "Generating schedules..."
+            _scheduler_state["message"] = (
+                "Generating schedules..."
+            )
 
         generated = []
 
@@ -172,10 +178,91 @@ def _scheduler_worker(
     except Exception as e:
         with _scheduler_lock:
             _scheduler_state["error"] = str(e)
-            _scheduler_state["message"] = "Schedule generation failed."
+            _scheduler_state["message"] = (
+                "Schedule generation failed."
+            )
             _scheduler_state["finished"] = True
             _scheduler_state["running"] = False
 
+
+# ----------------------------------------------------------------------
+# Export Functions
+# ----------------------------------------------------------------------
+
+def schedule_to_json(
+    result: ScheduleResult,
+    schedule_number: int,
+) -> bytes:
+    """
+    Convert one generated schedule into a JSON file.
+    """
+
+    schedule_data = {
+        "schedule": schedule_number,
+        "config": result.config_name,
+        "meetings": [
+            {
+                "course": str(instance.course),
+                "faculty": str(instance.faculty),
+                "room": str(instance.room),
+                "lab": str(instance.lab),
+                "times": str(instance.times),
+            }
+            for instance in result.schedule
+        ],
+    }
+
+    return json.dumps(
+        schedule_data,
+        indent=4,
+    ).encode("utf-8")
+
+
+def schedule_to_csv(
+    result: ScheduleResult,
+    schedule_number: int,
+) -> bytes:
+    """
+    Convert one generated schedule into a CSV file.
+    """
+
+    lines = [
+        "schedule,config,course,faculty,room,lab,times"
+    ]
+
+    for instance in result.schedule:
+        row = [
+            str(schedule_number),
+            result.config_name,
+            str(instance.course),
+            str(instance.faculty),
+            str(instance.room),
+            str(instance.lab),
+            str(instance.times),
+        ]
+
+        # Escape CSV values.
+        escaped_row = []
+
+        for value in row:
+            value = value.replace('"', '""')
+
+            if any(
+                character in value
+                for character in [",", '"', "\n"]
+            ):
+                value = f'"{value}"'
+
+            escaped_row.append(value)
+
+        lines.append(",".join(escaped_row))
+
+    return "\n".join(lines).encode("utf-8")
+
+
+# ----------------------------------------------------------------------
+# Schedule Generator Page
+# ----------------------------------------------------------------------
 
 def schedule_generator() -> None:
     """Build the Schedule Generator page."""
@@ -199,7 +286,12 @@ def schedule_generator() -> None:
     config_names = []
 
     try:
-        config_directory = os.path.join("src", "configs")
+        import os
+
+        config_directory = os.path.join(
+            "src",
+            "configs",
+        )
 
         if os.path.exists(config_directory):
             for filename in os.listdir(config_directory):
@@ -215,7 +307,11 @@ def schedule_generator() -> None:
     config_select = ui.select(
         options=config_names,
         label="Select Configuration",
-    ).classes("w-full max-w-xl").props("dark outlined")
+    ).classes(
+        "w-full max-w-xl"
+    ).props(
+        "dark outlined"
+    )
 
     # ------------------------------------------------------------------
     # Configured Generation Limit
@@ -228,13 +324,17 @@ def schedule_generator() -> None:
     configured_limit = ui.input(
         label="Configured Generation Limit",
         value="",
-    ).classes("w-full max-w-xl").props(
+    ).classes(
+        "w-full max-w-xl"
+    ).props(
         "dark outlined readonly"
     )
 
     ui.label(
         "The generation limit saved in the selected configuration."
-    ).classes("text-sm text-gray-400")
+    ).classes(
+        "text-sm text-gray-400"
+    )
 
     # ------------------------------------------------------------------
     # Temporary Generation Limit Override
@@ -244,14 +344,18 @@ def schedule_generator() -> None:
         label="Temporary Generation Limit Override",
         value="",
         placeholder="Leave blank to use configured limit",
-    ).classes("w-full max-w-xl mt-2").props(
+    ).classes(
+        "w-full max-w-xl mt-2"
+    ).props(
         "dark outlined"
     )
 
     ui.label(
-        "Optional. This only applies to the current generation and "
-        "does not change the saved configuration."
-    ).classes("text-sm text-gray-400 mb-6")
+        "Optional. This only applies to the current generation "
+        "and does not change the saved configuration."
+    ).classes(
+        "text-sm text-gray-400 mb-6"
+    )
 
     # ------------------------------------------------------------------
     # Optimizer Flags
@@ -264,7 +368,9 @@ def schedule_generator() -> None:
     ui.label(
         "Configured optimizer options are shown below. "
         "Temporary overrides can be enabled separately."
-    ).classes("text-sm text-gray-400 mb-2")
+    ).classes(
+        "text-sm text-gray-400 mb-2"
+    )
 
     optimizer_flags = {
         "Faculty Course Preferences": "faculty_course",
@@ -280,7 +386,9 @@ def schedule_generator() -> None:
     # Configured Optimizer Options
     # ------------------------------------------------------------------
 
-    ui.label("Configured Optimizer Options").classes(
+    ui.label(
+        "Configured Optimizer Options"
+    ).classes(
         "text-md font-semibold text-white mt-2"
     )
 
@@ -288,11 +396,11 @@ def schedule_generator() -> None:
 
     with ui.column().classes("gap-1"):
         for label, value in optimizer_flags.items():
-            configured_optimizer_checkboxes[value] = ui.checkbox(
-                label
-            ).props(
-                "dark disable"
-            ).classes("text-gray-400")
+            configured_optimizer_checkboxes[value] = (
+                ui.checkbox(label)
+                .props("dark disable")
+                .classes("text-gray-400")
+            )
 
     # ------------------------------------------------------------------
     # Temporary Optimizer Overrides
@@ -300,27 +408,36 @@ def schedule_generator() -> None:
 
     optimizer_override_enabled = ui.checkbox(
         "Use temporary optimizer overrides"
-    ).props("dark").classes("text-gray-300 mt-4")
+    ).props(
+        "dark"
+    ).classes(
+        "text-gray-300 mt-4"
+    )
 
     ui.label(
         "When enabled, the selections below replace the configured "
         "optimizer options for this generation only."
-    ).classes("text-sm text-gray-400")
+    ).classes(
+        "text-sm text-gray-400"
+    )
 
     temporary_optimizer_checkboxes = {}
 
-    with ui.column().classes("gap-1 mt-2 mb-6"):
+    with ui.column().classes(
+        "gap-1 mt-2 mb-6"
+    ):
         for label, value in optimizer_flags.items():
-            temporary_optimizer_checkboxes[value] = ui.checkbox(
-                label
-            ).props("dark").classes("text-gray-400")
+            temporary_optimizer_checkboxes[value] = (
+                ui.checkbox(label)
+                .props("dark")
+                .classes("text-gray-400")
+            )
 
-    # Disable temporary optimizer controls until override mode is enabled.
     for checkbox in temporary_optimizer_checkboxes.values():
         checkbox.disable()
 
     def update_optimizer_override_state() -> None:
-        """Enable or disable the temporary optimizer controls."""
+        """Enable or disable temporary optimizer controls."""
 
         if optimizer_override_enabled.value:
             for checkbox in temporary_optimizer_checkboxes.values():
@@ -362,26 +479,22 @@ def schedule_generator() -> None:
         try:
             config = config_load(config_name)
 
-            # ----------------------------------------------------------
             # Show configured generation limit.
-            # ----------------------------------------------------------
-
             configured_limit.value = str(config.limit)
 
-            # ----------------------------------------------------------
             # Show configured optimizer options.
-            # ----------------------------------------------------------
+            configured_flags = set(
+                config.optimizer_flags
+            )
 
-            configured_flags = set(config.optimizer_flags)
+            for value, checkbox in (
+                configured_optimizer_checkboxes.items()
+            ):
+                checkbox.value = (
+                    value in configured_flags
+                )
 
-            for value, checkbox in configured_optimizer_checkboxes.items():
-                checkbox.value = value in configured_flags
-
-            # ----------------------------------------------------------
-            # Clear temporary overrides whenever the configuration
-            # changes.
-            # ----------------------------------------------------------
-
+            # Clear temporary overrides when configuration changes.
             generation_limit_override.value = ""
 
             optimizer_override_enabled.value = False
@@ -406,7 +519,9 @@ def schedule_generator() -> None:
 
             update_optimizer_override_state()
 
-    config_select.on_value_change(load_selected_config)
+    config_select.on_value_change(
+        load_selected_config
+    )
 
     # ------------------------------------------------------------------
     # Progress Area
@@ -421,28 +536,40 @@ def schedule_generator() -> None:
     with progress_container:
         progress_label = ui.label(
             "Starting scheduler..."
-        ).classes("text-sm text-gray-300")
+        ).classes(
+            "text-sm text-gray-300"
+        )
 
         progress = ui.linear_progress(
             value=0
-        ).classes("w-full")
-        
+        ).classes(
+            "w-full"
+        )
+
         progress_percentage = ui.label(
             "0%"
-        ).classes("text-sm text-gray-300")
+        ).classes(
+            "text-sm text-gray-300"
+        )
 
         progress_status = ui.label(
-            "0%"
-        ).classes("text-sm text-gray-400")
+            "Generated 0 of 0 schedules"
+        ).classes(
+            "text-sm text-gray-400"
+        )
 
-        with ui.row().classes("items-center gap-2"):
+        with ui.row().classes(
+            "items-center gap-2"
+        ):
             spinner = ui.spinner(
                 size="24px"
             )
 
             spinner_label = ui.label(
                 "Z3 is searching for schedules..."
-            ).classes("text-sm text-gray-400")
+            ).classes(
+                "text-sm text-gray-400"
+            )
 
     # ------------------------------------------------------------------
     # Result Area
@@ -453,11 +580,139 @@ def schedule_generator() -> None:
     )
 
     # ------------------------------------------------------------------
+    # Save Generated Schedules
+    # ------------------------------------------------------------------
+
+    save_container = ui.column().classes(
+        "w-full max-w-2xl mt-6 gap-2"
+    )
+
+    save_container.visible = False
+
+    with save_container:
+        ui.label(
+            "Save Generated Schedules"
+        ).classes(
+            "text-lg font-semibold text-white"
+        )
+
+        ui.label(
+            "Choose the format for the generated schedules."
+        ).classes(
+            "text-sm text-gray-400"
+        )
+
+        file_format = ui.select(
+            options={
+                "json": "JSON",
+                "csv": "CSV",
+            },
+            value="json",
+            label="File Format",
+        ).classes(
+            "w-full max-w-xl"
+        ).props(
+            "dark outlined"
+        )
+
+        save_button = ui.button(
+            "Download Generated Schedules",
+            icon="download",
+        ).props(
+            "color=primary"
+        ).classes(
+            "w-full max-w-xl mt-2"
+        )
+
+        save_status = ui.label(
+            ""
+        ).classes(
+            "text-sm text-gray-400"
+        )
+
+    # ------------------------------------------------------------------
+    # Save Handler
+    # ------------------------------------------------------------------
+
+    def save_generated_schedules() -> None:
+        """Download each generated schedule as its own file."""
+
+        if not generated_schedules:
+            save_status.text = (
+                "There are no generated schedules to save."
+            )
+            save_status.classes(
+                replace="text-red-400"
+            )
+            return
+
+        selected_format = file_format.value
+
+        if selected_format not in {"json", "csv"}:
+            save_status.text = (
+                "Please select JSON or CSV."
+            )
+            save_status.classes(
+                replace="text-red-400"
+            )
+            return
+
+        config_name = generated_schedules[0].config_name
+
+        # Download one file for each schedule.
+        for schedule_number, result in enumerate(
+            generated_schedules,
+            start=1,
+        ):
+            if selected_format == "json":
+                content = schedule_to_json(
+                    result,
+                    schedule_number,
+                )
+
+                filename = (
+                    f"{config_name}_schedule_{schedule_number}.json"
+                )
+
+                media_type = "application/json"
+
+            else:
+                content = schedule_to_csv(
+                    result,
+                    schedule_number,
+                )
+
+                filename = (
+                    f"{config_name}_schedule_{schedule_number}.csv"
+                )
+
+                media_type = "text/csv"
+
+            ui.download(
+                content,
+                filename=filename,
+                media_type=media_type,
+            )
+
+        save_status.text = (
+            f"Downloaded {len(generated_schedules)} "
+            f"schedule file(s)."
+        )
+
+        save_status.classes(
+            replace="text-green-400"
+        )
+
+    save_button.on_click(
+        save_generated_schedules
+    )
+
+    # ------------------------------------------------------------------
     # Poll Background Scheduler
     # ------------------------------------------------------------------
 
     def update_progress() -> None:
-        """Update the UI using the background scheduler's state."""
+        """Update the UI using the background scheduler state."""
 
         with _scheduler_lock:
             running = _scheduler_state["running"]
@@ -477,20 +732,26 @@ def schedule_generator() -> None:
         # Update progress
         # --------------------------------------------------------------
 
+        percentage = 0
+
         if requested > 0:
             percentage = min(
                 (generated / requested) * 100,
                 100,
-                )
+            )
 
         progress.value = percentage / 100
-        progress_percentage.text = f"{percentage:.0f}%"
+
+        progress_percentage.text = (
+            f"{percentage:.0f}%"
+        )
 
         progress_label.text = message
 
         if requested > 0:
             progress_status.text = (
-                f"Generated {generated} of {requested} schedules"
+                f"Generated {generated} of "
+                f"{requested} schedules"
             )
 
         # --------------------------------------------------------------
@@ -500,9 +761,11 @@ def schedule_generator() -> None:
         if running:
             progress_container.visible = True
             spinner.visible = True
+
             spinner_label.text = (
                 "Z3 is searching for schedules..."
             )
+
             return
 
         # --------------------------------------------------------------
@@ -519,12 +782,17 @@ def schedule_generator() -> None:
         # --------------------------------------------------------------
 
         if error:
-            progress_label.text = "Schedule generation failed."
+            progress_label.text = (
+                "Schedule generation failed."
+            )
 
             with result_container:
                 ui.label(
-                    f"An error occurred while generating schedules: {error}"
-                ).classes("text-red-400")
+                    "An error occurred while generating "
+                    f"schedules: {error}"
+                ).classes(
+                    "text-red-400"
+                )
 
             return
 
@@ -540,6 +808,8 @@ def schedule_generator() -> None:
                 "No valid schedules could be generated."
             )
 
+            save_container.visible = False
+
             if diagnosis is not None:
                 with result_container:
                     ui.label(
@@ -551,31 +821,43 @@ def schedule_generator() -> None:
 
                     ui.label(
                         f"Status: {diagnosis.status}"
-                    ).classes("text-gray-300")
+                    ).classes(
+                        "text-gray-300"
+                    )
 
                     if diagnosis.conflicting_constraints:
                         ui.label(
                             "Conflicting Constraints"
                         ).classes(
-                            "text-md font-semibold text-white mt-4"
+                            "text-md font-semibold "
+                            "text-white mt-4"
                         )
 
-                        for finding in diagnosis.conflicting_constraints:
+                        for finding in (
+                            diagnosis.conflicting_constraints
+                        ):
                             ui.label(
                                 f"• {finding.message}"
-                            ).classes("text-gray-400")
+                            ).classes(
+                                "text-gray-400"
+                            )
 
                     if diagnosis.relaxation_suggestions:
                         ui.label(
                             "Suggestions"
                         ).classes(
-                            "text-md font-semibold text-white mt-4"
+                            "text-md font-semibold "
+                            "text-white mt-4"
                         )
 
-                        for suggestion in diagnosis.relaxation_suggestions:
+                        for suggestion in (
+                            diagnosis.relaxation_suggestions
+                        ):
                             ui.label(
                                 f"• {suggestion.message}"
-                            ).classes("text-gray-400")
+                            ).classes(
+                                "text-gray-400"
+                            )
 
             return
 
@@ -584,14 +866,15 @@ def schedule_generator() -> None:
         # --------------------------------------------------------------
 
         progress.value = 1
+        progress_percentage.text = "100%"
 
         progress_label.text = (
             "Schedule generation complete."
         )
 
         progress_status.text = (
-            f"Generated {generated} of {requested} "
-            "requested schedules"
+            f"Generated {generated} of "
+            f"{requested} requested schedules"
         )
 
         with result_container:
@@ -603,16 +886,26 @@ def schedule_generator() -> None:
 
             ui.label(
                 f"Generated {generated} schedule(s)."
-            ).classes("text-gray-300")
+            ).classes(
+                "text-gray-300"
+            )
 
             ui.label(
                 f"Valid schedules: {valid}"
-            ).classes("text-gray-300")
+            ).classes(
+                "text-gray-300"
+            )
 
             ui.label(
                 "View the generated schedules in the "
                 "Schedule Viewer tab."
-            ).classes("text-gray-400 mt-2")
+            ).classes(
+                "text-gray-400 mt-2"
+            )
+
+        # Show save controls.
+        save_container.visible = True
+        save_status.text = ""
 
         # Stop polling once finished.
         progress_timer.cancel()
@@ -637,6 +930,8 @@ def schedule_generator() -> None:
                 return
 
         result_container.clear()
+        save_container.visible = False
+        save_status.text = ""
 
         # --------------------------------------------------------------
         # Validate configuration
@@ -648,7 +943,9 @@ def schedule_generator() -> None:
             with result_container:
                 ui.label(
                     "Please select a configuration."
-                ).classes("text-red-400")
+                ).classes(
+                    "text-red-400"
+                )
 
             return
 
@@ -658,11 +955,18 @@ def schedule_generator() -> None:
 
         limit_override = None
 
-        override_value = generation_limit_override.value
+        override_value = (
+            generation_limit_override.value
+        )
 
-        if override_value is not None and str(override_value).strip():
+        if (
+            override_value is not None
+            and str(override_value).strip()
+        ):
             try:
-                limit_override = int(override_value)
+                limit_override = int(
+                    override_value
+                )
 
                 if limit_override <= 0:
                     raise ValueError
@@ -670,9 +974,11 @@ def schedule_generator() -> None:
             except (TypeError, ValueError):
                 with result_container:
                     ui.label(
-                        "Temporary generation limit must be a "
-                        "positive whole number."
-                    ).classes("text-red-400")
+                        "Temporary generation limit must be "
+                        "a positive whole number."
+                    ).classes(
+                        "text-red-400"
+                    )
 
                 return
 
@@ -699,14 +1005,13 @@ def schedule_generator() -> None:
         _reset_scheduler_state()
 
         # --------------------------------------------------------------
-        # Determine the limit that will actually be used.
-        #
-        # This is only for displaying the progress correctly.
-        # The worker loads the configuration and applies the override.
+        # Determine actual generation limit.
         # --------------------------------------------------------------
 
         try:
-            config = config_load(config_name)
+            config = config_load(
+                config_name
+            )
 
             if limit_override is not None:
                 requested_limit = limit_override
@@ -717,7 +1022,9 @@ def schedule_generator() -> None:
             with result_container:
                 ui.label(
                     f"Could not load configuration: {e}"
-                ).classes("text-red-400")
+                ).classes(
+                    "text-red-400"
+                )
 
             with _scheduler_lock:
                 _scheduler_state["running"] = False
@@ -726,8 +1033,13 @@ def schedule_generator() -> None:
             return
 
         with _scheduler_lock:
-            _scheduler_state["config_name"] = config_name
-            _scheduler_state["requested"] = requested_limit
+            _scheduler_state["config_name"] = (
+                config_name
+            )
+
+            _scheduler_state["requested"] = (
+                requested_limit
+            )
 
         # --------------------------------------------------------------
         # Reset UI
@@ -736,20 +1048,25 @@ def schedule_generator() -> None:
         progress_container.visible = True
 
         progress.value = 0
+        progress_percentage.text = "0%"
 
         if limit_override is not None:
             progress_label.text = (
-                f"Starting scheduler for '{config_name}' "
-                f"with temporary limit override of {limit_override}..."
+                f"Starting scheduler for "
+                f"'{config_name}' with temporary "
+                f"limit override of "
+                f"{limit_override}..."
             )
         else:
             progress_label.text = (
-                f"Starting scheduler for '{config_name}' "
-                f"using configured limit of {requested_limit}..."
+                f"Starting scheduler for "
+                f"'{config_name}' using configured "
+                f"limit of {requested_limit}..."
             )
 
         progress_status.text = (
-            f"Generated 0 of {requested_limit} schedules"
+            f"Generated 0 of "
+            f"{requested_limit} schedules"
         )
 
         spinner.visible = True
@@ -777,10 +1094,16 @@ def schedule_generator() -> None:
         # Start polling the worker.
         progress_timer.active = True
 
+    # ------------------------------------------------------------------
+    # Generate Button
+    # ------------------------------------------------------------------
+
     ui.button(
         "Generate Schedules",
         icon="auto_awesome",
         on_click=generate_schedules,
     ).props(
         "color=primary"
-    ).classes("mt-2")
+    ).classes(
+        "mt-2"
+    )
