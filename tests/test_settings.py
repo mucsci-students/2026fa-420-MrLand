@@ -10,6 +10,8 @@ from services.settings_service import (
     view_settings,
     modify_settings,
     reset_settings,
+    update_settings_from_values,
+    reset_settings_values,
 )
 
 
@@ -232,6 +234,37 @@ class TestGlobalSettingsCRUD(unittest.TestCase):
         ]
 
         reset_settings(self.config)
+
+        self.assertEqual(self.config.limit, 10)
+        self.assertEqual(self.config.optimizer_flags, [])
+
+    def test_update_settings_from_values(self):
+        update_settings_from_values(
+            self.config, 25, ["faculty_room", "pack_labs"]
+        )
+
+        self.assertEqual(self.config.limit, 25)
+        self.assertEqual(
+            self.config.optimizer_flags,
+            [OptimizerFlags.FACULTY_ROOM, OptimizerFlags.PACK_LABS],
+        )
+
+    def test_invalid_value_update_preserves_existing_settings(self):
+        original_flags = [OptimizerFlags.PACK_ROOMS]
+        self.config.limit = 15
+        self.config.optimizer_flags = original_flags
+
+        with self.assertRaisesRegex(ValueError, "Invalid optimizer flag"):
+            update_settings_from_values(self.config, 30, ["unknown_flag"])
+
+        self.assertEqual(self.config.limit, 15)
+        self.assertEqual(self.config.optimizer_flags, original_flags)
+
+    def test_reset_settings_values(self):
+        self.config.limit = 25
+        self.config.optimizer_flags = [OptimizerFlags.SAME_ROOM]
+
+        reset_settings_values(self.config)
 
         self.assertEqual(self.config.limit, 10)
         self.assertEqual(self.config.optimizer_flags, [])

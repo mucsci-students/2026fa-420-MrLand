@@ -20,9 +20,12 @@ from services.time_block_service import (
     get_day,
     get_integer,
     add_time_block,
+    add_time_block_from_values,
     view_time_blocks,
     modify_time_block,
+    update_time_block_from_values,
     delete_time_block,
+    delete_time_block_from_values,
 )
 
 
@@ -64,6 +67,49 @@ class TestTimeBlockCRUD(unittest.TestCase):
                 )
             ]
         )
+
+    def test_add_time_block_from_values(self):
+        times = {}
+
+        block = add_time_block_from_values(times, "mon", "13:00", 30, "15:00")
+
+        self.assertIs(times["MON"][0], block)
+        self.assertEqual(block.start, "13:00")
+        self.assertEqual(block.spacing, 30)
+        self.assertEqual(block.end, "15:00")
+
+    def test_update_time_block_from_values_moves_day(self):
+        times = {"MON": [TimeBlock(start="09:00", spacing=30, end="12:00")]}
+        original = times["MON"][0]
+
+        updated = update_time_block_from_values(
+            times, "MON", original, "TUE", "13:00", 60, "17:00"
+        )
+
+        self.assertEqual(times["MON"], [])
+        self.assertIs(times["TUE"][0], updated)
+        self.assertEqual(updated.start, "13:00")
+        self.assertEqual(updated.spacing, 60)
+
+    def test_invalid_time_block_update_preserves_original(self):
+        times = {"MON": [TimeBlock(start="09:00", spacing=30, end="12:00")]}
+        original = times["MON"][0]
+
+        with self.assertRaises(ValueError):
+            update_time_block_from_values(
+                times, "MON", original, "TUE", "16:00", 30, "12:00"
+            )
+
+        self.assertIs(times["MON"][0], original)
+        self.assertNotIn("TUE", times)
+
+    def test_delete_time_block_from_values_removes_selected_block(self):
+        first = TimeBlock(start="09:00", spacing=30, end="12:00")
+        selected = TimeBlock(start="13:00", spacing=30, end="15:00")
+        times = {"MON": [first, selected]}
+
+        self.assertIs(delete_time_block_from_values(times, "MON", selected), selected)
+        self.assertEqual(times["MON"], [first])
 
     # ---------------- ADD ----------------
 
