@@ -1,6 +1,125 @@
 from scheduler.config import FacultyConfig
 
 
+def _build_faculty_from_values(
+    faculty_members,
+    name,
+    maximum_credits,
+    minimum_credits,
+    unique_course_limit,
+    times,
+    maximum_days,
+    course_preferences,
+    room_preferences,
+    lab_preferences,
+    mandatory_days,
+    exclude=None,
+):
+    name = name.strip()
+    if not name:
+        raise ValueError("Name cannot be empty.")
+    if any(
+        member is not exclude and member.name.lower() == name.lower()
+        for member in faculty_members
+    ):
+        raise ValueError("Faculty member already exists.")
+
+    return FacultyConfig(
+        name=name,
+        maximum_credits=maximum_credits,
+        minimum_credits=minimum_credits,
+        unique_course_limit=unique_course_limit,
+        times=times,
+        maximum_days=maximum_days,
+        course_preferences=course_preferences,
+        room_preferences=room_preferences,
+        lab_preferences=lab_preferences,
+        mandatory_days=mandatory_days,
+    )
+
+
+def add_faculty_from_values(
+    faculty_members,
+    name,
+    maximum_credits,
+    minimum_credits,
+    unique_course_limit,
+    times,
+    maximum_days,
+    course_preferences,
+    room_preferences,
+    lab_preferences,
+    mandatory_days,
+):
+    """Validate and append faculty data supplied by a non-interactive caller."""
+    faculty_member = _build_faculty_from_values(
+        faculty_members,
+        name,
+        maximum_credits,
+        minimum_credits,
+        unique_course_limit,
+        times,
+        maximum_days,
+        course_preferences,
+        room_preferences,
+        lab_preferences,
+        mandatory_days,
+    )
+    faculty_members.append(faculty_member)
+    return faculty_member
+
+
+def update_faculty_from_values(
+    faculty_members,
+    existing_member,
+    name,
+    maximum_credits,
+    minimum_credits,
+    unique_course_limit,
+    times,
+    maximum_days,
+    course_preferences,
+    room_preferences,
+    lab_preferences,
+    mandatory_days,
+):
+    """Replace a faculty member after validating all replacement values."""
+    try:
+        index = next(
+            i for i, member in enumerate(faculty_members) if member is existing_member
+        )
+    except StopIteration as exc:
+        raise ValueError("Faculty member no longer exists.") from exc
+
+    updated_member = _build_faculty_from_values(
+        faculty_members,
+        name,
+        maximum_credits,
+        minimum_credits,
+        unique_course_limit,
+        times,
+        maximum_days,
+        course_preferences,
+        room_preferences,
+        lab_preferences,
+        mandatory_days,
+        exclude=existing_member,
+    )
+    faculty_members[index] = updated_member
+    return updated_member
+
+
+def delete_faculty_from_values(faculty_members, member_to_delete):
+    """Remove and return a selected faculty member by object identity."""
+    try:
+        index = next(
+            i for i, member in enumerate(faculty_members) if member is member_to_delete
+        )
+    except StopIteration as exc:
+        raise ValueError("Faculty member no longer exists.") from exc
+    return faculty_members.pop(index)
+
+
 #getters to get faculty information from user input
 def get_name(faculty_members, exclude=None):
     while True:

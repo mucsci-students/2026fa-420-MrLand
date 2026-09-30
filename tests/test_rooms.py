@@ -45,6 +45,72 @@ class TestRoomCRUD(unittest.TestCase):
             "17:00"
         )
 
+    def test_add_room_from_values(self):
+        room = rooms_service.add_room_from_values(
+            self.rooms,
+            "Room 202",
+            36,
+            ["Projector", "Whiteboard"],
+            {"MON": ["09:00-12:00"]},
+        )
+
+        self.assertIs(self.rooms[0], room)
+        self.assertEqual(room.name, "Room 202")
+        self.assertEqual(room.capacity, 36)
+        self.assertEqual(room.features, {"Projector", "Whiteboard"})
+        self.assertEqual(room.times["MON"][0].start, "09:00")
+        self.assertEqual(room.times["MON"][0].end, "12:00")
+
+    def test_update_room_from_values(self):
+        first_room = rooms_service.add_room_from_values(
+            self.rooms, "Room 101", 30, ["Projector"], None
+        )
+        second_room = rooms_service.add_room_from_values(
+            self.rooms, "Room 202", 20, [], None
+        )
+
+        updated_room = rooms_service.update_room_from_values(
+            self.rooms,
+            first_room,
+            "Room 101",
+            40,
+            ["Whiteboard"],
+            {"TUE": ["10:00-12:00"]},
+        )
+
+        self.assertIs(self.rooms[0], updated_room)
+        self.assertIs(self.rooms[1], second_room)
+        self.assertEqual(updated_room.capacity, 40)
+        self.assertEqual(updated_room.features, {"Whiteboard"})
+        self.assertEqual(updated_room.times["TUE"][0].start, "10:00")
+
+    def test_duplicate_room_update_preserves_original(self):
+        original = rooms_service.add_room_from_values(
+            self.rooms, "Room 101", 30, [], None
+        )
+        rooms_service.add_room_from_values(self.rooms, "Room 202", 20, [], None)
+
+        with self.assertRaisesRegex(ValueError, "already exists"):
+            rooms_service.update_room_from_values(
+                self.rooms, original, "Room 202", 40, [], None
+            )
+
+        self.assertIs(self.rooms[0], original)
+        self.assertEqual(original.capacity, 30)
+
+    def test_delete_room_from_values_removes_selected_room(self):
+        first_room = rooms_service.add_room_from_values(
+            self.rooms, "Room 101", 30, [], None
+        )
+        second_room = rooms_service.add_room_from_values(
+            self.rooms, "Room 202", 20, [], None
+        )
+
+        deleted_room = rooms_service.delete_room_from_values(self.rooms, second_room)
+
+        self.assertIs(deleted_room, second_room)
+        self.assertEqual(self.rooms, [first_room])
+
     def test_view_rooms(self):
         # Add a room directly so this test only tests view_rooms()
         room = rooms_service.RoomConfig(

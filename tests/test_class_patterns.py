@@ -61,6 +61,85 @@ class TestClassPatternCRUD(unittest.TestCase):
             ]
         )
 
+    def test_add_class_pattern_from_values(self):
+        pattern = class_pattern.add_class_pattern_from_values(
+            self.time_slot_config.classes,
+            4,
+            [
+                {
+                    "day": "TUE",
+                    "start_time": "10:00",
+                    "duration": 75,
+                    "lab": False,
+                    "delivery": "in_person",
+                }
+            ],
+            disabled=False,
+            start_time="10:00",
+        )
+
+        self.assertIs(self.time_slot_config.classes[1], pattern)
+        self.assertEqual(pattern.credits, 4)
+        self.assertEqual(pattern.meetings[0].day, "TUE")
+        self.assertEqual(pattern.meetings[0].duration, 75)
+        self.assertEqual(pattern.start_time, "10:00")
+
+    def test_update_class_pattern_from_values(self):
+        original = self.time_slot_config.classes[0]
+        other = class_pattern.add_class_pattern_from_values(
+            self.time_slot_config.classes,
+            4,
+            [{"day": "TUE", "duration": 90}],
+        )
+
+        updated = class_pattern.update_class_pattern_from_values(
+            self.time_slot_config.classes,
+            original,
+            5,
+            [{"day": "WED", "duration": 60, "lab": True}],
+            disabled=True,
+            start_time="11:00",
+        )
+
+        self.assertIs(self.time_slot_config.classes[0], updated)
+        self.assertIs(self.time_slot_config.classes[1], other)
+        self.assertEqual(updated.credits, 5)
+        self.assertTrue(updated.disabled)
+        self.assertEqual(updated.meetings[0].day, "WED")
+
+    def test_invalid_class_pattern_update_preserves_original(self):
+        original = self.time_slot_config.classes[0]
+
+        with self.assertRaises(ValueError):
+            class_pattern.update_class_pattern_from_values(
+                self.time_slot_config.classes,
+                original,
+                4,
+                [
+                    {"day": "TUE", "duration": 60},
+                    {"day": "TUE", "duration": 90},
+                ],
+            )
+
+        self.assertIs(self.time_slot_config.classes[0], original)
+        self.assertEqual(original.credits, 3)
+
+    def test_delete_class_pattern_from_values_removes_selected_pattern(self):
+        first = self.time_slot_config.classes[0]
+        selected = class_pattern.add_class_pattern_from_values(
+            self.time_slot_config.classes,
+            4,
+            [{"day": "TUE", "duration": 90}],
+        )
+
+        self.assertIs(
+            class_pattern.delete_class_pattern_from_values(
+                self.time_slot_config.classes, selected
+            ),
+            selected,
+        )
+        self.assertEqual(self.time_slot_config.classes, [first])
+
     # ---------------- GET DAY ----------------
 
     @patch("builtins.input", return_value="mon")
