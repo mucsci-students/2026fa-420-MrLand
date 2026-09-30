@@ -1,12 +1,27 @@
 from nicegui import ui
 
+from class_patterns_gui import class_patterns_gui
 from src.views.common import coming_soon, section_header
+from courses_gui import courses_gui
+from faculty_gui import faculty_gui
+from global_settings_gui import global_settings_gui
+from labs_gui import labs_gui
+from rooms_gui import rooms_gui
+from time_blocks_gui import time_blocks_gui
+from services.config_service import create_draft_config
 from src.controllers.configuration_controller import ConfigurationController
 
 controller = ConfigurationController()
 
 
 def configuration_editor() -> None:
+    courses = []
+    rooms = []
+    faculty_members = []
+    labs = []
+    time_blocks = {}
+    class_patterns = []
+    settings_config = create_draft_config()
     with ui.column().classes("w-full gap-6"):
         section_header(
             "Workspace",
@@ -50,5 +65,50 @@ def configuration_editor() -> None:
                     ui.button(
                         label,
                         icon=icon,
-                        on_click=lambda action=label: coming_soon(action),
+                        on_click=lambda action=label: show_page(action),
                     ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
+
+        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as rooms_panel:
+            rooms_panel.set_visibility(False)
+            rooms_gui(rooms)
+
+        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as faculty_panel:
+            faculty_panel.set_visibility(False)
+            faculty_gui(faculty_members)
+
+        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as courses_panel:
+            courses_panel.set_visibility(False)
+            courses_gui(courses)
+
+        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as labs_panel:
+            labs_panel.set_visibility(False)
+            labs_gui(labs)
+
+        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as time_blocks_panel:
+            time_blocks_panel.set_visibility(False)
+            time_blocks_gui(time_blocks)
+
+        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as class_patterns_panel:
+            class_patterns_panel.set_visibility(False)
+            class_patterns_gui(class_patterns)
+
+        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as global_settings_panel:
+            global_settings_panel.set_visibility(False)
+            global_settings_gui(settings_config)
+
+    panels = {
+        "Courses": courses_panel,
+        "Faculty": faculty_panel,
+        "Rooms": rooms_panel,
+        "Labs": labs_panel,
+        "Time blocks": time_blocks_panel,
+        "Class patterns": class_patterns_panel,
+        "Global settings": global_settings_panel,
+    }
+
+    def show_page(action: str) -> None:
+        if action not in panels:
+            coming_soon(action)
+            return
+        for page_name, panel in panels.items():
+            panel.set_visibility(page_name == action)

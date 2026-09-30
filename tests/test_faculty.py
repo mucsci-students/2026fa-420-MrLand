@@ -112,6 +112,159 @@ class TestFacultyCRUD(unittest.TestCase):
             {"MON", "WED"}
         )
 
+    def test_add_faculty_from_values(self):
+        member = faculty.add_faculty_from_values(
+            self.faculty_members,
+            "Dr. Jones",
+            12,
+            6,
+            3,
+            {"MON": ["09:00-17:00"], "WED": ["09:00-17:00"]},
+            4,
+            {"CS101": 8},
+            {"Room A": 7},
+            {"Lab 1": 6},
+            {"MON", "WED"},
+        )
+
+        self.assertIs(self.faculty_members[0], member)
+        self.assertEqual(member.name, "Dr. Jones")
+        self.assertEqual(member.times["MON"][0].start, "09:00")
+        self.assertEqual(member.course_preferences, {"CS101": 8})
+        self.assertEqual(member.room_preferences, {"Room A": 7})
+        self.assertEqual(member.lab_preferences, {"Lab 1": 6})
+        self.assertEqual(member.mandatory_days, {"MON", "WED"})
+
+    def test_update_faculty_from_values(self):
+        original = faculty.add_faculty_from_values(
+            self.faculty_members,
+            "Dr. Smith",
+            12,
+            6,
+            3,
+            {},
+            4,
+            {},
+            {},
+            {},
+            set(),
+        )
+        other = faculty.add_faculty_from_values(
+            self.faculty_members,
+            "Dr. Jones",
+            10,
+            3,
+            2,
+            {},
+            3,
+            {},
+            {},
+            {},
+            set(),
+        )
+
+        updated = faculty.update_faculty_from_values(
+            self.faculty_members,
+            original,
+            "Dr. Smith",
+            15,
+            6,
+            4,
+            {"TUE": ["10:00-12:00"]},
+            5,
+            {"CS101": 9},
+            {},
+            {},
+            {"TUE"},
+        )
+
+        self.assertIs(self.faculty_members[0], updated)
+        self.assertIs(self.faculty_members[1], other)
+        self.assertEqual(updated.maximum_credits, 15)
+        self.assertEqual(updated.times["TUE"][0].start, "10:00")
+        self.assertEqual(updated.course_preferences, {"CS101": 9})
+
+    def test_duplicate_faculty_update_preserves_original(self):
+        original = faculty.add_faculty_from_values(
+            self.faculty_members,
+            "Dr. Smith",
+            12,
+            6,
+            3,
+            {},
+            4,
+            {},
+            {},
+            {},
+            set(),
+        )
+        faculty.add_faculty_from_values(
+            self.faculty_members,
+            "Dr. Jones",
+            10,
+            3,
+            2,
+            {},
+            3,
+            {},
+            {},
+            {},
+            set(),
+        )
+
+        with self.assertRaisesRegex(ValueError, "already exists"):
+            faculty.update_faculty_from_values(
+                self.faculty_members,
+                original,
+                "Dr. Jones",
+                15,
+                6,
+                4,
+                {},
+                5,
+                {},
+                {},
+                {},
+                set(),
+            )
+
+        self.assertIs(self.faculty_members[0], original)
+        self.assertEqual(original.maximum_credits, 12)
+
+    def test_delete_faculty_from_values_removes_selected_member(self):
+        first = faculty.add_faculty_from_values(
+            self.faculty_members,
+            "Dr. Smith",
+            12,
+            6,
+            3,
+            {},
+            4,
+            {},
+            {},
+            {},
+            set(),
+        )
+        selected = faculty.add_faculty_from_values(
+            self.faculty_members,
+            "Dr. Jones",
+            10,
+            3,
+            2,
+            {},
+            3,
+            {},
+            {},
+            {},
+            set(),
+        )
+
+        self.assertIs(
+            faculty.delete_faculty_from_values(self.faculty_members, selected),
+            selected,
+        )
+        self.assertEqual(self.faculty_members, [first])
+
     def test_view_faculty(self):
         # Add a faculty member directly so this test
         # only tests view_faculty()
