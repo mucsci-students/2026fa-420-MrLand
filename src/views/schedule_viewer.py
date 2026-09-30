@@ -324,6 +324,7 @@ def schedule_viewer() -> None:
         # Table columns
         # ---------------------------------------------------------
 
+        # create the columns the table will use
         columns = [
             {
                 "name": "course",
@@ -369,6 +370,7 @@ def schedule_viewer() -> None:
             },
         ]
 
+        # create table object
         table = ui.table(
             columns=columns,
             rows=schedule,
@@ -380,6 +382,7 @@ def schedule_viewer() -> None:
         # Update filter values
         # ---------------------------------------------------------
 
+        # updates possible filter values for the user to choose from
         def update_filter_values():
             filter_type = filter_select.value
 
@@ -499,14 +502,17 @@ def schedule_viewer() -> None:
         # Dropdown events
         # ---------------------------------------------------------
 
+        # updates when a new sort is selected
         sort_select.on_value_change(
             lambda _: update_table()
         )
 
+        # updates when a new order is selected
         order_select.on_value_change(
             lambda _: update_table()
         )
 
+        # updates when a new filter type is selected
         filter_select.on_value_change(
             lambda _: (
                 update_filter_values(),
@@ -514,6 +520,7 @@ def schedule_viewer() -> None:
             )
         )
 
+        # updates when a new filter value is selected
         filter_value_select.on_value_change(
             lambda _: update_table()
         )
