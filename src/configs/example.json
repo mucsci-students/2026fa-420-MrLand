@@ -1321,5 +1321,8 @@
         "min_time_overlap": 45
     },
     "limit": 2,
-    "optimizer_flags": []
+    "optimizer_flags": [
+        "pack_rooms",
+        "same_lab"
+    ]
 }
