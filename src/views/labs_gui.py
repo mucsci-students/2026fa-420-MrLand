@@ -1,6 +1,6 @@
 from nicegui import ui
 
-from services.lab_service import (
+from src.services.lab_service import (
     add_lab_from_values,
     delete_lab_from_values,
     update_lab_from_values,

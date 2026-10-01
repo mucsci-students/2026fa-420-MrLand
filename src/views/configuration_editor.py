@@ -1,15 +1,18 @@
 from nicegui import ui
 
-from class_patterns_gui import class_patterns_gui
-from common import coming_soon, section_header
-from courses_gui import courses_gui
-from faculty_gui import faculty_gui
-from global_settings_gui import global_settings_gui
-from labs_gui import labs_gui
-from rooms_gui import rooms_gui
-from time_blocks_gui import time_blocks_gui
-from services.config_service import create_draft_config, validate_config_name
 
+from src.views.class_patterns_gui import class_patterns_gui
+from src.views.common import coming_soon, section_header
+from src.views.courses_gui import courses_gui
+from src.views.faculty_gui import faculty_gui
+from src.views.global_settings_gui import global_settings_gui
+from src.views.labs_gui import labs_gui
+from src.views.rooms_gui import rooms_gui
+from src.views.time_blocks_gui import time_blocks_gui
+# from src.services.config_service import ConfigService
+from src.controllers.configuration_controller import ConfigurationController
+
+controller = ConfigurationController()
 
 def configuration_editor() -> None:
     # The configuration currently open in the editor. None = nothing created/loaded yet.
@@ -111,7 +114,7 @@ def configuration_editor() -> None:
             ui.button(
                 "Load configuration",
                 icon="folder_open",
-                on_click=lambda: coming_soon("Load configuration"),
+                on_click=controller.load_configuration,
             ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
             ui.button(
                 "Create configuration",
@@ -121,7 +124,7 @@ def configuration_editor() -> None:
             ui.button(
                 "Save configuration",
                 icon="save",
-                on_click=lambda: coming_soon("Save configuration"),
+                on_click=controller.save_configuration,
             ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
 
         editor_body()
@@ -152,6 +155,47 @@ def configuration_editor() -> None:
                 "bg-[#75e6da] text-[#101820]"
             )
 
+        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as rooms_panel:
+            rooms_panel.set_visibility(False)
+            rooms_gui(rooms)
+
+        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as faculty_panel:
+            faculty_panel.set_visibility(False)
+            faculty_gui(faculty_members)
+
+        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as courses_panel:
+            courses_panel.set_visibility(False)
+            courses_gui(courses)
+
+        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as labs_panel:
+            labs_panel.set_visibility(False)
+            labs_gui(labs)
+
+        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as time_blocks_panel:
+            time_blocks_panel.set_visibility(False)
+            time_blocks_gui(time_blocks)
+
+        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as class_patterns_panel:
+            class_patterns_panel.set_visibility(False)
+            class_patterns_gui(class_patterns)
+
+        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as global_settings_panel:
+            global_settings_panel.set_visibility(False)
+            # global_settings_gui(settings_config)
+
+    panels = {
+        "Courses": courses_panel,
+        "Faculty": faculty_panel,
+        "Rooms": rooms_panel,
+        "Labs": labs_panel,
+        "Time blocks": time_blocks_panel,
+        "Class patterns": class_patterns_panel,
+        "Global settings": global_settings_panel,
+    }
+
+    def show_page(action: str) -> None:
+        if action not in panels:
+            coming_soon(action)
     # ------------------------------------------------------------------
     # Create flow
     # ------------------------------------------------------------------

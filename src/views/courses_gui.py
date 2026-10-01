@@ -1,6 +1,6 @@
 from nicegui import ui
 
-from services.course_service import (
+from src.services.course_service import (
     add_course_from_values,
     delete_course_from_values,
     update_course_from_values,

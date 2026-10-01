@@ -1,7 +1,7 @@
 from nicegui import ui
 from scheduler.config import CombinedConfig, OptimizerFlags
 
-from services.settings_service import (
+from src.services.settings_service import (
     reset_settings_values,
     update_settings_from_values,
 )
