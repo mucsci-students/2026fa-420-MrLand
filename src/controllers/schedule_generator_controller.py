@@ -1,6 +1,6 @@
 import threading
 
-from models.schedule_generator_model import (
+from src.models.schedule_generator_model import (
     ScheduleGenerationState,
     ScheduleGeneratorModel,
 )

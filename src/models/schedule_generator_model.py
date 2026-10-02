@@ -5,8 +5,8 @@ from dataclasses import dataclass, replace
 from typing import Any
 
 from scheduler.scheduler import Scheduler
-from schedule_result import ScheduleResult
-from services.config_service import config_exists, load_config
+from src.models.schedule_result import ScheduleResult
+from src.services.config_service import config_exists, load_config
 
 
 @dataclass

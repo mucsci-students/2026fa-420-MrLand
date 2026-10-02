@@ -1,9 +1,9 @@
 from nicegui import ui
 
-from controllers.schedule_generator_controller import (
+from src.controllers.schedule_generator_controller import (
     schedule_generator_controller as controller,
 )
-from models.schedule_generator_model import ScheduleGenerationState
+from src.models.schedule_generator_model import ScheduleGenerationState
 
 
 def schedule_generator() -> None:
