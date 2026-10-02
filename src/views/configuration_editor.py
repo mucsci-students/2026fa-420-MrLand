@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 from nicegui import ui
 
 from src.controllers.configuration_controller import ConfigurationController
+from src.services.config_io import ConfigLoadError
 from src.services.config_service import validate_config_name
 from src.views.class_patterns_gui import class_patterns_gui
 from src.views.common import coming_soon, section_header
@@ -16,24 +15,6 @@ from src.views.rooms_gui import rooms_gui
 from src.views.time_blocks_gui import time_blocks_gui
 
 controller = ConfigurationController()
-
-
-def _empty_draft_config() -> SimpleNamespace:
-    return SimpleNamespace(
-        config=SimpleNamespace(
-            rooms=[],
-            faculty=[],
-            courses=[],
-            labs=[],
-        ),
-        time_slot_config=SimpleNamespace(
-            times={},
-            classes=[],
-        ),
-        limit=10,
-        optimizer_flags=[],
-    )
-
 
 def configuration_editor() -> None:
     state = {"config": None, "name": None}
@@ -130,30 +111,18 @@ def configuration_editor() -> None:
                 panel.set_visibility(page_name == action)
 
     def save_current_config() -> None:
-        config = state["config"]
-        name = state["name"]
-
-        if config is None:
+        if state["config"] is None:
             ui.notify("No configuration is open to save.", type="negative")
             return
-
-        if not name:
+        if not state["name"]:
             ui.notify("Give the configuration a name before saving.", type="negative")
             return
-
-        if hasattr(config, "model_dump_json"):
-            controller.create_configuration(config)
-            try:
-                controller.save_configuration(name)
-                ui.notify(f"Saved '{name}'.", type="positive")
-            except Exception as exc:  # pragma: no cover - UI guard
-                ui.notify(f"Unable to save configuration: {exc}", type="negative")
+        try:
+            controller.save_configuration(state["name"])
+        except Exception as exc:  # pragma: no cover - UI guard
+            ui.notify(f"Unable to save configuration: {exc}", type="negative")
             return
-
-        ui.notify(
-            "This draft exists only in memory. Create or load a real scheduler config before saving.",
-            type="negative",
-        )
+        ui.notify(f"Saved '{state['name']}'.", type="positive")
 
     with ui.column().classes("w-full gap-6"):
         section_header(
@@ -162,11 +131,13 @@ def configuration_editor() -> None:
             "Edit the Schedule Configuration File",
         )
 
+
+
         with ui.row().classes("w-full flex-wrap gap-3"):
             ui.button(
                 "Load configuration",
                 icon="folder_open",
-                on_click=lambda: load_dialog.open(),
+                on_click=lambda: toggle_load_select(),
             ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
             ui.button(
                 "Create configuration",
@@ -178,6 +149,13 @@ def configuration_editor() -> None:
                 icon="save",
                 on_click=save_current_config,
             ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
+
+        load_select = ui.select(
+            options=controller.list_names(),
+            label="Select Configuration",
+        ).classes("w-full max-w-xl").props("dark outlined")
+        load_select.set_visibility(False)
+        load_select.on_value_change(lambda e: on_select_change(e.value))
 
         editor_body()
 
@@ -204,17 +182,6 @@ def configuration_editor() -> None:
                 "bg-[#75e6da] text-[#101820]"
             )
 
-    with ui.dialog() as load_dialog, ui.card().classes("border border-[#29404b] bg-[#182630]"):
-        ui.label("Load configuration").classes("text-lg font-semibold text-white")
-        load_name_input = ui.input("Configuration name").props("autofocus").classes("w-80")
-        load_name_input.on("keydown.enter", lambda: confirm_load(load_name_input.value))
-        with ui.row().classes("mt-4 w-full justify-end gap-2"):
-            ui.button("Cancel", on_click=load_dialog.close).props("flat")
-            ui.button(
-                "Load",
-                on_click=lambda: confirm_load(load_name_input.value),
-            ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
-
     def start_create() -> None:
         if state["config"] is not None:
             discard_dialog.open()
@@ -227,36 +194,63 @@ def configuration_editor() -> None:
         name_input.error = None
         create_dialog.open()
 
+    def refresh_load_options() -> None:
+        load_select.set_options(controller.list_names(), value=None)
+
+    def toggle_load_select() -> None:
+        if load_select.visible:
+            load_select.set_visibility(False)
+            return
+        refresh_load_options()
+        load_select.set_visibility(True)
+        load_select.run_method("showPopup")  # opens the list right away
+
+    def on_select_change(name: str | None) -> None:
+        if not name:
+            return
+        if name != state["name"]:
+            confirm_load(name)
+        # Hide again only if the load worked (or it was already open).
+        if state["name"] == name:
+            load_select.set_visibility(False)
+            load_select.value = None
+
     def confirm_create() -> None:
         try:
             name = validate_config_name(name_input.value or "")
         except ValueError as exc:
             name_input.error = str(exc)
             return
+        try:
+            config = controller.new_configuration()
+        except Exception as exc:  # pragma: no cover - UI guard
+            ui.notify(f"Unable to create configuration: {exc}", type="negative")
+            return
 
-        state["config"] = _empty_draft_config()
+        state["config"] = config
         state["name"] = name
         create_dialog.close()
         editor_body.refresh()
-        ui.notify(
-            f"Configuration '{name}' created. Add items, then validate and save.",
-            type="positive",
-        )
+        ui.notify(f"Configuration '{name}' created. Add items, then save.", type="positive")
 
     def confirm_load(name: str | None) -> None:
         config_name = (name or "").strip()
         if not config_name:
-            ui.notify("Enter a configuration name first.", type="negative")
+            ui.notify("Pick a configuration first.", type="negative")
             return
         try:
             loaded_config = controller.load_configuration(config_name)
-            state["config"] = loaded_config
-            state["name"] = config_name
-            load_dialog.close()
-            editor_body.refresh()
-            ui.notify(f"Loaded '{config_name}'.", type="positive")
         except FileNotFoundError:
             ui.notify(f"Configuration '{config_name}' was not found.", type="negative")
+            return
+        except ConfigLoadError as exc:
+            ui.notify(f"'{config_name}' is not a valid configuration: {exc}", type="negative")
+            return
         except Exception as exc:  # pragma: no cover - UI guard
             ui.notify(f"Unable to load configuration: {exc}", type="negative")
+            return
 
+        state["config"] = loaded_config
+        state["name"] = config_name
+        editor_body.refresh()
+        ui.notify(f"Loaded '{config_name}'.", type="positive")
