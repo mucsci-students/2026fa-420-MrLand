@@ -9,6 +9,7 @@
 - Renee Watts
 - Logan Kaufman
 - Dylan Groff
+- Micah Schafer
 
 ---
 
@@ -143,6 +144,10 @@ A CLI-based interface for configuring, generating, and viewing class schedules. 
 5. Run the CLI
 ``` bash
    uv run src/navmenu.py
+```
+6. Run the gui
+``` bash
+   uv run src/views/gui.py
 ```
 7. Type 'deactivate' to Deactivate the Virtual Environment
 ``` bash

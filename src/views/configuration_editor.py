@@ -1,6 +1,11 @@
+from __future__ import annotations
+
+from types import SimpleNamespace
+
 from nicegui import ui
 
-
+from src.controllers.configuration_controller import ConfigurationController
+from src.services.config_service import validate_config_name
 from src.views.class_patterns_gui import class_patterns_gui
 from src.views.common import coming_soon, section_header
 from src.views.courses_gui import courses_gui
@@ -9,20 +14,30 @@ from src.views.global_settings_gui import global_settings_gui
 from src.views.labs_gui import labs_gui
 from src.views.rooms_gui import rooms_gui
 from src.views.time_blocks_gui import time_blocks_gui
-# from src.services.config_service import ConfigService
-from src.controllers.configuration_controller import ConfigurationController
 
 controller = ConfigurationController()
 
+
+def _empty_draft_config() -> SimpleNamespace:
+    return SimpleNamespace(
+        config=SimpleNamespace(
+            rooms=[],
+            faculty=[],
+            courses=[],
+            labs=[],
+        ),
+        time_slot_config=SimpleNamespace(
+            times={},
+            classes=[],
+        ),
+        limit=10,
+        optimizer_flags=[],
+    )
+
+
 def configuration_editor() -> None:
-    # The configuration currently open in the editor. None = nothing created/loaded yet.
-    # The Load and Save handlers should read/write this same dict.
     state = {"config": None, "name": None}
 
-    # ------------------------------------------------------------------
-    # Editor body: rebuilt whenever a configuration is created or loaded,
-    # so every panel is bound to the *current* config's lists.
-    # ------------------------------------------------------------------
     @ui.refreshable
     def editor_body() -> None:
         config = state["config"]
@@ -65,21 +80,35 @@ def configuration_editor() -> None:
                     ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
 
         panel_classes = "w-full gap-4 border-t border-[#29404b] pt-6"
+        config_section = getattr(config, "config", None)
+        rooms_list = getattr(config_section, "rooms", []) if config_section is not None else []
+        faculty_list = getattr(config_section, "faculty", []) if config_section is not None else []
+        courses_list = getattr(config_section, "courses", []) if config_section is not None else []
+        labs_list = getattr(config_section, "labs", []) if config_section is not None else []
+
+        time_slot_config = getattr(config, "time_slot_config", None)
+        time_blocks_list = getattr(time_slot_config, "times", {}) if time_slot_config is not None else {}
+        class_patterns_list = getattr(time_slot_config, "classes", []) if time_slot_config is not None else []
 
         with ui.column().classes(panel_classes) as rooms_panel:
-            rooms_gui(config.config.rooms)
+            rooms_gui(rooms_list)
         with ui.column().classes(panel_classes) as faculty_panel:
-            faculty_gui(config.config.faculty)
+            faculty_gui(faculty_list)
         with ui.column().classes(panel_classes) as courses_panel:
-            courses_gui(config.config.courses)
+            courses_gui(courses_list)
         with ui.column().classes(panel_classes) as labs_panel:
-            labs_gui(config.config.labs)
+            labs_gui(labs_list)
         with ui.column().classes(panel_classes) as time_blocks_panel:
-            time_blocks_gui(config.time_slot_config.times)
+            time_blocks_gui(time_blocks_list)
         with ui.column().classes(panel_classes) as class_patterns_panel:
-            class_patterns_gui(config.time_slot_config.classes)
+            class_patterns_gui(class_patterns_list)
         with ui.column().classes(panel_classes) as global_settings_panel:
-            global_settings_gui(config)
+            if hasattr(config, "limit") and hasattr(config, "optimizer_flags"):
+                global_settings_gui(config)
+            else:
+                ui.label("Global settings are unavailable for this draft.").classes(
+                    "text-sm text-[#9fb2b8]"
+                )
 
         panels = {
             "Courses": courses_panel,
@@ -100,9 +129,32 @@ def configuration_editor() -> None:
             for page_name, panel in panels.items():
                 panel.set_visibility(page_name == action)
 
-    # ------------------------------------------------------------------
-    # Page layout
-    # ------------------------------------------------------------------
+    def save_current_config() -> None:
+        config = state["config"]
+        name = state["name"]
+
+        if config is None:
+            ui.notify("No configuration is open to save.", type="negative")
+            return
+
+        if not name:
+            ui.notify("Give the configuration a name before saving.", type="negative")
+            return
+
+        if hasattr(config, "model_dump_json"):
+            controller.create_configuration(config)
+            try:
+                controller.save_configuration(name)
+                ui.notify(f"Saved '{name}'.", type="positive")
+            except Exception as exc:  # pragma: no cover - UI guard
+                ui.notify(f"Unable to save configuration: {exc}", type="negative")
+            return
+
+        ui.notify(
+            "This draft exists only in memory. Create or load a real scheduler config before saving.",
+            type="negative",
+        )
+
     with ui.column().classes("w-full gap-6"):
         section_header(
             "Workspace",
@@ -114,7 +166,7 @@ def configuration_editor() -> None:
             ui.button(
                 "Load configuration",
                 icon="folder_open",
-                on_click=controller.load_configuration,
+                on_click=lambda: load_dialog.open(),
             ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
             ui.button(
                 "Create configuration",
@@ -124,14 +176,11 @@ def configuration_editor() -> None:
             ui.button(
                 "Save configuration",
                 icon="save",
-                on_click=controller.save_configuration,
+                on_click=save_current_config,
             ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
 
         editor_body()
 
-    # ------------------------------------------------------------------
-    # Dialogs
-    # ------------------------------------------------------------------
     with ui.dialog() as discard_dialog, ui.card().classes("border border-[#29404b] bg-[#182630]"):
         ui.label("Start a new configuration?").classes("text-lg font-semibold text-white")
         ui.label(
@@ -155,53 +204,18 @@ def configuration_editor() -> None:
                 "bg-[#75e6da] text-[#101820]"
             )
 
-        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as rooms_panel:
-            rooms_panel.set_visibility(False)
-            rooms_gui(rooms)
+    with ui.dialog() as load_dialog, ui.card().classes("border border-[#29404b] bg-[#182630]"):
+        ui.label("Load configuration").classes("text-lg font-semibold text-white")
+        load_name_input = ui.input("Configuration name").props("autofocus").classes("w-80")
+        load_name_input.on("keydown.enter", lambda: confirm_load(load_name_input.value))
+        with ui.row().classes("mt-4 w-full justify-end gap-2"):
+            ui.button("Cancel", on_click=load_dialog.close).props("flat")
+            ui.button(
+                "Load",
+                on_click=lambda: confirm_load(load_name_input.value),
+            ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
 
-        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as faculty_panel:
-            faculty_panel.set_visibility(False)
-            faculty_gui(faculty_members)
-
-        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as courses_panel:
-            courses_panel.set_visibility(False)
-            courses_gui(courses)
-
-        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as labs_panel:
-            labs_panel.set_visibility(False)
-            labs_gui(labs)
-
-        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as time_blocks_panel:
-            time_blocks_panel.set_visibility(False)
-            time_blocks_gui(time_blocks)
-
-        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as class_patterns_panel:
-            class_patterns_panel.set_visibility(False)
-            class_patterns_gui(class_patterns)
-
-        with ui.column().classes("w-full gap-4 border-t border-[#29404b] pt-6") as global_settings_panel:
-            global_settings_panel.set_visibility(False)
-            # global_settings_gui(settings_config)
-
-    panels = {
-        "Courses": courses_panel,
-        "Faculty": faculty_panel,
-        "Rooms": rooms_panel,
-        "Labs": labs_panel,
-        "Time blocks": time_blocks_panel,
-        "Class patterns": class_patterns_panel,
-        "Global settings": global_settings_panel,
-    }
-
-    def show_page(action: str) -> None:
-        if action not in panels:
-            coming_soon(action)
-    # ------------------------------------------------------------------
-    # Create flow
-    # ------------------------------------------------------------------
     def start_create() -> None:
-        # Nothing open yet -> go straight to the name prompt.
-        # Something open -> confirm first so we never silently discard work.
         if state["config"] is not None:
             discard_dialog.open()
         else:
@@ -217,12 +231,10 @@ def configuration_editor() -> None:
         try:
             name = validate_config_name(name_input.value or "")
         except ValueError as exc:
-            name_input.error = str(exc)  # red message under the field; dialog stays open
+            name_input.error = str(exc)
             return
 
-        # Only replace the current config once the name is valid,
-        # so Cancel at any point leaves the existing config untouched.
-        state["config"] = create_draft_config()
+        state["config"] = _empty_draft_config()
         state["name"] = name
         create_dialog.close()
         editor_body.refresh()
@@ -230,3 +242,21 @@ def configuration_editor() -> None:
             f"Configuration '{name}' created. Add items, then validate and save.",
             type="positive",
         )
+
+    def confirm_load(name: str | None) -> None:
+        config_name = (name or "").strip()
+        if not config_name:
+            ui.notify("Enter a configuration name first.", type="negative")
+            return
+        try:
+            loaded_config = controller.load_configuration(config_name)
+            state["config"] = loaded_config
+            state["name"] = config_name
+            load_dialog.close()
+            editor_body.refresh()
+            ui.notify(f"Loaded '{config_name}'.", type="positive")
+        except FileNotFoundError:
+            ui.notify(f"Configuration '{config_name}' was not found.", type="negative")
+        except Exception as exc:  # pragma: no cover - UI guard
+            ui.notify(f"Unable to load configuration: {exc}", type="negative")
+
