@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import run_scheduler
-from schedule_result import ScheduleResult
+from models.schedule_result import ScheduleResult
 
 
 def make_schedule_instance(course="CS101", faculty="Dr. Smith", room="Room1", lab=None):
