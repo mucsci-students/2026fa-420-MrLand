@@ -1,8 +1,12 @@
-# File name: schedule_view.py
+# File name: schedule_viewer.py
 # Primary author: Dylan Groff
+# Secondary Author: Micah Schafer
 
 
 from nicegui import ui
+from src.controllers.schedule_controller import (
+    schedule_controller as controller,
+)
 from src.controllers.schedule_filters_controller import (
     sort_schedule,
     filter_by_resource,
@@ -13,6 +17,13 @@ from src.controllers.schedule_filters_controller import (
 # set the background and accent colors for the schedule viewer
 BACKGROUND = "#101820"
 ACCENT = "#75e6da"
+
+
+async def read_upload(event) -> tuple[str, bytes]:
+    """Return (file name, bytes) from a ui.upload event (NiceGUI 2.x and 3.x)."""
+    if hasattr(event, "file"):  # NiceGUI 3.x
+        return event.file.name, await event.file.read()
+    return event.name, event.content.read()  # NiceGUI 2.x
 
 
 def schedule_viewer() -> None:
@@ -95,6 +106,12 @@ def schedule_viewer() -> None:
 
     ui.colors(primary=ACCENT, dark=BACKGROUND)
 
+    # rows for the schedule currently selected in the dropdown
+    schedule: list[dict] = []
+
+    # set while the code itself changes the dropdown, so it doesn't re-trigger
+    syncing = False
+
     with ui.column().classes("w-full min-h-screen px-6 py-8").style(
         f"background-color: {BACKGROUND};"
     ):
@@ -113,32 +130,69 @@ def schedule_viewer() -> None:
             )
 
         # ---------------------------------------------------------
-        # Progress dialogs
+        # Load dialog
         # ---------------------------------------------------------
-        
-        # creates a progress bar pop-up for loading schedules
+
         with ui.dialog() as load_dialog:
-            with ui.card().classes("bg-[#101820]"):
-                ui.label("Loading schedule...").classes(
-                    "text-lg text-white"
-                )
+            with ui.card().classes("bg-[#101820] border border-[#29404b] w-[480px] gap-3"):
+                ui.label("Load Schedule").classes("text-lg font-semibold text-white")
+                ui.label(
+                    "Choose a saved schedule from the schedules folder."
+                ).classes("text-sm text-gray-400")
 
-                load_progress = ui.linear_progress(
-                    value=0
-                ).classes("w-80")
+                saved_file_select = ui.select(
+                    [],
+                    label="Saved schedules",
+                    with_input=True,
+                ).props("outlined dark").classes("schedule-dropdown w-full")
 
+                load_status = ui.label("").classes("text-sm text-red-400")
 
-        # creates a progress bar pop-up for exporting schedules
-        with ui.dialog() as export_dialog:
-            with ui.card().classes("bg-[#101820]"):
-                ui.label("Exporting schedule...").classes(
-                    "text-lg text-white"
-                )
+                with ui.row().classes("w-full justify-end gap-2"):
+                    ui.button("Cancel", on_click=load_dialog.close).props("flat")
+                    load_button = ui.button("Load", icon="upload_file")
 
-                export_progress = ui.linear_progress(
-                    value=0
-                ).classes("w-80")
+                ui.separator().classes("bg-[#29404b]")
+                ui.label(
+                    "Or upload a CSV or JSON schedule from your computer."
+                ).classes("text-sm text-gray-400")
 
+                upload = ui.upload(
+                    auto_upload=True,
+                    max_files=1,
+                ).props("accept=.csv,.json dark flat bordered").classes("w-full")
+
+        # ---------------------------------------------------------
+        # Save dialog
+        # ---------------------------------------------------------
+
+        with ui.dialog() as save_dialog:
+            with ui.card().classes("bg-[#101820] border border-[#29404b] w-[480px] gap-3"):
+                ui.label("Save Schedule").classes("text-lg font-semibold text-white")
+                save_description = ui.label("").classes("text-sm text-gray-400")
+
+                save_format = ui.select(
+                    {"csv": "CSV", "json": "JSON"},
+                    value="csv",
+                    label="File Format",
+                ).props("outlined dark").classes("schedule-dropdown w-full")
+
+                save_name = ui.input(
+                    label="File Name",
+                ).props("outlined dark").classes("schedule-dropdown w-full")
+
+                overwrite_checkbox = ui.checkbox(
+                    "Overwrite if the file already exists"
+                ).props("dark").classes("text-gray-300")
+
+                save_status = ui.label("").classes("text-sm text-red-400")
+
+                with ui.row().classes("w-full justify-end gap-2"):
+                    ui.button("Cancel", on_click=save_dialog.close).props("flat")
+                    download_button = ui.button(
+                        "Download", icon="download"
+                    ).props("outline")
+                    save_button = ui.button("Save", icon="save")
 
         # ---------------------------------------------------------
         # Schedule controls
@@ -146,127 +200,46 @@ def schedule_viewer() -> None:
 
         with ui.row().classes("w-full items-center gap-3 mb-6"):
 
-
-            # place your load function call/logic here
-            def on_load():
-                load_dialog.open()
-                load_progress.value = 0
-
-                # TODO: Call controller here
-                # ...
-
-                load_progress.value = 1
-                # use this to close the dialog after loading is complete after implementing the load function in the controller
-                #load_dialog.close()
-
-
-            # place your export function call/logic here
-            def on_export():
-                export_dialog.open()
-                export_progress.value = 0
-
-                # TODO: Call controller here
-                # ...
-
-                export_progress.value = 1
-                # use this to close the dialog after exporting is complete after implementing the export function in the controller
-                #export_dialog.close()
-
             # Load button
             ui.button(
                 "Load",
                 icon="upload_file",
-                on_click=on_load,
+                on_click=lambda: open_load_dialog(),
             ).props("outline")
 
-            # Export button
-            ui.button(
-                "Export",
-                icon="download",
-                on_click=on_export,
+            # Save button
+            save_open_button = ui.button(
+                "Save",
+                icon="save",
+                on_click=lambda: open_save_dialog(),
             ).props("outline")
 
             ui.space()
 
             # button to iterate left through the schedules
-            ui.button(
+            previous_button = ui.button(
                 icon="chevron_left",
+                on_click=lambda: step_schedule(-1),
             ).props("flat")
 
             # dropdown to select the schedule to view
-            # will need to be populated with the actual available schedules
-            ui.select(
-                ["Schedule 1", "Schedule 2", "Schedule 3"],
-                value="Schedule 1",
-            ).props("outlined").classes("schedule-dropdown")
+            schedule_select = ui.select(
+                {},
+                value=None,
+                label="Schedule",
+            ).props("outlined").classes("schedule-dropdown").style(
+                "min-width: 320px;"
+            )
 
             # button to iterate right through the schedules
-            ui.button(
+            next_button = ui.button(
                 icon="chevron_right",
+                on_click=lambda: step_schedule(1),
             ).props("flat")
 
-        # ---------------------------------------------------------
-        # Sample schedule data
-        # ---------------------------------------------------------
-
-        # will need to be replaced with actual schedule data from the load function
-        # will also need func to format the data from the JSON or CSV file into the format used here
-        schedule = [
-            {
-                "id": 1,
-                "course": "CMSC 152.01",
-                "faculty": "Hardy",
-                "resource": "Roddy 147",
-                "day": "MON",
-                "start": "09:00",
-                "end": "09:50",
-            },
-            {
-                "id": 2,
-                "course": "CMSC 162.01",
-                "faculty": "Hogg",
-                "resource": "Roddy 140",
-                "day": "MON",
-                "start": "10:00",
-                "end": "10:50",
-            },
-            {
-                "id": 3,
-                "course": "CMSC 140.01",
-                "faculty": "Hardy",
-                "resource": "Roddy 147",
-                "day": "MON",
-                "start": "11:00",
-                "end": "12:50",
-            },
-            {
-                "id": 4,
-                "course": "CMSC 161.03",
-                "faculty": "Wertz",
-                "resource": "Roddy 140",
-                "day": "TUE",
-                "start": "08:00",
-                "end": "09:50",
-            },
-            {
-                "id": 5,
-                "course": "CMSC 152.01",
-                "faculty": "Hardy",
-                "resource": "Mac",
-                "day": "THU",
-                "start": "09:00",
-                "end": "10:50",
-            },
-            {
-                "id": 6,
-                "course": "CMSC 340.01",
-                "faculty": "Yang",
-                "resource": "Roddy 136",
-                "day": "FRI",
-                "start": "14:00",
-                "end": "14:50",
-            },
-        ]
+        empty_label = ui.label(
+            "No schedules yet. Run the Schedule Generator, or load a saved schedule."
+        ).classes("text-gray-400 mb-6")
 
         # ---------------------------------------------------------
         # Sort and filter controls
@@ -373,7 +346,7 @@ def schedule_viewer() -> None:
         # create table object
         table = ui.table(
             columns=columns,
-            rows=schedule,
+            rows=[],
             row_key="id",
             pagination=10,
         ).props("flat bordered").classes("w-full")
@@ -404,9 +377,15 @@ def schedule_viewer() -> None:
             else:
                 values = []
 
+            # keep the current value when switching schedules, so the same
+            # faculty member or room can be compared across schedules
+            current_value = filter_value_select.value
+
             filter_value_select.options = values
 
-            if values:
+            if current_value in values:
+                filter_value_select.value = current_value
+            elif values:
                 filter_value_select.value = values[0]
             else:
                 filter_value_select.value = None
@@ -499,8 +478,142 @@ def schedule_viewer() -> None:
             table.update()
 
         # ---------------------------------------------------------
+        # Show the selected schedule
+        # ---------------------------------------------------------
+
+        def show_selected_schedule():
+            """Redraw everything from the controller's current schedule."""
+            nonlocal schedule, syncing
+
+            schedule = controller.current_rows()
+            has_schedules = controller.has_schedules
+
+            syncing = True
+            schedule_select.set_options(
+                controller.schedule_options(),
+                value=controller.selected_index if has_schedules else None,
+            )
+            syncing = False
+
+            empty_label.visible = not has_schedules
+            schedule_select.set_enabled(has_schedules)
+            save_open_button.set_enabled(has_schedules)
+            previous_button.set_enabled(controller.can_step(-1))
+            next_button.set_enabled(controller.can_step(1))
+
+            update_filter_values()
+            update_table()
+
+        def on_schedule_selected(event):
+            if syncing or event.value is None:
+                return
+            controller.select(event.value)
+            show_selected_schedule()
+
+        def step_schedule(offset: int):
+            controller.step(offset)
+            show_selected_schedule()
+
+        def check_for_generated_schedules():
+            # The generator runs in the background; pick up its results
+            # whenever a run finishes.
+            if controller.sync_generated():
+                show_selected_schedule()
+
+        # ---------------------------------------------------------
+        # Loading
+        # ---------------------------------------------------------
+
+        def open_load_dialog():
+            saved_files = controller.list_saved_files()
+            saved_file_select.set_options(saved_files, value=None)
+            load_status.text = (
+                "" if saved_files else "No saved schedules found in the schedules folder."
+            )
+            upload.reset()
+            load_dialog.open()
+
+        def finish_load(entry, error):
+            if error:
+                load_status.text = error
+                return
+            load_dialog.close()
+            show_selected_schedule()
+            ui.notify(
+                f"Loaded {entry.file_name} ({len(entry.records)} sections)",
+                type="positive",
+            )
+
+        def on_load_saved_file():
+            finish_load(*controller.load_saved_file(saved_file_select.value))
+
+        async def on_upload(event):
+            file_name, content = await read_upload(event)
+            upload.reset()
+            finish_load(*controller.load_uploaded_file(file_name, content))
+
+        load_button.on_click(on_load_saved_file)
+        upload.on_upload(on_upload)
+
+        # ---------------------------------------------------------
+        # Saving
+        # ---------------------------------------------------------
+
+        def open_save_dialog():
+            entry = controller.current
+            if entry is None:
+                return
+            save_description.text = (
+                f"Save '{entry.label}' to the schedules folder, "
+                "or download it to your computer."
+            )
+            save_name.value = controller.default_file_name(save_format.value)
+            overwrite_checkbox.value = False
+            save_status.text = ""
+            save_dialog.open()
+
+        def on_format_changed(event):
+            # keep the file name's extension in step with the format
+            name = (save_name.value or "").strip()
+            stem = name.rsplit(".", 1)[0] if name.lower().endswith((".csv", ".json")) else name
+            save_name.value = (
+                f"{stem}.{event.value}" if stem else controller.default_file_name(event.value)
+            )
+
+        def on_save():
+            path, error = controller.save_current(
+                save_format.value,
+                save_name.value or "",
+                overwrite=overwrite_checkbox.value,
+            )
+            if error:
+                save_status.text = error
+                return
+            save_dialog.close()
+            ui.notify(f"Saved {path.name} to the schedules folder", type="positive")
+
+        def on_download():
+            export, error = controller.export_current(
+                save_format.value,
+                save_name.value or "",
+            )
+            if error:
+                save_status.text = error
+                return
+            content, file_name, media_type = export
+            ui.download(content, filename=file_name, media_type=media_type)
+            save_dialog.close()
+
+        save_format.on_value_change(on_format_changed)
+        save_button.on_click(on_save)
+        download_button.on_click(on_download)
+
+        # ---------------------------------------------------------
         # Dropdown events
         # ---------------------------------------------------------
+
+        # updates when a different schedule is selected
+        schedule_select.on_value_change(on_schedule_selected)
 
         # updates when a new sort is selected
         sort_select.on_value_change(
@@ -529,4 +642,6 @@ def schedule_viewer() -> None:
         # Initial state
         # ---------------------------------------------------------
 
-        update_table()
+        controller.sync_generated()
+        show_selected_schedule()
+        ui.timer(1.0, check_for_generated_schedules)

@@ -5,6 +5,7 @@ from dataclasses import dataclass, replace
 from typing import Any
 
 from scheduler.scheduler import Scheduler
+from src.models.schedule_files import records_from_result, records_to_csv
 from src.models.schedule_result import ScheduleResult
 from src.services.config_service import config_exists, load_config
 
@@ -157,37 +158,13 @@ class ScheduleGeneratorModel:
         schedule_data = {
             "schedule": schedule_number,
             "config": result.config_name,
-            "meetings": [
-                {
-                    "course": str(instance.course),
-                    "faculty": str(instance.faculty),
-                    "room": str(instance.room),
-                    "lab": str(instance.lab),
-                    "times": str(instance.times),
-                }
-                for instance in result.schedule
-            ],
+            "meetings": records_from_result(result),
         }
         return json.dumps(schedule_data, indent=4).encode("utf-8")
 
     @staticmethod
     def schedule_to_csv(result: ScheduleResult, schedule_number: int) -> bytes:
-        lines = ["schedule,config,course,faculty,room,lab,times"]
-        for instance in result.schedule:
-            row = [
-                str(schedule_number),
-                result.config_name,
-                str(instance.course),
-                str(instance.faculty),
-                str(instance.room),
-                str(instance.lab),
-                str(instance.times),
-            ]
-            escaped_row = []
-            for value in row:
-                value = value.replace('"', '""')
-                if any(character in value for character in [",", '"', "\n"]):
-                    value = f'"{value}"'
-                escaped_row.append(value)
-            lines.append(",".join(escaped_row))
-        return "\n".join(lines).encode("utf-8")
+        return records_to_csv(
+            records_from_result(result),
+            extra={"schedule": str(schedule_number), "config": result.config_name},
+        )

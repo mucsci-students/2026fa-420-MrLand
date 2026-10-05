@@ -21,6 +21,8 @@ def create_resource_schedule(schedule):
         # A course can have multiple meeting times
         for time in course["times"].split(","):
             time = time.strip()
+            if not time:
+                continue
 
             # ^ indicates a lab meeting
             is_lab = time.endswith("^")
@@ -28,6 +30,11 @@ def create_resource_schedule(schedule):
             # Remove the lab marker
             if is_lab:
                 time = time[:-1]
+
+            # @online indicates a meeting that does not use a room
+            is_online = time.endswith("@online")
+            if is_online:
+                time = time[:-len("@online")]
 
             # Split "MON 09:00-09:50"
             day, times = time.split(" ")
@@ -37,10 +44,15 @@ def create_resource_schedule(schedule):
 
             # Use the lab for lab meetings.
             # Otherwise use the room.
-            if is_lab:
+            if is_online:
+                resource = "Online"
+            elif is_lab:
                 resource = lab
             else:
                 resource = room
+
+            if not resource:
+                resource = "Unassigned"
 
             resource_schedule.append({
                 "resource": resource,
