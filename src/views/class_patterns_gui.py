@@ -25,7 +25,7 @@ def class_patterns_gui(patterns: list) -> None:
             "unelevated"
         ).classes("bg-[#75e6da] text-[#101820]")
 
-    with ui.column().classes("w-full gap-4 mt-6") as form_container:
+    with ui.column().classes("w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4") as form_container:
         form_container.set_visibility(False)
         form_heading = ui.label("Add New Class Pattern").classes("text-lg font-semibold text-white")
 
@@ -211,14 +211,14 @@ def class_patterns_gui(patterns: list) -> None:
             add_submit_button = ui.button("Create class pattern", icon="add", on_click=add_pattern).props(
                 "unelevated"
             ).classes("bg-[#75e6da] text-[#101820]")
-            cancel_button = ui.button("Cancel", on_click=reset_form).props(
-                "outline"
-            ).classes("border-[#45616b] text-[#d8e7e8]")
-            cancel_button.set_visibility(False)
             update_button = ui.button(
                 "Save changes", icon="save", on_click=update_pattern
             ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
             update_button.set_visibility(False)
+            cancel_button = ui.button("Cancel", on_click=reset_form).props(
+                "outline"
+            ).classes("border-[#45616b] text-[#d8e7e8]")
+            cancel_button.set_visibility(False)
 
     def refresh_patterns() -> None:
         pattern_list.clear()
