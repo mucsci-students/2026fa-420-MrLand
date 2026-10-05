@@ -14,54 +14,34 @@
 ---
 
 ## Overview
-A CLI-based interface for configuring, generating, and viewing class schedules. The program is driven by a user-created or loaded JSON configuration file and supports management of courses, faculty, rooms, labs, conflicts, class patterns, and time blocks.
+This project is a schedule-planning application for creating and managing course configurations, generating schedules, and viewing generated results. The current interface is a NiceGUI web app with three main sections: configuration editing, schedule generation, and schedule viewing.
 
 ---
 
 ## Features
 
-- **Course Management**
-  - Add, modify, view, and delete courses
-  - Manage course IDs, section IDs, credits, capacity, modality, rooms, labs, conflicts, and faculty
-  - Validate course and section IDs
-  - Prevent duplicate course sections
-  - Support in-person, online, and hybrid course modalities
-
-- **Faculty Management**
-  - Add, modify, view, and delete faculty members
-  - Manage faculty availability and course limits
-  - Validate faculty information
-
-- **Room Management**
-  - Add, modify, view, and delete rooms
-  - Manage room capacity and features
-
-- **Lab Management**
-  - Add, modify, view, and delete labs
-  - Manage lab capacity and features
-
-- **Class Pattern Management**
-  - Manage class meeting patterns
-  - Configure days, times, and other scheduling information
-
-- **Time Block Management**
-  - Create and manage time blocks used for scheduling
-
-- **Conflict Management**
-  - Define course conflicts
-  - Validate course conflict information
-
-- **Configuration Management**
-  - Load scheduling configuration from JSON files
-  - Save and manage configuration data
-  - Validate configuration information
+- **Configuration Editor**
+  - Create and load scheduling configurations
+  - Manage courses, faculty, rooms, labs, and global settings
+  - Edit scheduling constraints and configuration data
 
 - **Schedule Generation**
-  - Generate schedules based on the configured courses, faculty, rooms, labs, conflicts, and scheduling constraints
+  - Select a saved configuration
+  - Review configured generation limits and optimizer settings
+  - Apply temporary overrides for a single generation run
+  - Generate schedules from the current configuration
+  - Save generated schedules as JSON or CSV
 
-- **Command-Line Interface**
-  - Navigate the application through a menu-driven CLI
-  - Create, view, modify, and delete scheduling information
+- **Schedule Viewer**
+  - Load generated schedules from disk
+  - Review schedule details and exported results
+
+- **Domain Management**
+  - Add, modify, view, and delete faculty, courses, rooms, labs, class patterns, and time blocks
+  - Track conflicts and scheduling constraints
+
+- **JSON-based Persistence**
+  - Store scheduler data in configuration files under the project config directories
 
 ---
 
@@ -72,106 +52,107 @@ A CLI-based interface for configuring, generating, and viewing class schedules. 
 ├── README.md
 ├── pytest.ini
 ├── pyproject.toml
+├── uv.lock
 ├── src
 │   ├── __init__.py
-│   ├── config.py
-│   ├── configs
-│   │   ├── test_config.json
-│   │   └── test_config2.json
-│   ├── conflict.py
+│   ├── configs/
+│   │   ├── example_config.json
+│   │   └── ...
+│   ├── controllers/
+│   │   ├── config_controller.py
+│   │   ├── schedule_generator_controller.py
+│   │   └── schedule_viewer_controller.py
+│   ├── models/
+│   │   ├── config_model.py
+│   │   ├── schedule_generator_model.py
+│   │   └── ...
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── config_io.py
+│   │   ├── config_service.py
+│   │   ├── course_service.py
+│   │   ├── faculty_service.py
+│   │   ├── lab_service.py
+│   │   ├── rooms_service.py
+│   │   ├── schedule_service.py
+│   │   └── ...
+│   ├── views/
+│   │   ├── common.py
+│   │   ├── configuration_editor.py
+│   │   ├── gui.py
+│   │   ├── schedule_generator.py
+│   │   ├── schedule_viewer.py
+│   │   └── ...
 │   ├── navmenu.py
-│   ├── run_scheduler.py
-│   └── services
-│       ├── __init__.py
-│       ├── class_pattern_service.py
-│       ├── config_io.py
-│       ├── config_service.py
-│       ├── course_service.py
-│       ├── faculty_service.py
-│       ├── lab_service.py
-│       ├── rooms_service.py
-│       └── time_block_service.py
-├── tests
-│   ├── __init__.py
-│   ├── config_testing.py
-│   ├── test_class_patterns.py
+│   └── run_scheduler.py
+├── tests/
 │   ├── test_course.py
 │   ├── test_faculty.py
 │   ├── test_labs.py
 │   ├── test_rooms.py
-│   ├── test_run_scheduler.py
+│   ├── test_class_patterns.py
 │   ├── test_time_blocks.py
-│   └── tests_conflicts.py
-└── uv.lock
+│   ├── tests_conflicts.py
+│   ├── test_run_scheduler.py
+│   └── ...
+└── .venv/
 ```
+
+Note: the legacy CLI menu files are no longer the primary application entry point. The current user workflow uses the GUI app in `src/views/gui.py`.
+
 ---
 
 ## Prerequisites
 1. **Python 3.12 or newer**
-  - Check with `python --version`
-  - Download from [python.org](https://www.python.org/downloads/)
+   - Check with `python --version`
+   - Download from [python.org](https://www.python.org/downloads/)
 2. **Git**
-    - Check with `git --version`
-    - Download from [Git](https://github.com/git-guides/install-git)
+   - Check with `git --version`
+   - Download from [Git](https://github.com/git-guides/install-git)
 3. **uv**
-    - Check with `uv --version`
-    - Download instructions located at [uv](https://docs.astral.sh/uv/)
+   - Check with `uv --version`
+   - Download instructions at [uv](https://docs.astral.sh/uv/)
 
 ---
 
 ## Getting Started
-1. Clone the Repository
-``` bash
-  git clone repo "https://github.com/mucsci-students/2026fa-420-MrLand"
+1. Clone the repository:
+```bash
+git clone https://github.com/mucsci-students/2026fa-420-MrLand.git
+cd 2026fa-420-MrLand
 ```
-3. Navigate to the Repository
-``` bash
-  cd 2026fa-420-MrLand
+
+2. Install dependencies:
+```bash
+uv sync
 ```
-5. Create Virtual Environment and Install Dependencies
-``` bash
-  uv sync
+
+3. Start the application:
+```bash
+uv run python -m src.views.gui
 ```
-7. Activate Virtual Environment, If Not Already Done (uv sync will take care of this automatically)  
-  - Mac/Linux:
-    ``` bash
-    source .venv/bin/activate
-    ```
-  - Windows:
-    ``` bash
-    source .venv/Scripts/activate
-    ```
-5. Run the CLI
-``` bash
-   uv run src/navmenu.py
+
+4. Open the app in a browser at:
+```text
+http://localhost:8080
 ```
-6. Run the gui
-``` bash
-   uv run src/views/gui.py
+
+If needed, change the port:
+```bash
+MRLAND_GUI_PORT=8080 uv run python -m src.views.gui
 ```
-7. Type 'deactivate' to Deactivate the Virtual Environment
-``` bash
-deactivate
-```
+
 ---
 
 ## Usage
 
-After starting the application, use the command-line menu to navigate through the available scheduling options.
+After starting the app, use the tabs in the interface to:
 
-The application allows users to:
+- edit configuration data
+- generate schedules from a saved configuration
+- view previously generated schedules
 
-- Manage courses
-- Manage faculty members
-- Manage rooms
-- Manage labs
-- Manage class patterns
-- Manage time blocks
-- Manage course conflicts
-- Load and manage configuration data
-- Generate schedules
-
-Follow the prompts displayed in the CLI to add, modify, view, or delete scheduling information.
+The scheduler stores configuration data in JSON files so it can be loaded and reused across runs.
 
 ---
 
@@ -179,17 +160,18 @@ Follow the prompts displayed in the CLI to add, modify, view, or delete scheduli
 
 The scheduler uses JSON configuration files to store scheduling information.
 
-Configuration files can contain information about:
+Configuration files can include:
 
-- Courses
-- Faculty members
-- Rooms
-- Labs
-- Class patterns
-- Time blocks
-- Course conflicts
+- courses
+- faculty members
+- rooms
+- labs
+- class patterns
+- time blocks
+- conflicts
+- generation settings
 
-Example configuration files are located in:
+Example configuration files are located in the project config directory:
 
 ```text
 src/configs/
@@ -199,22 +181,23 @@ src/configs/
 
 ## Testing
 
-The project includes automated tests for the application's scheduling components.
-Tests are located in the tests/ directory.
-To run the test suite, use:
-``` bash
+The project includes automated tests for the scheduling logic and configuration management.
+
+Run the test suite with:
+```bash
 uv run pytest
 ```
-The test suite includes tests for:
-  - Courses
-  - Faculty
-  - Labs
-  - Rooms
-  - Class patterns
-  - Time blocks
-  - Conflicts
-  - Schedule generation
-  - Configuration handling
+
+This includes tests for:
+- courses
+- faculty
+- labs
+- rooms
+- class patterns
+- time blocks
+- conflicts
+- schedule generation
+- configuration handling
 
 ---
 
