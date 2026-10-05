@@ -142,7 +142,7 @@ def faculty_gui(faculty_members: list) -> None:
             form_container.set_visibility(True)
             add_submit_button.set_visibility(True)
             update_button.set_visibility(False)
-            cancel_button.set_visibility(False)
+            cancel_button.set_visibility(True)
 
         def reset_form() -> None:
             editing_member["member"] = None
@@ -230,14 +230,14 @@ def faculty_gui(faculty_members: list) -> None:
             add_submit_button = ui.button("Create faculty member", icon="add", on_click=add_member).props(
                 "unelevated"
             ).classes("bg-[#75e6da] text-[#101820]")
+            cancel_button = ui.button("Cancel", on_click=reset_form).props(
+                "outline"
+            ).classes("border-[#45616b] text-[#d8e7e8]")
+            cancel_button.set_visibility(False)
             update_button = ui.button(
                 "Save changes", icon="save", on_click=update_member
             ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
             update_button.set_visibility(False)
-            cancel_button = ui.button("Cancel edit", on_click=reset_form).props(
-                "outline"
-            ).classes("border-[#45616b] text-[#d8e7e8]")
-            cancel_button.set_visibility(False)
 
     def refresh_faculty() -> None:
         faculty_list.clear()

@@ -130,7 +130,7 @@ def class_patterns_gui(patterns: list) -> None:
             form_container.set_visibility(True)
             add_submit_button.set_visibility(True)
             update_button.set_visibility(False)
-            cancel_button.set_visibility(False)
+            cancel_button.set_visibility(True)
 
         def reset_form() -> None:
             editing_pattern["pattern"] = None
@@ -211,14 +211,14 @@ def class_patterns_gui(patterns: list) -> None:
             add_submit_button = ui.button("Create class pattern", icon="add", on_click=add_pattern).props(
                 "unelevated"
             ).classes("bg-[#75e6da] text-[#101820]")
+            cancel_button = ui.button("Cancel", on_click=reset_form).props(
+                "outline"
+            ).classes("border-[#45616b] text-[#d8e7e8]")
+            cancel_button.set_visibility(False)
             update_button = ui.button(
                 "Save changes", icon="save", on_click=update_pattern
             ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
             update_button.set_visibility(False)
-            cancel_button = ui.button("Cancel edit", on_click=reset_form).props(
-                "outline"
-            ).classes("border-[#45616b] text-[#d8e7e8]")
-            cancel_button.set_visibility(False)
 
     def refresh_patterns() -> None:
         pattern_list.clear()
