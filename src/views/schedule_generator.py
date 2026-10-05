@@ -22,6 +22,12 @@ def schedule_generator() -> None:
         options=controller.list_config_names(),
         label="Select Configuration",
     ).classes("w-full max-w-xl").props("dark outlined")
+    config_select.on(
+        "popup-show",
+        lambda: config_select.set_options(
+            controller.list_config_names(), value=config_select.value
+        ),
+    )
 
     ui.label("Generation Limit").classes(
         "text-lg font-semibold text-white mt-4"
