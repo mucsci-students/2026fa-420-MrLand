@@ -1,6 +1,6 @@
 from services.config_service import load_config as config_load, config_exists
 from scheduler.scheduler import Scheduler
-from schedule_result import ScheduleResult
+from models.schedule_result import ScheduleResult
 
 
 def confirm_yes_no(prompt):

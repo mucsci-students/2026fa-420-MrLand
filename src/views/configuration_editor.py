@@ -4,7 +4,7 @@ from nicegui import ui
 
 from src.controllers.configuration_controller import ConfigurationController
 from src.services.config_io import ConfigLoadError
-from src.services.config_service import validate_config_name
+from src.services.config_service import ConfigValidationError, validate_config_name
 from src.views.class_patterns_gui import class_patterns_gui
 from src.views.common import coming_soon, section_header
 from src.views.courses_gui import courses_gui
@@ -13,6 +13,7 @@ from src.views.global_settings_gui import global_settings_gui
 from src.views.labs_gui import labs_gui
 from src.views.rooms_gui import rooms_gui
 from src.views.time_blocks_gui import time_blocks_gui
+
 
 controller = ConfigurationController()
 
@@ -119,6 +120,9 @@ def configuration_editor() -> None:
             return
         try:
             controller.save_configuration(state["name"])
+        except ConfigValidationError as exc:
+            show_problems("Can't save yet", exc.problems)
+            return
         except Exception as exc:  # pragma: no cover - UI guard
             ui.notify(f"Unable to save configuration: {exc}", type="negative")
             return
@@ -148,6 +152,11 @@ def configuration_editor() -> None:
                 "Save configuration",
                 icon="save",
                 on_click=save_current_config,
+            ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
+            ui.button(
+                "Validate configuration",
+                icon="fact_check",
+                on_click=lambda: validate_current_config(),
             ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
 
         load_select = ui.select(
@@ -254,3 +263,47 @@ def configuration_editor() -> None:
         state["name"] = config_name
         editor_body.refresh()
         ui.notify(f"Loaded '{config_name}'.", type="positive")
+
+    with ui.dialog() as validate_dialog, ui.card().classes(
+        "min-w-[28rem] max-w-2xl border border-[#29404b] bg-[#182630]"
+    ):
+        validate_title = ui.label().classes("text-lg font-semibold text-white")
+        validate_results = ui.column().classes("w-full gap-3")
+        with ui.row().classes("mt-4 w-full justify-end"):
+            ui.button("Close", on_click=validate_dialog.close).props("flat")
+
+    def show_problems(title: str, problems) -> None:
+        validate_title.set_text(title)
+        validate_results.clear()
+        with validate_results:
+            if not problems:
+                with ui.row().classes("items-center gap-2"):
+                    ui.icon("check_circle", size="28px").classes("text-green-400")
+                    ui.label("Valid configuration. It's ready to save.").classes("text-[#d8e7e8]")
+            else:
+                ui.label(
+                    f"Found {len(problems)} problem(s). Nothing was changed. "
+                    "Fix these, then validate again."
+                ).classes("text-sm text-[#9fb2b8]")
+                by_area: dict[str, list] = {}
+                for problem in problems:
+                    by_area.setdefault(problem.area, []).append(problem)
+                for area, area_problems in by_area.items():
+                    ui.label(area).classes("mt-2 font-semibold text-[#75e6da]")
+                    for problem in area_problems:
+                        prefix = f"{problem.item}: " if problem.item else ""
+                        ui.label(f"• {prefix}{problem.message}").classes(
+                            "break-words text-sm text-[#d8e7e8]"
+                        )
+        validate_dialog.open()
+
+    def validate_current_config() -> None:
+        if state["config"] is None:
+            ui.notify("Create or load a configuration first.", type="warning")
+            return
+        try:
+            problems = controller.validate_configuration()
+        except Exception as exc:  # pragma: no cover - UI guard
+            ui.notify(f"Unable to validate configuration: {exc}", type="negative")
+            return
+        show_problems("Validate configuration", problems)
