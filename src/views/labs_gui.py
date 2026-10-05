@@ -27,126 +27,162 @@ def labs_gui(labs: list) -> None:
     )
     ui.label("Existing labs").classes("mt-4 text-lg font-semibold text-white")
     lab_list = ui.column().classes("w-full gap-1")
-    form_heading = ui.label("Add New Lab").classes(
-        "mt-8 text-lg font-semibold text-white"
-    )
 
-    with ui.row().classes("w-full flex-wrap gap-4"):
-        name = ui.input("Lab name").classes("min-w-56 flex-1")
-        capacity = ui.number("Capacity", value=20, min=1, step=1).classes("w-40")
-        features = ui.input(
-            "Features", placeholder="Projector, fume hood"
-        ).classes("min-w-56 flex-1")
+    with ui.row().classes("w-full flex-wrap items-center gap-2"):
+        add_button = ui.button("Add new lab", icon="add", on_click=lambda: show_form()).props(
+            "unelevated"
+        ).classes("bg-[#75e6da] text-[#101820]")
 
-    unrestricted = ui.checkbox("Unrestricted availability", value=True).classes(
-        "text-[#d8e7e8]"
-    )
-    availability_fields = {}
-    with ui.grid(columns=2).classes("w-full gap-3"):
-        for day in DAYS:
-            availability_fields[day] = ui.input(
-                f"{day} availability",
-                placeholder="09:00-12:00, 13:00-17:00",
-            ).classes("w-full")
+    with ui.column().classes("w-full gap-4 mt-6") as form_container:
+        form_container.set_visibility(False)
+        form_heading = ui.label("Add New Lab").classes("text-lg font-semibold text-white")
 
-    def set_availability_enabled(enabled: bool) -> None:
-        for field in availability_fields.values():
-            field.set_enabled(enabled)
+        with ui.row().classes("w-full flex-wrap gap-4"):
+            name = ui.input("Lab name").classes("min-w-56 flex-1")
+            capacity = ui.number("Capacity", value=20, min=1, step=1).classes("w-40")
+            features = ui.input(
+                "Features", placeholder="Projector, fume hood"
+            ).classes("min-w-56 flex-1")
 
-    def availability_changed(event) -> None:
-        set_availability_enabled(not event.value)
+        unrestricted = ui.checkbox("Unrestricted availability", value=True).classes(
+            "text-[#d8e7e8]"
+        )
+        availability_fields = {}
+        with ui.grid(columns=2).classes("w-full gap-3"):
+            for day in DAYS:
+                availability_fields[day] = ui.input(
+                    f"{day} availability",
+                    placeholder="09:00-12:00, 13:00-17:00",
+                ).classes("w-full")
 
-    unrestricted.on_value_change(availability_changed)
-    set_availability_enabled(False)
+        def set_availability_enabled(enabled: bool) -> None:
+            for field in availability_fields.values():
+                field.set_enabled(enabled)
 
-    editing_lab = {"lab": None}
+        def availability_changed(event) -> None:
+            set_availability_enabled(not event.value)
 
-    def form_values():
-        capacity_value = capacity.value
-        if capacity_value is None or not float(capacity_value).is_integer():
-            raise ValueError("Capacity must be a whole number.")
-
-        times = None
-        if not unrestricted.value:
-            times = {
-                day: [
-                    value.strip()
-                    for value in field.value.split(",")
-                    if value.strip()
-                ]
-                for day, field in availability_fields.items()
-            }
-
-        feature_values = [
-            value.strip()
-            for value in (features.value or "").split(",")
-            if value.strip()
-        ]
-        return name.value or "", int(capacity_value), feature_values, times
-
-    def reset_form() -> None:
-        editing_lab["lab"] = None
-        form_heading.set_text("Add New Lab")
-        name.value = ""
-        capacity.value = 20
-        features.value = ""
-        unrestricted.value = True
+        unrestricted.on_value_change(availability_changed)
         set_availability_enabled(False)
-        for field in availability_fields.values():
-            field.value = ""
-        add_button.set_visibility(True)
-        update_button.set_visibility(False)
-        cancel_button.set_visibility(False)
 
-    def add_lab() -> None:
-        try:
-            add_lab_from_values(labs, *form_values())
-        except (TypeError, ValueError) as exc:
-            ui.notify(str(exc), type="negative")
-            return
-        reset_form()
-        refresh_labs()
-        ui.notify("Lab added.", type="positive")
+        editing_lab = {"lab": None}
 
-    def update_lab() -> None:
-        try:
-            update_lab_from_values(labs, editing_lab["lab"], *form_values())
-        except (TypeError, ValueError) as exc:
-            ui.notify(str(exc), type="negative")
-            return
-        reset_form()
-        refresh_labs()
-        ui.notify("Lab updated.", type="positive")
+        def form_values():
+            capacity_value = capacity.value
+            if capacity_value is None or not float(capacity_value).is_integer():
+                raise ValueError("Capacity must be a whole number.")
 
-    def begin_edit(lab) -> None:
-        editing_lab["lab"] = lab
-        form_heading.set_text("Modifying Lab")
-        name.value = lab.name
-        capacity.value = lab.capacity
-        features.value = ", ".join(sorted(lab.features))
-        unrestricted.value = lab.times is None
-        set_availability_enabled(lab.times is not None)
-        for day, field in availability_fields.items():
-            field.value = ", ".join(
-                f"{item.start}-{item.end}"
-                for item in (lab.times or {}).get(day, [])
-            )
-        add_button.set_visibility(False)
-        update_button.set_visibility(True)
-        cancel_button.set_visibility(True)
+            times = None
+            if not unrestricted.value:
+                times = {
+                    day: [
+                        value.strip()
+                        for value in field.value.split(",")
+                        if value.strip()
+                    ]
+                    for day, field in availability_fields.items()
+                }
 
-    def delete_lab(lab, dialog) -> None:
-        try:
-            delete_lab_from_values(labs, lab)
-        except ValueError as exc:
-            ui.notify(str(exc), type="negative")
-            dialog.close()
-            return
-        if editing_lab["lab"] is lab:
+            feature_values = [
+                value.strip()
+                for value in (features.value or "").split(",")
+                if value.strip()
+            ]
+            return name.value or "", int(capacity_value), feature_values, times
+
+        def show_form() -> None:
+            editing_lab["lab"] = None
+            form_heading.set_text("Add New Lab")
+            name.value = ""
+            capacity.value = 20
+            features.value = ""
+            unrestricted.value = True
+            set_availability_enabled(False)
+            for field in availability_fields.values():
+                field.value = ""
+            form_container.set_visibility(True)
+            add_submit_button.set_visibility(True)
+            update_button.set_visibility(False)
+            cancel_button.set_visibility(False)
+
+        def reset_form() -> None:
+            editing_lab["lab"] = None
+            form_heading.set_text("Add New Lab")
+            name.value = ""
+            capacity.value = 20
+            features.value = ""
+            unrestricted.value = True
+            set_availability_enabled(False)
+            for field in availability_fields.values():
+                field.value = ""
+            form_container.set_visibility(False)
+            add_submit_button.set_visibility(True)
+            update_button.set_visibility(False)
+            cancel_button.set_visibility(False)
+
+        def add_lab() -> None:
+            try:
+                add_lab_from_values(labs, *form_values())
+            except (TypeError, ValueError) as exc:
+                ui.notify(str(exc), type="negative")
+                return
             reset_form()
-        ui.notify("Lab deleted.", type="positive")
-        dialog.close()
-        refresh_labs()
+            refresh_labs()
+            ui.notify("Lab added.", type="positive")
+
+        def update_lab() -> None:
+            try:
+                update_lab_from_values(labs, editing_lab["lab"], *form_values())
+            except (TypeError, ValueError) as exc:
+                ui.notify(str(exc), type="negative")
+                return
+            reset_form()
+            refresh_labs()
+            ui.notify("Lab updated.", type="positive")
+
+        def begin_edit(lab) -> None:
+            editing_lab["lab"] = lab
+            form_heading.set_text("Modifying Lab")
+            name.value = lab.name
+            capacity.value = lab.capacity
+            features.value = ", ".join(sorted(lab.features))
+            unrestricted.value = lab.times is None
+            set_availability_enabled(lab.times is not None)
+            for day, field in availability_fields.items():
+                field.value = ", ".join(
+                    f"{item.start}-{item.end}"
+                    for item in (lab.times or {}).get(day, [])
+                )
+            form_container.set_visibility(True)
+            add_submit_button.set_visibility(False)
+            update_button.set_visibility(True)
+            cancel_button.set_visibility(True)
+
+        def delete_lab(lab, dialog) -> None:
+            try:
+                delete_lab_from_values(labs, lab)
+            except ValueError as exc:
+                ui.notify(str(exc), type="negative")
+                dialog.close()
+                return
+            if editing_lab["lab"] is lab:
+                reset_form()
+            ui.notify("Lab deleted.", type="positive")
+            dialog.close()
+            refresh_labs()
+
+        with ui.row().classes("w-full flex-wrap items-center gap-2"):
+            add_submit_button = ui.button("Create lab", icon="add", on_click=add_lab).props(
+                "unelevated"
+            ).classes("bg-[#75e6da] text-[#101820]")
+            update_button = ui.button(
+                "Save changes", icon="save", on_click=update_lab
+            ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
+            update_button.set_visibility(False)
+            cancel_button = ui.button("Cancel edit", on_click=reset_form).props(
+                "outline"
+            ).classes("border-[#45616b] text-[#d8e7e8]")
+            cancel_button.set_visibility(False)
 
     def refresh_labs() -> None:
         lab_list.clear()
@@ -191,18 +227,5 @@ def labs_gui(labs: list) -> None:
                         ui.button(icon="delete", on_click=dialog.open).props(
                             "flat round dense"
                         ).tooltip("Delete lab")
-
-    with ui.row().classes("w-full flex-wrap items-center gap-2"):
-        add_button = ui.button("Add lab", icon="add", on_click=add_lab).props(
-            "unelevated"
-        ).classes("bg-[#75e6da] text-[#101820]")
-        update_button = ui.button(
-            "Save changes", icon="save", on_click=update_lab
-        ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
-        update_button.set_visibility(False)
-        cancel_button = ui.button("Cancel edit", on_click=reset_form).props(
-            "outline"
-        ).classes("border-[#45616b] text-[#d8e7e8]")
-        cancel_button.set_visibility(False)
 
     refresh_labs()
