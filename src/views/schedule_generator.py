@@ -4,6 +4,7 @@ from src.controllers.schedule_generator_controller import (
     schedule_generator_controller as controller,
 )
 from src.models.schedule_generator_model import ScheduleGenerationState
+from src.services.config_io import ConfigLoadError
 
 
 def schedule_generator() -> None:
@@ -22,6 +23,8 @@ def schedule_generator() -> None:
         options=controller.list_config_names(),
         label="Select Configuration",
     ).classes("w-full max-w-xl").props("dark outlined")
+    config_load_error = ui.label("").classes("text-red-400")
+    config_load_error.visible = False
     config_select.on(
         "popup-show",
         lambda: config_select.set_options(
@@ -110,6 +113,8 @@ def schedule_generator() -> None:
     )
 
     def reset_config_controls() -> None:
+        config_load_error.text = ""
+        config_load_error.visible = False
         configured_limit.value = ""
         for checkbox in configured_optimizer_checkboxes.values():
             checkbox.value = False
@@ -127,15 +132,19 @@ def schedule_generator() -> None:
 
         try:
             config = controller.load_config(config_name)
-        except Exception:
+        except (OSError, ValueError, ConfigLoadError) as error:
             reset_config_controls()
+            config_load_error.text = f"Could not load configuration: {error}"
+            config_load_error.visible = True
             return
 
         configured_limit.value = str(config.limit)
-        configured_flags = set(config.optimizer_flags)
+        configured_flags = {flag.value for flag in config.optimizer_flags}
         for value, checkbox in configured_optimizer_checkboxes.items():
             checkbox.value = value in configured_flags
 
+        config_load_error.text = ""
+        config_load_error.visible = False
         generation_limit_override.value = ""
         optimizer_override_enabled.value = False
         for checkbox in temporary_optimizer_checkboxes.values():
