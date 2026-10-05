@@ -15,6 +15,10 @@ def class_patterns_gui(patterns: list) -> None:
     ui.label("Define meeting patterns for each course credit value.").classes(
         "text-sm text-[#9fb2b8]"
     )
+    ui.label("Existing class patterns").classes(
+        "mt-4 text-lg font-semibold text-white"
+    )
+    pattern_list = ui.column().classes("w-full gap-1")
 
     with ui.row().classes("w-full flex-wrap gap-4"):
         credits = ui.number("Credits", value=3, min=1, step=1).classes("w-36")
@@ -237,8 +241,4 @@ def class_patterns_gui(patterns: list) -> None:
         ).classes("border-[#45616b] text-[#d8e7e8]")
         cancel_button.set_visibility(False)
 
-    ui.label("Existing class patterns").classes(
-        "mt-4 text-lg font-semibold text-white"
-    )
-    pattern_list = ui.column().classes("w-full gap-1")
     refresh_patterns()

@@ -23,6 +23,8 @@ def rooms_gui(rooms: list) -> None:
     ui.label("Add a room and its scheduling constraints.").classes(
         "text-sm text-[#9fb2b8]"
     )
+    ui.label("Existing rooms").classes("mt-4 text-lg font-semibold text-white")
+    room_list = ui.column().classes("w-full gap-1")
 
     with ui.row().classes("w-full flex-wrap gap-4"):
         name = ui.input("Room name").classes("min-w-56 flex-1")
@@ -194,6 +196,4 @@ def rooms_gui(rooms: list) -> None:
         ).classes("border-[#45616b] text-[#d8e7e8]")
         cancel_button.set_visibility(False)
 
-    ui.label("Existing rooms").classes("mt-4 text-lg font-semibold text-white")
-    room_list = ui.column().classes("w-full gap-1")
     refresh_rooms()

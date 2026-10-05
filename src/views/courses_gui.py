@@ -25,6 +25,8 @@ def courses_gui(course_members: list) -> None:
     ui.label("Add a course section and its scheduling requirements.").classes(
         "text-sm text-[#9fb2b8]"
     )
+    ui.label("Existing courses").classes("mt-4 text-lg font-semibold text-white")
+    course_list = ui.column().classes("w-full gap-1")
 
     with ui.row().classes("w-full flex-wrap gap-4"):
         course_id = ui.input("Course ID").classes("min-w-48 flex-1")
@@ -272,6 +274,4 @@ def courses_gui(course_members: list) -> None:
         ).classes("border-[#45616b] text-[#d8e7e8]")
         cancel_button.set_visibility(False)
 
-    ui.label("Existing courses").classes("mt-4 text-lg font-semibold text-white")
-    course_list = ui.column().classes("w-full gap-1")
     refresh_courses()

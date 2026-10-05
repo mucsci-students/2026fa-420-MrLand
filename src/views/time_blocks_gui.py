@@ -14,6 +14,10 @@ def time_blocks_gui(times: dict) -> None:
     ui.label("Define the available scheduling window for each weekday.").classes(
         "text-sm text-[#9fb2b8]"
     )
+    ui.label("Existing time blocks").classes(
+        "mt-4 text-lg font-semibold text-white"
+    )
+    block_list = ui.column().classes("w-full gap-1")
 
     with ui.row().classes("w-full flex-wrap gap-4"):
         day = ui.select(list(DAYS), value="MON", label="Day").classes("min-w-40")
@@ -157,8 +161,4 @@ def time_blocks_gui(times: dict) -> None:
         ).classes("border-[#45616b] text-[#d8e7e8]")
         cancel_button.set_visibility(False)
 
-    ui.label("Existing time blocks").classes(
-        "mt-4 text-lg font-semibold text-white"
-    )
-    block_list = ui.column().classes("w-full gap-1")
     refresh_blocks()
