@@ -27,6 +27,9 @@ def labs_gui(labs: list) -> None:
     )
     ui.label("Existing labs").classes("mt-4 text-lg font-semibold text-white")
     lab_list = ui.column().classes("w-full gap-1")
+    form_heading = ui.label("Add New Lab").classes(
+        "mt-8 text-lg font-semibold text-white"
+    )
 
     with ui.row().classes("w-full flex-wrap gap-4"):
         name = ui.input("Lab name").classes("min-w-56 flex-1")
@@ -83,6 +86,7 @@ def labs_gui(labs: list) -> None:
 
     def reset_form() -> None:
         editing_lab["lab"] = None
+        form_heading.set_text("Add New Lab")
         name.value = ""
         capacity.value = 20
         features.value = ""
@@ -116,6 +120,7 @@ def labs_gui(labs: list) -> None:
 
     def begin_edit(lab) -> None:
         editing_lab["lab"] = lab
+        form_heading.set_text("Modifying Lab")
         name.value = lab.name
         capacity.value = lab.capacity
         features.value = ", ".join(sorted(lab.features))

@@ -19,6 +19,9 @@ def class_patterns_gui(patterns: list) -> None:
         "mt-4 text-lg font-semibold text-white"
     )
     pattern_list = ui.column().classes("w-full gap-1")
+    form_heading = ui.label("Add New Class Pattern").classes(
+        "mt-8 text-lg font-semibold text-white"
+    )
 
     with ui.row().classes("w-full flex-wrap gap-4"):
         credits = ui.number("Credits", value=3, min=1, step=1).classes("w-36")
@@ -107,6 +110,7 @@ def class_patterns_gui(patterns: list) -> None:
 
     def reset_form() -> None:
         editing_pattern["pattern"] = None
+        form_heading.set_text("Add New Class Pattern")
         credits.value = 3
         start_time.value = ""
         disabled.value = False
@@ -145,6 +149,7 @@ def class_patterns_gui(patterns: list) -> None:
 
     def begin_edit(pattern) -> None:
         editing_pattern["pattern"] = pattern
+        form_heading.set_text("Modifying Class Pattern")
         credits.value = pattern.credits
         start_time.value = pattern.start_time or ""
         disabled.value = pattern.disabled

@@ -18,6 +18,9 @@ def time_blocks_gui(times: dict) -> None:
         "mt-4 text-lg font-semibold text-white"
     )
     block_list = ui.column().classes("w-full gap-1")
+    form_heading = ui.label("Add New Time Block").classes(
+        "mt-8 text-lg font-semibold text-white"
+    )
 
     with ui.row().classes("w-full flex-wrap gap-4"):
         day = ui.select(list(DAYS), value="MON", label="Day").classes("min-w-40")
@@ -38,6 +41,7 @@ def time_blocks_gui(times: dict) -> None:
     def reset_form() -> None:
         editing_block["day"] = None
         editing_block["block"] = None
+        form_heading.set_text("Add New Time Block")
         day.value = "MON"
         start.value = ""
         spacing.value = 30
@@ -74,6 +78,7 @@ def time_blocks_gui(times: dict) -> None:
     def begin_edit(block_day, block) -> None:
         editing_block["day"] = block_day
         editing_block["block"] = block
+        form_heading.set_text("Modifying Time Block")
         day.value = block_day
         start.value = block.start
         spacing.value = block.spacing

@@ -25,6 +25,9 @@ def rooms_gui(rooms: list) -> None:
     )
     ui.label("Existing rooms").classes("mt-4 text-lg font-semibold text-white")
     room_list = ui.column().classes("w-full gap-1")
+    form_heading = ui.label("Add New Room").classes(
+        "mt-8 text-lg font-semibold text-white"
+    )
 
     with ui.row().classes("w-full flex-wrap gap-4"):
         name = ui.input("Room name").classes("min-w-56 flex-1")
@@ -79,6 +82,7 @@ def rooms_gui(rooms: list) -> None:
 
     def reset_form() -> None:
         editing_room["room"] = None
+        form_heading.set_text("Add New Room")
         name.value = ""
         capacity.value = 1
         features.value = ""
@@ -113,6 +117,7 @@ def rooms_gui(rooms: list) -> None:
 
     def begin_edit(room) -> None:
         editing_room["room"] = room
+        form_heading.set_text("Modifying Room")
         name.value = room.name
         capacity.value = room.capacity
         features.value = ", ".join(sorted(room.features))

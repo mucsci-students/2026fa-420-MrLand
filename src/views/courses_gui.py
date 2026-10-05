@@ -27,6 +27,9 @@ def courses_gui(course_members: list) -> None:
     )
     ui.label("Existing courses").classes("mt-4 text-lg font-semibold text-white")
     course_list = ui.column().classes("w-full gap-1")
+    form_heading = ui.label("Add New Course").classes(
+        "mt-8 text-lg font-semibold text-white"
+    )
 
     with ui.row().classes("w-full flex-wrap gap-4"):
         course_id = ui.input("Course ID").classes("min-w-48 flex-1")
@@ -138,6 +141,7 @@ def courses_gui(course_members: list) -> None:
 
     def reset_form() -> None:
         editing_course["course"] = None
+        form_heading.set_text("Add New Course")
         course_id.value = ""
         section_id.value = ""
         credits.value = 3
@@ -180,6 +184,7 @@ def courses_gui(course_members: list) -> None:
 
     def begin_edit(course) -> None:
         editing_course["course"] = course
+        form_heading.set_text("Modifying Course")
         course_id.value = course.course_id
         section_id.value = course.section_id or ""
         credits.value = course.credits

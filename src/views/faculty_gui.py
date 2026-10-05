@@ -44,6 +44,9 @@ def faculty_gui(faculty_members: list) -> None:
     )
     ui.label("Existing faculty").classes("mt-4 text-lg font-semibold text-white")
     faculty_list = ui.column().classes("w-full gap-1")
+    form_heading = ui.label("Add New Faculty Member").classes(
+        "mt-8 text-lg font-semibold text-white"
+    )
 
     with ui.row().classes("w-full flex-wrap gap-4"):
         name = ui.input("Faculty name").classes("min-w-56 flex-1")
@@ -118,6 +121,7 @@ def faculty_gui(faculty_members: list) -> None:
 
     def reset_form() -> None:
         editing_member["member"] = None
+        form_heading.set_text("Add New Faculty Member")
         name.value = ""
         maximum_credits.value = 12
         minimum_credits.value = 3
@@ -157,6 +161,7 @@ def faculty_gui(faculty_members: list) -> None:
 
     def begin_edit(member) -> None:
         editing_member["member"] = member
+        form_heading.set_text("Modifying Faculty Member")
         name.value = member.name
         maximum_credits.value = member.maximum_credits
         minimum_credits.value = member.minimum_credits
