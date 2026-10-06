@@ -1,6 +1,7 @@
 # schedule_result.py
 
 from dataclasses import dataclass
+from scheduler.config import CombinedConfig
 from scheduler.models.course import CourseInstance
 
 
@@ -8,4 +9,5 @@ from scheduler.models.course import CourseInstance
 class ScheduleResult:
     """A single generated schedule, tagged with the config it came from."""
     config_name: str
+    config: CombinedConfig
     schedule: list[CourseInstance]
