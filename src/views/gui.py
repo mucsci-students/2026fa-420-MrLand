@@ -23,6 +23,9 @@ def build_app() -> None:
             .q-field__label, .q-field__native, .q-field__input, .q-placeholder,
             .q-select__dropdown-icon, .q-table th, .q-table td,
             .q-expansion-item__toggle-icon { color: #d8e7e8 !important; }
+            .configuration-panel { color: #d8e7e8; }
+            .configuration-panel .q-checkbox__label,
+            .configuration-panel .q-chip__content { color: #d8e7e8 !important; }
             .q-field--outlined .q-field__control:before { border-color: #45616b; }
             .q-field--outlined.q-field--focused .q-field__control:after { border-color: #75e6da; }
         </style>

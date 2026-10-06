@@ -61,7 +61,7 @@ def configuration_editor() -> None:
                         on_click=lambda action=label: show_page(action),
                     ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
 
-        panel_classes = "w-full gap-4 border-t border-[#29404b] pt-6"
+        panel_classes = "configuration-panel w-full gap-4 border-t border-[#29404b] pt-6"
         config_section = getattr(config, "config", None)
         rooms_list = getattr(config_section, "rooms", []) if config_section is not None else []
         faculty_list = getattr(config_section, "faculty", []) if config_section is not None else []

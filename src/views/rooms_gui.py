@@ -23,119 +23,164 @@ def rooms_gui(rooms: list) -> None:
     ui.label("Add a room and its scheduling constraints.").classes(
         "text-sm text-[#9fb2b8]"
     )
+    ui.label("Existing rooms").classes("mt-4 text-lg font-semibold text-white")
+    room_list = ui.column().classes("w-full gap-1")
 
-    with ui.row().classes("w-full flex-wrap gap-4"):
-        name = ui.input("Room name").classes("min-w-56 flex-1")
-        capacity = ui.number("Capacity", value=1, min=1, step=1).classes("w-40")
-        features = ui.input(
-            "Features", placeholder="Projector, whiteboard"
-        ).classes("min-w-56 flex-1")
+    with ui.row().classes("w-full flex-wrap items-center gap-2"):
+        add_button = ui.button("Add new room", icon="add", on_click=lambda: show_form()).props(
+            "unelevated"
+        ).classes("bg-[#75e6da] text-[#101820]")
 
-    unrestricted = ui.checkbox("Unrestricted availability", value=True).classes(
-        "text-[#d8e7e8]"
-    )
-    availability_fields = {}
-    with ui.grid(columns=2).classes("w-full gap-3"):
-        for day in ("MON", "TUE", "WED", "THU", "FRI"):
-            availability_fields[day] = ui.input(
-                f"{day} availability",
-                placeholder="09:00-12:00, 13:00-17:00",
-            ).classes("w-full")
+    with ui.column().classes("w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4") as form_container:
+        form_container.set_visibility(False)
+        form_heading = ui.label("Add New Room").classes("text-lg font-semibold text-white")
 
-    def set_availability_enabled(event) -> None:
+        with ui.row().classes("w-full flex-wrap gap-4"):
+            name = ui.input("Room name").classes("min-w-56 flex-1")
+            capacity = ui.number("Capacity", value=1, min=1, step=1).classes("w-40")
+            features = ui.input(
+                "Features", placeholder="Projector, whiteboard"
+            ).classes("min-w-56 flex-1")
+
+        unrestricted = ui.checkbox("Unrestricted availability", value=True).classes(
+            "text-[#d8e7e8]"
+        )
+        availability_fields = {}
+        with ui.grid(columns=2).classes("w-full gap-3"):
+            for day in ("MON", "TUE", "WED", "THU", "FRI"):
+                availability_fields[day] = ui.input(
+                    f"{day} availability",
+                    placeholder="09:00-12:00, 13:00-17:00",
+                ).classes("w-full")
+
+        def set_availability_enabled(event) -> None:
+            for field in availability_fields.values():
+                field.set_enabled(not event.value)
+
+        unrestricted.on_value_change(set_availability_enabled)
         for field in availability_fields.values():
-            field.set_enabled(not event.value)
+            field.set_enabled(False)
 
-    unrestricted.on_value_change(set_availability_enabled)
-    for field in availability_fields.values():
-        field.set_enabled(False)
+        editing_room = {"room": None}
 
-    editing_room = {"room": None}
+        def form_values():
+            capacity_value = capacity.value
+            if capacity_value is None or not float(capacity_value).is_integer():
+                raise ValueError("Capacity must be a positive integer.")
 
-    def form_values():
-        capacity_value = capacity.value
-        if capacity_value is None or not float(capacity_value).is_integer():
-            raise ValueError("Capacity must be a positive integer.")
+            availability = None
+            if not unrestricted.value:
+                availability = {
+                    day: [
+                        value.strip()
+                        for value in field.value.split(",")
+                        if value.strip()
+                    ]
+                    for day, field in availability_fields.items()
+                }
 
-        availability = None
-        if not unrestricted.value:
-            availability = {
-                day: [
-                    value.strip()
-                    for value in field.value.split(",")
-                    if value.strip()
-                ]
-                for day, field in availability_fields.items()
-            }
+            parsed_features = [
+                feature.strip()
+                for feature in (features.value or "").split(",")
+                if feature.strip()
+            ]
+            return name.value or "", int(capacity_value), parsed_features, availability
 
-        parsed_features = [
-            feature.strip()
-            for feature in (features.value or "").split(",")
-            if feature.strip()
-        ]
-        return name.value or "", int(capacity_value), parsed_features, availability
+        def show_form() -> None:
+            editing_room["room"] = None
+            form_heading.set_text("Add New Room")
+            name.value = ""
+            capacity.value = 1
+            features.value = ""
+            unrestricted.value = True
+            for field in availability_fields.values():
+                field.value = ""
+            for field in availability_fields.values():
+                field.set_enabled(False)
+            form_container.set_visibility(True)
+            add_submit_button.set_visibility(True)
+            update_button.set_visibility(False)
+            cancel_button.set_visibility(True)
 
-    def reset_form() -> None:
-        editing_room["room"] = None
-        name.value = ""
-        capacity.value = 1
-        features.value = ""
-        unrestricted.value = True
-        for field in availability_fields.values():
-            field.value = ""
-        add_button.set_visibility(True)
-        update_button.set_visibility(False)
-        cancel_button.set_visibility(False)
+        def reset_form() -> None:
+            editing_room["room"] = None
+            form_heading.set_text("Add New Room")
+            name.value = ""
+            capacity.value = 1
+            features.value = ""
+            unrestricted.value = True
+            for field in availability_fields.values():
+                field.value = ""
+                field.set_enabled(False)
+            form_container.set_visibility(False)
+            add_submit_button.set_visibility(True)
+            update_button.set_visibility(False)
+            cancel_button.set_visibility(False)
 
-    def add_room() -> None:
-        try:
-            add_room_from_values(rooms, *form_values())
-        except (TypeError, ValueError) as exc:
-            ui.notify(str(exc), type="negative")
-            return
-        reset_form()
-        refresh_rooms()
-        ui.notify("Room added.", type="positive")
-
-    def update_room() -> None:
-        try:
-            update_room_from_values(
-                rooms, editing_room["room"], *form_values()
-            )
-        except (TypeError, ValueError) as exc:
-            ui.notify(str(exc), type="negative")
-            return
-        reset_form()
-        refresh_rooms()
-        ui.notify("Room updated.", type="positive")
-
-    def begin_edit(room) -> None:
-        editing_room["room"] = room
-        name.value = room.name
-        capacity.value = room.capacity
-        features.value = ", ".join(sorted(room.features))
-        unrestricted.value = room.times is None
-        for day, field in availability_fields.items():
-            field.value = ", ".join(
-                f"{item.start}-{item.end}"
-                for item in (room.times or {}).get(day, [])
-            )
-        add_button.set_visibility(False)
-        update_button.set_visibility(True)
-        cancel_button.set_visibility(True)
-
-    def delete_room(room, dialog) -> None:
-        try:
-            delete_room_from_values(rooms, room)
-        except ValueError as exc:
-            ui.notify(str(exc), type="negative")
-            dialog.close()
-            return
-        if editing_room["room"] is room:
+        def add_room() -> None:
+            try:
+                add_room_from_values(rooms, *form_values())
+            except (TypeError, ValueError) as exc:
+                ui.notify(str(exc), type="negative")
+                return
             reset_form()
-        ui.notify("Room deleted.", type="positive")
-        dialog.close()
-        refresh_rooms()
+            refresh_rooms()
+            ui.notify("Room added.", type="positive")
+
+        def update_room() -> None:
+            try:
+                update_room_from_values(
+                    rooms, editing_room["room"], *form_values()
+                )
+            except (TypeError, ValueError) as exc:
+                ui.notify(str(exc), type="negative")
+                return
+            reset_form()
+            refresh_rooms()
+            ui.notify("Room updated.", type="positive")
+
+        def begin_edit(room) -> None:
+            editing_room["room"] = room
+            form_heading.set_text("Modifying Room")
+            name.value = room.name
+            capacity.value = room.capacity
+            features.value = ", ".join(sorted(room.features))
+            unrestricted.value = room.times is None
+            for day, field in availability_fields.items():
+                field.value = ", ".join(
+                    f"{item.start}-{item.end}"
+                    for item in (room.times or {}).get(day, [])
+                )
+            form_container.set_visibility(True)
+            add_submit_button.set_visibility(False)
+            update_button.set_visibility(True)
+            cancel_button.set_visibility(True)
+
+        def delete_room(room, dialog) -> None:
+            try:
+                delete_room_from_values(rooms, room)
+            except ValueError as exc:
+                ui.notify(str(exc), type="negative")
+                dialog.close()
+                return
+            if editing_room["room"] is room:
+                reset_form()
+            ui.notify("Room deleted.", type="positive")
+            dialog.close()
+            refresh_rooms()
+
+        with ui.row().classes("w-full flex-wrap items-center gap-2"):
+            add_submit_button = ui.button("Create room", icon="add", on_click=add_room).props(
+                "unelevated"
+            ).classes("bg-[#75e6da] text-[#101820]")
+            update_button = ui.button(
+                "Save changes", icon="save", on_click=update_room
+            ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
+            update_button.set_visibility(False)
+            cancel_button = ui.button("Cancel", on_click=reset_form).props(
+                "outline"
+            ).classes("border-[#45616b] text-[#d8e7e8]")
+            cancel_button.set_visibility(False)
 
     def refresh_rooms() -> None:
         room_list.clear()
@@ -181,19 +226,4 @@ def rooms_gui(rooms: list) -> None:
                             "flat round dense"
                         ).tooltip("Delete room")
 
-    with ui.row().classes("w-full flex-wrap items-center gap-2"):
-        add_button = ui.button("Add room", icon="add", on_click=add_room).props(
-            "unelevated"
-        ).classes("bg-[#75e6da] text-[#101820]")
-        update_button = ui.button(
-            "Save changes", icon="save", on_click=update_room
-        ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
-        update_button.set_visibility(False)
-        cancel_button = ui.button("Cancel edit", on_click=reset_form).props(
-            "outline"
-        ).classes("border-[#45616b] text-[#d8e7e8]")
-        cancel_button.set_visibility(False)
-
-    ui.label("Existing rooms").classes("mt-4 text-lg font-semibold text-white")
-    room_list = ui.column().classes("w-full gap-1")
     refresh_rooms()
