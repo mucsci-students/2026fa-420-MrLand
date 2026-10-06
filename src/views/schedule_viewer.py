@@ -13,6 +13,12 @@ from src.controllers.schedule_filters_controller import (
     filter_by_faculty,
     filter_by_course,
 )
+from src.controllers.schedule_inspection_controller import (
+    get_course_details,
+    get_faculty_details,
+    get_room_details,
+    get_lab_details,
+)
 
 # set the background and accent colors for the schedule viewer
 BACKGROUND = "#101820"
@@ -350,6 +356,238 @@ def schedule_viewer() -> None:
             row_key="id",
             pagination=10,
         ).props("flat bordered").classes("w-full")
+
+        # ---------------------------------------------------------
+        # Add clickable cells to table
+        # ---------------------------------------------------------
+
+        table.add_slot(
+            "body-cell-course",
+            """
+            <q-td :props="props">
+                <q-btn
+                    flat
+                    dense
+                    no-caps
+                    :label="props.value"
+                    @click="$parent.$emit('inspect-course', props.value)"
+                />
+            </q-td>
+            """
+        )
+
+        table.on(
+            "inspect-course",
+            lambda event: inspect_course(event.args)
+        )
+
+        table.add_slot(
+            "body-cell-faculty",
+            """
+            <q-td :props="props">
+                <q-btn
+                    flat
+                    dense
+                    no-caps
+                    :label="props.value"
+                    @click="$parent.$emit('inspect-faculty', props.value)"
+                />
+            </q-td>
+            """
+        )
+
+        table.on(
+            "inspect-faculty",
+            lambda event: inspect_faculty(event.args)\
+        )
+
+        table.add_slot(
+            "body-cell-resource",
+            """
+            <q-td :props="props">
+                <q-btn
+                    flat
+                    dense
+                    no-caps
+                    :label="props.value"
+                    @click="$parent.$emit('inspect-resource', props.row)"
+                />
+            </q-td>
+            """
+        )
+
+        table.on(
+            "inspect-resource",
+            lambda event: inspect_resource(event.args)
+        )
+
+        table.add_slot(
+            "body-cell-day",
+            """
+            <q-td :props="props">
+                <q-btn
+                    flat
+                    dense
+                    no-caps
+                    :label="props.value"
+                    @click="$parent.$emit('inspect-time', props.row)"
+                />
+            </q-td>
+            """
+        )
+
+        table.on(
+            "inspect-time",
+            lambda event: inspect_time(event.args)
+        )
+
+
+        # ---------------------------------------------------------
+        # Inspect Elements Methods
+        # ---------------------------------------------------------
+        def inspect_course(course_id):
+            if controller.current is None or controller.current.config is None:
+                ui.notify(
+                    "Configuration details are unavailable for this schedule.",
+                    type="warning",
+                )
+                return
+            
+            course = get_course_details(controller.current.config, course_id)
+
+            if controller.current is None:
+                ui.notify("No schedule selected", type="negative")
+                return
+
+            if course is None:
+                ui.notify("Course details not found", type="negative")
+                return
+
+            with ui.dialog() as dialog:
+                with ui.card():
+                    ui.label("Course Details").classes("text-xl font-bold")
+
+                    ui.label(f"Course ID: {course.course_id}")
+                    ui.label(f"Section: {course.section_id}")
+                    ui.label(f"Credits: {course.credits}")
+                    ui.label(f"Capacity: {course.capacity}")
+                    ui.label(f"Modality: {course.modality}")
+
+                    ui.button("Close", on_click=dialog.close)
+
+            dialog.open()
+
+        def inspect_faculty(faculty_name):
+            if controller.current is None or controller.current.config is None:
+                ui.notify(
+                    "Configuration details are unavailable for this schedule.",
+                    type="warning",
+                )
+                return
+
+            faculty = get_faculty_details(controller.current.config, faculty_name)
+
+            if faculty is None:
+                ui.notify("Faculty details not found", type="negative")
+                return
+
+            with ui.dialog() as dialog:
+                with ui.card():
+                    ui.label("Faculty Details").classes("text-xl font-bold")
+
+                    ui.label(f"Name: {faculty.name}")
+                    ui.label(f"Minimum Credits: {faculty.minimum_credits}")
+                    ui.label(f"Maximum Credits: {faculty.maximum_credits}")
+                    ui.label(f"Maximum Days: {faculty.maximum_days}")
+                    ui.label(f"Unique Course Limit: {faculty.unique_course_limit}")
+
+                    ui.button("Close", on_click=dialog.close)
+
+            dialog.open()
+
+        def inspect_room(room_name):
+            if controller.current is None or controller.current.config is None:
+                ui.notify(
+                    "Configuration details are unavailable for this schedule.",
+                    type="warning",
+                )
+                return
+
+            room = get_room_details(controller.current.config, room_name)
+
+            if room is None:
+                ui.notify("Room details not found", type="negative")
+                return
+
+            with ui.dialog() as dialog:
+                with ui.card():
+                    ui.label("Room Details").classes("text-xl font-bold")
+
+                    ui.label(f"Name: {room.name}")
+                    ui.label(f"Capacity: {room.capacity}")
+                    ui.label(f"Features: {', '.join(room.features)}")
+
+                    ui.button("Close", on_click=dialog.close)
+
+            dialog.open()
+
+        def inspect_lab(lab_name):
+            if controller.current is None or controller.current.config is None:
+                ui.notify(
+                    "Configuration details are unavailable for this schedule.",
+                    type="warning",
+                )
+                return
+
+            lab = get_lab_details(controller.current.config, lab_name)
+
+            if lab is None:
+                ui.notify("Lab details not found", type="negative")
+                return
+
+            with ui.dialog() as dialog:
+                with ui.card():
+                    ui.label("Lab Details").classes("text-xl font-bold")
+
+                    ui.label(f"Name: {lab.name}")
+                    ui.label(f"Capacity: {lab.capacity}")
+                    ui.label(f"Features: {', '.join(lab.features)}")
+
+                    ui.button("Close", on_click=dialog.close)
+
+            dialog.open()
+
+        def inspect_resource(row):
+            resource = row["resource"]
+
+            if not resource:
+                ui.notify("This course has no room or lab assignment.", type="info")
+                return
+
+            # Lab meetings have a lab resource.
+            # The resource itself doesn't tell us whether it is a lab,
+            # so check the configuration.
+            if get_lab_details(controller.current.config, resource) is not None:
+                inspect_lab(resource)
+            else:
+                inspect_room(resource)
+
+
+        def inspect_time(row):
+            with ui.dialog() as dialog:
+                with ui.card():
+                    ui.label("Time Assignment").classes("text-xl font-bold")
+
+                    ui.label(f"Course: {row['course']}")
+                    ui.label(f"Faculty: {row['faculty']}")
+                    ui.label(f"Day: {row['day']}")
+                    ui.label(f"Start: {row['start']}")
+                    ui.label(f"End: {row['end']}")
+
+                    ui.button("Close", on_click=dialog.close)
+
+            dialog.open()
+            
 
         # ---------------------------------------------------------
         # Update filter values
