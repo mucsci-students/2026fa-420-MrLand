@@ -361,6 +361,7 @@ def schedule_viewer() -> None:
         # Add clickable cells to table
         # ---------------------------------------------------------
 
+        # makes each element in the course column clickable
         table.add_slot(
             "body-cell-course",
             """
@@ -375,12 +376,13 @@ def schedule_viewer() -> None:
             </q-td>
             """
         )
-
+        # calls the inspect_course function when course is clicked
         table.on(
             "inspect-course",
             lambda event: inspect_course(event.args)
         )
 
+        # makes each element in the faculty column clickable
         table.add_slot(
             "body-cell-faculty",
             """
@@ -395,12 +397,13 @@ def schedule_viewer() -> None:
             </q-td>
             """
         )
-
+        # calls the inspect_faculty function when faculty is clicked
         table.on(
             "inspect-faculty",
             lambda event: inspect_faculty(event.args)\
         )
 
+        # makes each element in the resource column clickable
         table.add_slot(
             "body-cell-resource",
             """
@@ -415,12 +418,13 @@ def schedule_viewer() -> None:
             </q-td>
             """
         )
-
+        # calls the inspect_resource function when resource is clicked
         table.on(
             "inspect-resource",
             lambda event: inspect_resource(event.args)
         )
 
+        # makes each element in the day column clickable
         table.add_slot(
             "body-cell-day",
             """
@@ -435,7 +439,7 @@ def schedule_viewer() -> None:
             </q-td>
             """
         )
-
+        # makes each element in the start column clickable
         table.on(
             "inspect-time",
             lambda event: inspect_time(event.args)
@@ -445,7 +449,10 @@ def schedule_viewer() -> None:
         # ---------------------------------------------------------
         # Inspect Elements Methods
         # ---------------------------------------------------------
+
+        # method to get course elements from the config and display them in a dialog box
         def inspect_course(course_id):
+            # handles csv file imports
             if controller.current is None or controller.current.config is None:
                 ui.notify(
                     "Configuration details are unavailable for this schedule.",
@@ -455,14 +462,11 @@ def schedule_viewer() -> None:
             
             course = get_course_details(controller.current.config, course_id)
 
-            if controller.current is None:
-                ui.notify("No schedule selected", type="negative")
-                return
-
             if course is None:
                 ui.notify("Course details not found", type="negative")
                 return
 
+            # creates dialog box to be displayed
             with ui.dialog() as dialog:
                 with ui.card():
                     ui.label("Course Details").classes("text-xl font-bold")
@@ -477,7 +481,9 @@ def schedule_viewer() -> None:
 
             dialog.open()
 
+        # method to get faculty elements from the config and display them in a dialog box
         def inspect_faculty(faculty_name):
+            # handles csv file imports
             if controller.current is None or controller.current.config is None:
                 ui.notify(
                     "Configuration details are unavailable for this schedule.",
@@ -491,6 +497,7 @@ def schedule_viewer() -> None:
                 ui.notify("Faculty details not found", type="negative")
                 return
 
+            # creates dialog box to be displayed
             with ui.dialog() as dialog:
                 with ui.card():
                     ui.label("Faculty Details").classes("text-xl font-bold")
@@ -505,7 +512,9 @@ def schedule_viewer() -> None:
 
             dialog.open()
 
+        # method to get room elements from the config and display them in a dialog box
         def inspect_room(room_name):
+            # handles csv file imports
             if controller.current is None or controller.current.config is None:
                 ui.notify(
                     "Configuration details are unavailable for this schedule.",
@@ -519,6 +528,7 @@ def schedule_viewer() -> None:
                 ui.notify("Room details not found", type="negative")
                 return
 
+            # creates dialog box to be displayed
             with ui.dialog() as dialog:
                 with ui.card():
                     ui.label("Room Details").classes("text-xl font-bold")
@@ -531,7 +541,9 @@ def schedule_viewer() -> None:
 
             dialog.open()
 
+        # method to get lab elements from the config and display them in a dialog box
         def inspect_lab(lab_name):
+            # handles csv file imports
             if controller.current is None or controller.current.config is None:
                 ui.notify(
                     "Configuration details are unavailable for this schedule.",
@@ -545,6 +557,7 @@ def schedule_viewer() -> None:
                 ui.notify("Lab details not found", type="negative")
                 return
 
+            # creates dialog box to be displayed
             with ui.dialog() as dialog:
                 with ui.card():
                     ui.label("Lab Details").classes("text-xl font-bold")
@@ -557,6 +570,7 @@ def schedule_viewer() -> None:
 
             dialog.open()
 
+        # method to determine whether the resource is a room or lab and calls the respective function
         def inspect_resource(row):
             resource = row["resource"]
 
@@ -565,14 +579,13 @@ def schedule_viewer() -> None:
                 return
 
             # Lab meetings have a lab resource.
-            # The resource itself doesn't tell us whether it is a lab,
-            # so check the configuration.
+            # The resource itself doesn't tell us whether it is a lab, so we check the configuration.
             if get_lab_details(controller.current.config, resource) is not None:
                 inspect_lab(resource)
             else:
                 inspect_room(resource)
 
-
+        # method to create the dialog box to display the time assignment for a course
         def inspect_time(row):
             with ui.dialog() as dialog:
                 with ui.card():
