@@ -18,7 +18,10 @@ def _availability_text(times) -> str:
     )
 
 
-def labs_gui(labs: list) -> None:
+def labs_gui(
+    labs: list,
+    on_change: ConfigurationChangeHandler | None = None,
+) -> None:
     ui.label("Labs").classes("text-xl font-semibold text-white")
     ui.label("Add a lab, its capacity, features, and availability.").classes(
         "text-sm text-[#9fb2b8]"

@@ -7,7 +7,10 @@ controller = TimeBlockController()
 DAYS = ("MON", "TUE", "WED", "THU", "FRI")
 
 
-def time_blocks_gui(times: dict) -> None:
+def time_blocks_gui(
+    times: dict,
+    on_change: ConfigurationChangeHandler | None = None,
+) -> None:
     ui.label("Time blocks").classes("text-xl font-semibold text-white")
     ui.label("Define the available scheduling window for each weekday.").classes(
         "text-sm text-[#9fb2b8]"

@@ -1,4 +1,19 @@
+from collections.abc import Callable
+
 from nicegui import ui
+
+
+ConfigurationChangeHandler = Callable[[Callable[[], object]], bool]
+
+
+def run_configuration_change(
+    on_change: ConfigurationChangeHandler | None,
+    mutation: Callable[[], object],
+) -> bool:
+    if on_change is None:
+        mutation()
+        return True
+    return on_change(mutation)
 
 
 def section_header(eyebrow: str, title: str, description: str) -> None:

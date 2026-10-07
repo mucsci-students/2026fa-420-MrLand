@@ -100,7 +100,7 @@
             },
             {
                 "course_id": "CMSC 161",
-                "section_id": null,
+                "section_id": "1",
                 "credits": 4,
                 "capacity": 28,
                 "room": [
@@ -113,7 +113,7 @@
                     "CMSC 140"
                 ],
                 "faculty": [
-                    "Zoppetti"
+                    "Zuchinni"
                 ],
                 "modality": "in_person",
                 "required_room_features": [],
@@ -422,7 +422,7 @@
         ],
         "faculty": [
             {
-                "name": "Zoppetti",
+                "name": "Zuchinni",
                 "maximum_credits": 12,
                 "maximum_days": 4,
                 "minimum_credits": 12,
@@ -434,7 +434,6 @@
                             "end": "16:00"
                         }
                     ],
-                    "TUE": [],
                     "WED": [
                         {
                             "start": "10:00",
@@ -522,8 +521,8 @@
                     "Mac": 3
                 },
                 "mandatory_days": [
-                    "FRI",
                     "WED",
+                    "FRI",
                     "MON"
                 ]
             },
@@ -1320,9 +1319,11 @@
         "max_time_gap": 30,
         "min_time_overlap": 45
     },
-    "limit": 2,
+    "limit": 15,
     "optimizer_flags": [
         "pack_rooms",
-        "same_lab"
+        "same_lab",
+        "faculty_lab",
+        "faculty_course"
     ]
 }

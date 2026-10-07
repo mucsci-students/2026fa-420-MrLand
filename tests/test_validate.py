@@ -2,7 +2,11 @@ import copy
 
 from scheduler.config import CombinedConfig, SchedulerConfig, TimeSlotConfig
 
-from src.services.config_service import ValidationProblem, validate_config
+from src.services.config_service import (
+    ValidationProblem,
+    apply_configuration_change,
+    validate_config,
+)
 
 WEEKDAYS = ("MON", "TUE", "WED", "THU", "FRI")
 
@@ -117,3 +121,47 @@ def test_validation_does_not_change_the_config():
     before = config.model_dump_json()
     validate_config(config)
     assert config.model_dump_json() == before
+
+
+def test_validation_checks_the_published_json_schema():
+    valid = make_config()
+    invalid = CombinedConfig.model_construct(
+        config=valid.config,
+        time_slot_config=valid.time_slot_config,
+        limit="ten",
+        optimizer_flags=[],
+    )
+
+    problems = validate_config(invalid)
+
+    assert any(problem.area == "Global settings" for problem in problems)
+    assert any("limit" in problem.message.lower() for problem in problems)
+
+
+def test_invalid_change_restores_a_valid_configuration():
+    config = make_config()
+
+    accepted, problems, result = apply_configuration_change(
+        config,
+        lambda: config.config.courses[0].room.append("Ghost Room"),
+        has_valid_baseline=True,
+    )
+
+    assert not accepted
+    assert problems
+    assert result is None
+    assert config.config.courses[0].room == ["Room"]
+
+
+def test_incomplete_draft_can_be_edited_before_it_is_valid():
+    config = empty_draft()
+
+    accepted, problems, _ = apply_configuration_change(
+        config,
+        lambda: config.config.rooms.append({}),
+        has_valid_baseline=False,
+    )
+
+    assert accepted
+    assert problems
+    assert config.config.rooms == [{}]

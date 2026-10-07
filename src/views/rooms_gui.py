@@ -16,7 +16,10 @@ def _availability_text(times) -> str:
     )
 
 
-def rooms_gui(rooms: list) -> None:
+def rooms_gui(
+    rooms: list,
+    on_change: ConfigurationChangeHandler | None = None,
+) -> None:
     ui.label("Rooms").classes("text-xl font-semibold text-white")
     ui.label("Add a room and its scheduling constraints.").classes(
         "text-sm text-[#9fb2b8]"

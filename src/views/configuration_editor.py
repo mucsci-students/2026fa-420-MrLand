@@ -20,6 +20,24 @@ controller = ConfigurationController()
 def configuration_editor() -> None:
     state = {"config": None, "name": None}
 
+    def apply_config_change(mutation) -> bool:
+        try:
+            accepted, problems = controller.apply_change(mutation)
+        except Exception as exc:
+            state["config"] = controller.configuration
+            editor_body.refresh()
+            ui.notify(f"Change was not applied: {exc}", type="negative")
+            return False
+
+        if not accepted:
+            state["config"] = controller.configuration
+            editor_body.refresh()
+            show_problems("Change rejected", problems, restored=True)
+            return False
+        if problems:
+            show_problems("Draft validation", problems)
+        return True
+
     @ui.refreshable
     def editor_body() -> None:
         config = state["config"]
@@ -38,6 +56,21 @@ def configuration_editor() -> None:
         with ui.row().classes("items-center gap-3"):
             ui.label(f"Editing: {state['name']}").classes("text-xl font-semibold text-white")
             ui.badge("Draft - not saved").props("color=orange")
+
+        current_problems = controller.validate_configuration()
+        with ui.card().classes("w-full border border-[#29404b] bg-[#182630] p-4"):
+            if not current_problems:
+                ui.label("Configuration is valid.").classes("text-green-400")
+            else:
+                ui.label(
+                    f"Draft has {len(current_problems)} validation problem(s). "
+                    "Edits are checked against the complete configuration."
+                ).classes("font-semibold text-amber-300")
+                for problem in current_problems:
+                    prefix = f"{problem.item}: " if problem.item else ""
+                    ui.label(
+                        f"{problem.area} — {prefix}{problem.message}"
+                    ).classes("break-words text-sm text-[#d8e7e8]")
 
         with ui.card().classes("w-full border border-[#29404b] bg-[#182630] p-6"):
             ui.label("Configuration pages").classes("text-lg font-semibold text-white")
@@ -73,20 +106,20 @@ def configuration_editor() -> None:
         class_patterns_list = getattr(time_slot_config, "classes", []) if time_slot_config is not None else []
 
         with ui.column().classes(panel_classes) as rooms_panel:
-            rooms_gui(rooms_list)
+            rooms_gui(rooms_list, on_change=apply_config_change)
         with ui.column().classes(panel_classes) as faculty_panel:
-            faculty_gui(faculty_list)
+            faculty_gui(faculty_list, on_change=apply_config_change)
         with ui.column().classes(panel_classes) as courses_panel:
-            courses_gui(courses_list)
+            courses_gui(courses_list, on_change=apply_config_change)
         with ui.column().classes(panel_classes) as labs_panel:
-            labs_gui(labs_list)
+            labs_gui(labs_list, on_change=apply_config_change)
         with ui.column().classes(panel_classes) as time_blocks_panel:
-            time_blocks_gui(time_blocks_list)
+            time_blocks_gui(time_blocks_list, on_change=apply_config_change)
         with ui.column().classes(panel_classes) as class_patterns_panel:
-            class_patterns_gui(class_patterns_list)
+            class_patterns_gui(class_patterns_list, on_change=apply_config_change)
         with ui.column().classes(panel_classes) as global_settings_panel:
             if hasattr(config, "limit") and hasattr(config, "optimizer_flags"):
-                global_settings_gui(config)
+                global_settings_gui(config, on_change=apply_config_change)
             else:
                 ui.label("Global settings are unavailable for this draft.").classes(
                     "text-sm text-[#9fb2b8]"
@@ -272,7 +305,7 @@ def configuration_editor() -> None:
         with ui.row().classes("mt-4 w-full justify-end"):
             ui.button("Close", on_click=validate_dialog.close).props("flat")
 
-    def show_problems(title: str, problems) -> None:
+    def show_problems(title: str, problems, *, restored: bool = False) -> None:
         validate_title.set_text(title)
         validate_results.clear()
         with validate_results:
@@ -282,8 +315,12 @@ def configuration_editor() -> None:
                     ui.label("Valid configuration. It's ready to save.").classes("text-[#d8e7e8]")
             else:
                 ui.label(
-                    f"Found {len(problems)} problem(s). Nothing was changed. "
-                    "Fix these, then validate again."
+                    f"Found {len(problems)} problem(s). "
+                    + (
+                        "The invalid change was rolled back."
+                        if restored
+                        else "The incomplete draft is retained; fix these issues before saving."
+                    )
                 ).classes("text-sm text-[#9fb2b8]")
                 by_area: dict[str, list] = {}
                 for problem in problems:

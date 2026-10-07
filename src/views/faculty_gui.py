@@ -35,7 +35,10 @@ def _availability_text(times) -> str:
     )
 
 
-def faculty_gui(faculty_members: list) -> None:
+def faculty_gui(
+    faculty_members: list,
+    on_change: ConfigurationChangeHandler | None = None,
+) -> None:
     ui.label("Faculty").classes("text-xl font-semibold text-white")
     ui.label("Add a faculty member and teaching constraints.").classes(
         "text-sm text-[#9fb2b8]"

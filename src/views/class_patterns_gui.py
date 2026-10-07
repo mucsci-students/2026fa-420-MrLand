@@ -1,14 +1,20 @@
 from nicegui import ui
 
-from src.controllers.class_pattern_controller import ClassPatternController
-
-controller = ClassPatternController()
+from src.services.class_pattern_service import (
+    add_class_pattern_from_values,
+    delete_class_pattern_from_values,
+    update_class_pattern_from_values,
+)
+from src.views.common import ConfigurationChangeHandler, run_configuration_change
 
 DAYS = ("MON", "TUE", "WED", "THU", "FRI")
 DELIVERY_MODES = ("in_person", "online")
 
 
-def class_patterns_gui(patterns: list) -> None:
+def class_patterns_gui(
+    patterns: list,
+    on_change: ConfigurationChangeHandler | None = None,
+) -> None:
     ui.label("Class patterns").classes("text-xl font-semibold text-white")
     ui.label("Define meeting patterns for each course credit value.").classes(
         "text-sm text-[#9fb2b8]"
@@ -243,7 +249,12 @@ def class_patterns_gui(patterns: list) -> None:
 
         def delete_pattern(pattern, dialog) -> None:
             try:
-                controller.delete_pattern(patterns, pattern)
+                if not run_configuration_change(
+                    on_change,
+                    lambda: delete_class_pattern_from_values(patterns, pattern),
+                ):
+                    dialog.close()
+                    return
             except ValueError as exc:
                 ui.notify(str(exc), type="negative")
                 dialog.close()

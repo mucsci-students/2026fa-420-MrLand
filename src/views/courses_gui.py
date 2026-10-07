@@ -18,7 +18,16 @@ def _csv_values(value, label):
     return values
 
 
-def courses_gui(course_members: list) -> None:
+def _faculty_candidates(derive_from_preferences: bool, faculty_text: str | None):
+    if derive_from_preferences and not (faculty_text or "").strip():
+        return None
+    return _csv_values(faculty_text, "Faculty candidates")
+
+
+def courses_gui(
+    course_members: list,
+    on_change: ConfigurationChangeHandler | None = None,
+) -> None:
     ui.label("Courses").classes("text-xl font-semibold text-white")
     ui.label("Add a course section and its scheduling requirements.").classes(
         "text-sm text-[#9fb2b8]"
@@ -72,11 +81,12 @@ def courses_gui(course_members: list) -> None:
                 "Conflicting course IDs", placeholder="CS 101, MATH 205"
             ).classes("min-w-56 flex-1")
             faculty_names = ui.input(
-                "Faculty candidates", placeholder="Dr. Smith, Dr. Jones"
+                "Faculty candidates (optional)", placeholder="Dr. Smith, Dr. Jones"
             ).classes("min-w-56 flex-1")
 
         derive_faculty = ui.checkbox(
-            "Derive faculty candidates from course preferences", value=True
+            "Derive candidates from course preferences when no faculty are entered",
+            value=True,
         ).classes("text-[#d8e7e8]")
 
         def set_resource_fields_enabled(enabled: bool) -> None:
@@ -122,10 +132,8 @@ def courses_gui(course_members: list) -> None:
                 )
                 reserve_room_during_lab = bool(reserve_room.value)
             selected_conflicts = _csv_values(conflicts.value, "Conflicts")
-            selected_faculty = (
-                None
-                if derive_faculty.value
-                else _csv_values(faculty_names.value, "Faculty candidates")
+            selected_faculty = _faculty_candidates(
+                bool(derive_faculty.value), faculty_names.value
             )
             if selected_faculty == []:
                 raise ValueError("Enter faculty candidates or select derive mode.")
@@ -280,7 +288,8 @@ def courses_gui(course_members: list) -> None:
                         )
                         details = (
                             f"{course.credits} credits  |  Capacity: {course.capacity}  |  "
-                            f"{course.modality}  |  Rooms: {', '.join(course.room) or 'None'}"
+                            f"{course.modality}  |  Rooms: {', '.join(course.room) or 'None'}  |  "
+                            f"Faculty: {', '.join(course.faculty) if course.faculty else 'Derived from preferences'}"
                         )
                         ui.label(details).classes("break-words text-sm text-[#9fb2b8]")
                     with ui.row().classes("shrink-0 items-center gap-1"):

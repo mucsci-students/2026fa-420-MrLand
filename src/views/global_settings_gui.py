@@ -6,7 +6,10 @@ from src.controllers.settings_controller import SettingsController
 controller = SettingsController()
 
 
-def global_settings_gui(combined_config: CombinedConfig) -> None:
+def global_settings_gui(
+    combined_config: CombinedConfig,
+    on_change: ConfigurationChangeHandler | None = None,
+) -> None:
     ui.label("Global settings").classes("text-xl font-semibold text-white")
     ui.label("Configure schedule generation behavior.").classes(
         "text-sm text-[#9fb2b8]"

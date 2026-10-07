@@ -1,6 +1,13 @@
-from scheduler.config import CombinedConfig
 from dataclasses import dataclass
+import copy
+import json
+from pathlib import Path
+from typing import Callable, TypeVar
+
+from jsonschema import Draft202012Validator, FormatChecker
 from pydantic import ValidationError
+
+from scheduler.config import CombinedConfig
 
 from src.services.config_io import (
     clean_config_name,
@@ -8,6 +15,20 @@ from src.services.config_io import (
     list_configs,
     load_config,
     save_config,
+)
+
+T = TypeVar("T")
+_CONFIG_SCHEMA_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "schemas"
+    / "combined-config.schema.json"
+)
+with _CONFIG_SCHEMA_PATH.open(encoding="utf-8") as schema_file:
+    _CONFIG_SCHEMA = json.load(schema_file)
+Draft202012Validator.check_schema(_CONFIG_SCHEMA)
+_CONFIG_SCHEMA_VALIDATOR = Draft202012Validator(
+    _CONFIG_SCHEMA,
+    format_checker=FormatChecker(),
 )
 
 
@@ -86,13 +107,24 @@ def _describe(config: CombinedConfig, loc: tuple) -> tuple[str, str | None, str]
 def validate_config(config: CombinedConfig) -> list[ValidationProblem]:
     """Check the whole configuration. Returns an empty list if it's valid.
 
-    Uses the same save -> load round trip the app relies on, so
-    "validates" means "will save and load back correctly".
-    Never modifies `config`.
+    Checks the published JSON Schema first, then applies the scheduler model's
+    cross-field and cross-reference validation. Never modifies `config`.
     """
     problems: list[ValidationProblem] = []
+    payload = config.model_dump(mode="json", warnings=False)
+    schema_errors = sorted(
+        _CONFIG_SCHEMA_VALIDATOR.iter_errors(payload),
+        key=lambda error: tuple(str(part) for part in error.absolute_path),
+    )
+    for error in schema_errors:
+        area, item, field = _describe(config, tuple(error.absolute_path))
+        message = error.message
+        if field:
+            message = f"{field}: {message}"
+        problems.append(ValidationProblem(area, item, message))
+
     try:
-        CombinedConfig.model_validate_json(config.model_dump_json())
+        CombinedConfig.model_validate_json(config.model_dump_json(warnings=False))
     except ValidationError as exc:
         for error in exc.errors():
             area, item, field = _describe(config, tuple(error["loc"]))
@@ -108,6 +140,45 @@ def validate_config(config: CombinedConfig) -> list[ValidationProblem]:
         return problems
 
     return problems
+
+
+def apply_configuration_change(
+    config: CombinedConfig,
+    mutation: Callable[[], T],
+    *,
+    has_valid_baseline: bool,
+) -> tuple[bool, list[ValidationProblem], T | None]:
+    """Apply one edit and restore it when it invalidates a valid configuration.
+
+    Incomplete new drafts may be edited until their first valid state. Every
+    mutation is validated against the whole configuration before it is accepted.
+    """
+    previous_config = copy.deepcopy(config)
+    try:
+        result = mutation()
+        problems = validate_config(config)
+    except Exception:
+        _restore_config(config, previous_config)
+        raise
+
+    if problems and has_valid_baseline:
+        _restore_config(config, previous_config)
+        return False, problems, None
+    return True, problems, result
+
+
+def _restore_config(config: CombinedConfig, snapshot: CombinedConfig) -> None:
+    object.__setattr__(config, "__dict__", snapshot.__dict__)
+    object.__setattr__(
+        config, "__pydantic_fields_set__", snapshot.__pydantic_fields_set__
+    )
+    object.__setattr__(
+        config, "__pydantic_extra__", snapshot.__pydantic_extra__
+    )
+    object.__setattr__(
+        config, "__pydantic_private__", snapshot.__pydantic_private__
+    )
+
 
 class ConfigService:
     def save(self, config: CombinedConfig, config_name: str) -> None:
