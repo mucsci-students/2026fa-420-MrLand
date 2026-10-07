@@ -89,7 +89,7 @@ def faculty_gui(faculty_members: list) -> None:
 
         mandatory_days = ui.select(
             list(DAYS), multiple=True, label="Mandatory teaching days"
-        ).props("use-chips clearable").classes("w-full")
+        ).props("use-chips clearable").classes("mandatory-days w-full")
 
         editing_member = {"member": None}
 
