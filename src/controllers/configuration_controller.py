@@ -1,7 +1,17 @@
-from scheduler.config import CombinedConfig
+from collections.abc import Callable
+from typing import TypeVar
 
-from src.services.config_service import ConfigService, ConfigValidationError, ValidationProblem, validate_config
 from scheduler.config import CombinedConfig, SchedulerConfig, TimeSlotConfig
+
+from src.services.config_service import (
+    ConfigService,
+    ConfigValidationError,
+    ValidationProblem,
+    apply_configuration_change,
+    validate_config,
+)
+
+T = TypeVar("T")
 
 
 class ConfigurationController:
@@ -9,6 +19,7 @@ class ConfigurationController:
     def __init__(self) -> None:
         self.config_service = ConfigService()
         self.configuration: CombinedConfig | None = None
+        self._has_valid_configuration = False
 
     def new_configuration(self) -> CombinedConfig:
         # model_construct skips validation: an empty config can't pass the
@@ -21,6 +32,7 @@ class ConfigurationController:
             limit=10,
             optimizer_flags=[],
         )
+        self._has_valid_configuration = False
         return self.configuration
 
     def save_configuration(self, config_name: str) -> None:
@@ -33,6 +45,7 @@ class ConfigurationController:
 
     def load_configuration(self, config_name: str) -> CombinedConfig:
         self.configuration = self.config_service.load(config_name)
+        self._has_valid_configuration = True
         return self.configuration
 
     def list_names(self) -> list[str]:
@@ -42,3 +55,18 @@ class ConfigurationController:
         if self.configuration is None:
             raise ValueError("No configuration has been created or loaded.")
         return validate_config(self.configuration)
+
+    def apply_change(
+        self, mutation: Callable[[], T]
+    ) -> tuple[bool, list[ValidationProblem]]:
+        if self.configuration is None:
+            raise ValueError("No configuration has been created or loaded.")
+
+        accepted, problems, _ = apply_configuration_change(
+            self.configuration,
+            mutation,
+            has_valid_baseline=self._has_valid_configuration,
+        )
+        if not problems:
+            self._has_valid_configuration = True
+        return accepted, problems

@@ -42,6 +42,9 @@ This project is a schedule-planning application for creating and managing course
 
 - **JSON-based Persistence**
   - Store scheduler data in configuration files under the project config directories
+- **Whole-configuration validation**
+  - Validate edits against the published [combined configuration JSON Schema](https://raw.githubusercontent.com/mucsci/scheduler/main/fern/docs/assets/combined-config.schema.json) and scheduler model rules
+  - Preserve incomplete new drafts until valid; reject edits that would invalidate an already-valid configuration
 
 ---
 
@@ -177,6 +180,12 @@ Example configuration files are located in the project config directory:
 src/configs/
 ```
 
+The editor validates the complete configuration after each saved change against the
+published Scheduler JSON Schema stored at
+[`src/schemas/combined-config.schema.json`](src/schemas/combined-config.schema.json),
+then applies the scheduler library's cross-field and cross-reference validation.
+No Scheduler API server is needed for this validation.
+
 ---
 
 ## Testing
@@ -205,4 +214,3 @@ This includes tests for:
 This project is licensed under the terms of the included LICENSE file.
 
 ---
-

@@ -5,6 +5,7 @@ from src.services.rooms_service import (
     delete_room_from_values,
     update_room_from_values,
 )
+from src.views.common import ConfigurationChangeHandler, run_configuration_change
 
 
 def _availability_text(times) -> str:
@@ -18,7 +19,10 @@ def _availability_text(times) -> str:
     )
 
 
-def rooms_gui(rooms: list) -> None:
+def rooms_gui(
+    rooms: list,
+    on_change: ConfigurationChangeHandler | None = None,
+) -> None:
     ui.label("Rooms").classes("text-xl font-semibold text-white")
     ui.label("Add a room and its scheduling constraints.").classes(
         "text-sm text-[#9fb2b8]"
@@ -119,7 +123,10 @@ def rooms_gui(rooms: list) -> None:
 
         def add_room() -> None:
             try:
-                add_room_from_values(rooms, *form_values())
+                if not run_configuration_change(
+                    on_change, lambda: add_room_from_values(rooms, *form_values())
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -129,9 +136,13 @@ def rooms_gui(rooms: list) -> None:
 
         def update_room() -> None:
             try:
-                update_room_from_values(
-                    rooms, editing_room["room"], *form_values()
-                )
+                if not run_configuration_change(
+                    on_change,
+                    lambda: update_room_from_values(
+                        rooms, editing_room["room"], *form_values()
+                    ),
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -158,7 +169,11 @@ def rooms_gui(rooms: list) -> None:
 
         def delete_room(room, dialog) -> None:
             try:
-                delete_room_from_values(rooms, room)
+                if not run_configuration_change(
+                    on_change, lambda: delete_room_from_values(rooms, room)
+                ):
+                    dialog.close()
+                    return
             except ValueError as exc:
                 ui.notify(str(exc), type="negative")
                 dialog.close()

@@ -5,6 +5,7 @@ from src.services.lab_service import (
     delete_lab_from_values,
     update_lab_from_values,
 )
+from src.views.common import ConfigurationChangeHandler, run_configuration_change
 
 DAYS = ("MON", "TUE", "WED", "THU", "FRI")
 
@@ -20,7 +21,10 @@ def _availability_text(times) -> str:
     )
 
 
-def labs_gui(labs: list) -> None:
+def labs_gui(
+    labs: list,
+    on_change: ConfigurationChangeHandler | None = None,
+) -> None:
     ui.label("Labs").classes("text-xl font-semibold text-white")
     ui.label("Add a lab, its capacity, features, and availability.").classes(
         "text-sm text-[#9fb2b8]"
@@ -122,7 +126,10 @@ def labs_gui(labs: list) -> None:
 
         def add_lab() -> None:
             try:
-                add_lab_from_values(labs, *form_values())
+                if not run_configuration_change(
+                    on_change, lambda: add_lab_from_values(labs, *form_values())
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -132,7 +139,13 @@ def labs_gui(labs: list) -> None:
 
         def update_lab() -> None:
             try:
-                update_lab_from_values(labs, editing_lab["lab"], *form_values())
+                if not run_configuration_change(
+                    on_change,
+                    lambda: update_lab_from_values(
+                        labs, editing_lab["lab"], *form_values()
+                    ),
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -160,7 +173,11 @@ def labs_gui(labs: list) -> None:
 
         def delete_lab(lab, dialog) -> None:
             try:
-                delete_lab_from_values(labs, lab)
+                if not run_configuration_change(
+                    on_change, lambda: delete_lab_from_values(labs, lab)
+                ):
+                    dialog.close()
+                    return
             except ValueError as exc:
                 ui.notify(str(exc), type="negative")
                 dialog.close()

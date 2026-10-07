@@ -5,11 +5,15 @@ from src.services.time_block_service import (
     delete_time_block_from_values,
     update_time_block_from_values,
 )
+from src.views.common import ConfigurationChangeHandler, run_configuration_change
 
 DAYS = ("MON", "TUE", "WED", "THU", "FRI")
 
 
-def time_blocks_gui(times: dict) -> None:
+def time_blocks_gui(
+    times: dict,
+    on_change: ConfigurationChangeHandler | None = None,
+) -> None:
     ui.label("Time blocks").classes("text-xl font-semibold text-white")
     ui.label("Define the available scheduling window for each weekday.").classes(
         "text-sm text-[#9fb2b8]"
@@ -72,7 +76,11 @@ def time_blocks_gui(times: dict) -> None:
 
         def add_block() -> None:
             try:
-                add_time_block_from_values(times, *form_values())
+                if not run_configuration_change(
+                    on_change,
+                    lambda: add_time_block_from_values(times, *form_values()),
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -82,12 +90,16 @@ def time_blocks_gui(times: dict) -> None:
 
         def update_block() -> None:
             try:
-                update_time_block_from_values(
-                    times,
-                    editing_block["day"],
-                    editing_block["block"],
-                    *form_values(),
-                )
+                if not run_configuration_change(
+                    on_change,
+                    lambda: update_time_block_from_values(
+                        times,
+                        editing_block["day"],
+                        editing_block["block"],
+                        *form_values(),
+                    ),
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -110,7 +122,12 @@ def time_blocks_gui(times: dict) -> None:
 
         def delete_block(block_day, block, dialog) -> None:
             try:
-                delete_time_block_from_values(times, block_day, block)
+                if not run_configuration_change(
+                    on_change,
+                    lambda: delete_time_block_from_values(times, block_day, block),
+                ):
+                    dialog.close()
+                    return
             except ValueError as exc:
                 ui.notify(str(exc), type="negative")
                 dialog.close()

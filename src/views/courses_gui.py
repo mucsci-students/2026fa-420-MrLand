@@ -5,6 +5,7 @@ from src.services.course_service import (
     delete_course_from_values,
     update_course_from_values,
 )
+from src.views.common import ConfigurationChangeHandler, run_configuration_change
 
 MODALITIES = ("in_person", "online", "hybrid")
 
@@ -20,7 +21,10 @@ def _csv_values(value, label):
     return values
 
 
-def courses_gui(course_members: list) -> None:
+def courses_gui(
+    course_members: list,
+    on_change: ConfigurationChangeHandler | None = None,
+) -> None:
     ui.label("Courses").classes("text-xl font-semibold text-white")
     ui.label("Add a course section and its scheduling requirements.").classes(
         "text-sm text-[#9fb2b8]"
@@ -193,7 +197,11 @@ def courses_gui(course_members: list) -> None:
 
         def add_course() -> None:
             try:
-                add_course_from_values(course_members, *form_values())
+                if not run_configuration_change(
+                    on_change,
+                    lambda: add_course_from_values(course_members, *form_values()),
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -203,9 +211,13 @@ def courses_gui(course_members: list) -> None:
 
         def update_course() -> None:
             try:
-                update_course_from_values(
-                    course_members, editing_course["course"], *form_values()
-                )
+                if not run_configuration_change(
+                    on_change,
+                    lambda: update_course_from_values(
+                        course_members, editing_course["course"], *form_values()
+                    ),
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -241,7 +253,12 @@ def courses_gui(course_members: list) -> None:
 
         def delete_course(course, dialog) -> None:
             try:
-                delete_course_from_values(course_members, course)
+                if not run_configuration_change(
+                    on_change,
+                    lambda: delete_course_from_values(course_members, course),
+                ):
+                    dialog.close()
+                    return
             except ValueError as exc:
                 ui.notify(str(exc), type="negative")
                 dialog.close()

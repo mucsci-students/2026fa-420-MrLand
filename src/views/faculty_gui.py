@@ -5,6 +5,7 @@ from src.services.faculty_service import (
     delete_faculty_from_values,
     update_faculty_from_values,
 )
+from src.views.common import ConfigurationChangeHandler, run_configuration_change
 
 DAYS = ("MON", "TUE", "WED", "THU", "FRI")
 
@@ -37,7 +38,10 @@ def _availability_text(times) -> str:
     )
 
 
-def faculty_gui(faculty_members: list) -> None:
+def faculty_gui(
+    faculty_members: list,
+    on_change: ConfigurationChangeHandler | None = None,
+) -> None:
     ui.label("Faculty").classes("text-xl font-semibold text-white")
     ui.label("Add a faculty member and teaching constraints.").classes(
         "text-sm text-[#9fb2b8]"
@@ -165,7 +169,11 @@ def faculty_gui(faculty_members: list) -> None:
 
         def add_member() -> None:
             try:
-                add_faculty_from_values(faculty_members, *form_values())
+                if not run_configuration_change(
+                    on_change,
+                    lambda: add_faculty_from_values(faculty_members, *form_values()),
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -175,9 +183,13 @@ def faculty_gui(faculty_members: list) -> None:
 
         def update_member() -> None:
             try:
-                update_faculty_from_values(
-                    faculty_members, editing_member["member"], *form_values()
-                )
+                if not run_configuration_change(
+                    on_change,
+                    lambda: update_faculty_from_values(
+                        faculty_members, editing_member["member"], *form_values()
+                    ),
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -215,7 +227,12 @@ def faculty_gui(faculty_members: list) -> None:
 
         def delete_member(member, dialog) -> None:
             try:
-                delete_faculty_from_values(faculty_members, member)
+                if not run_configuration_change(
+                    on_change,
+                    lambda: delete_faculty_from_values(faculty_members, member),
+                ):
+                    dialog.close()
+                    return
             except ValueError as exc:
                 ui.notify(str(exc), type="negative")
                 dialog.close()
