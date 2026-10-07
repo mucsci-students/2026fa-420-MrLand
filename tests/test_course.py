@@ -23,6 +23,7 @@ assertRaises(...)	        code should produce an exception
 import unittest
 from unittest.mock import patch
 from src.services import course_service
+from src.views.courses_gui import _faculty_candidates
 from scheduler.config import CourseConfig
 
 
@@ -30,6 +31,15 @@ class TestCourse(unittest.TestCase):
 
     def setUp(self):
         self.course_members = []
+
+    def test_explicit_faculty_candidates_override_derive_default(self):
+        self.assertEqual(
+            _faculty_candidates(True, "Dr. Smith, Dr. Jones"),
+            ["Dr. Smith", "Dr. Jones"],
+        )
+
+    def test_empty_faculty_candidates_can_be_derived(self):
+        self.assertIsNone(_faculty_candidates(True, ""))
 
     # --------- add, modify, delete tests --------------
 
@@ -774,4 +784,3 @@ class TestCourse(unittest.TestCase):
         result = course_service.get_faculty()
 
         self.assertIsNone(result)
-
