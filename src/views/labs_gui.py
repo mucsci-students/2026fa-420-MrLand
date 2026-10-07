@@ -1,6 +1,7 @@
 from nicegui import ui
 
 from src.controllers.lab_controller import LabController
+from src.views.common import ConfigurationChangeHandler, run_configuration_change
 
 controller = LabController()
 
@@ -123,7 +124,10 @@ def labs_gui(
 
         def add_lab() -> None:
             try:
-                controller.add_lab(labs, *form_values())
+                if not run_configuration_change(
+                    on_change, lambda: controller.add_lab(labs, *form_values())
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -133,7 +137,13 @@ def labs_gui(
 
         def update_lab() -> None:
             try:
-                controller.update_lab(labs, editing_lab["lab"], *form_values())
+                if not run_configuration_change(
+                    on_change,
+                    lambda: controller.update_lab(
+                        labs, editing_lab["lab"], *form_values()
+                    ),
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -161,7 +171,11 @@ def labs_gui(
 
         def delete_lab(lab, dialog) -> None:
             try:
-                controller.delete_lab(labs, lab)
+                if not run_configuration_change(
+                    on_change, lambda: controller.delete_lab(labs, lab)
+                ):
+                    dialog.close()
+                    return
             except ValueError as exc:
                 ui.notify(str(exc), type="negative")
                 dialog.close()

@@ -1,6 +1,7 @@
 from nicegui import ui
 
 from src.controllers.time_block_controller import TimeBlockController
+from src.views.common import ConfigurationChangeHandler, run_configuration_change
 
 controller = TimeBlockController()
 
@@ -73,7 +74,11 @@ def time_blocks_gui(
 
         def add_block() -> None:
             try:
-                controller.add_block(times, *form_values())
+                if not run_configuration_change(
+                    on_change,
+                    lambda: controller.add_block(times, *form_values()),
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -83,12 +88,16 @@ def time_blocks_gui(
 
         def update_block() -> None:
             try:
-                controller.update_block(
-                    times,
-                    editing_block["day"],
-                    editing_block["block"],
-                    *form_values(),
-                )
+                if not run_configuration_change(
+                    on_change,
+                    lambda: controller.update_block(
+                        times,
+                        editing_block["day"],
+                        editing_block["block"],
+                        *form_values(),
+                    ),
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -111,7 +120,12 @@ def time_blocks_gui(
 
         def delete_block(block_day, block, dialog) -> None:
             try:
-                controller.delete_block(times, block_day, block)
+                if not run_configuration_change(
+                    on_change,
+                    lambda: controller.delete_block(times, block_day, block),
+                ):
+                    dialog.close()
+                    return
             except ValueError as exc:
                 ui.notify(str(exc), type="negative")
                 dialog.close()

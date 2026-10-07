@@ -1,6 +1,7 @@
 from nicegui import ui
 
 from src.controllers.room_controller import RoomController
+from src.views.common import ConfigurationChangeHandler, run_configuration_change
 
 controller = RoomController()
 
@@ -120,7 +121,10 @@ def rooms_gui(
 
         def add_room() -> None:
             try:
-                controller.add_room(rooms, *form_values())
+                if not run_configuration_change(
+                    on_change, lambda: controller.add_room(rooms, *form_values())
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -130,9 +134,13 @@ def rooms_gui(
 
         def update_room() -> None:
             try:
-                controller.update_room(
-                    rooms, editing_room["room"], *form_values()
-                )
+                if not run_configuration_change(
+                    on_change,
+                    lambda: controller.update_room(
+                        rooms, editing_room["room"], *form_values()
+                    ),
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -159,7 +167,11 @@ def rooms_gui(
 
         def delete_room(room, dialog) -> None:
             try:
-                controller.delete_room(rooms, room)
+                if not run_configuration_change(
+                    on_change, lambda: controller.delete_room(rooms, room)
+                ):
+                    dialog.close()
+                    return
             except ValueError as exc:
                 ui.notify(str(exc), type="negative")
                 dialog.close()

@@ -1,6 +1,7 @@
 from nicegui import ui
 
 from src.controllers.course_controller import CourseController
+from src.views.common import ConfigurationChangeHandler, run_configuration_change
 
 controller = CourseController()
 
@@ -199,7 +200,11 @@ def courses_gui(
 
         def add_course() -> None:
             try:
-                controller.add_course(course_members, *form_values())
+                if not run_configuration_change(
+                    on_change,
+                    lambda: controller.add_course(course_members, *form_values()),
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -209,9 +214,13 @@ def courses_gui(
 
         def update_course() -> None:
             try:
-                controller.update_course(
-                    course_members, editing_course["course"], *form_values()
-                )
+                if not run_configuration_change(
+                    on_change,
+                    lambda: controller.update_course(
+                        course_members, editing_course["course"], *form_values()
+                    ),
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -247,7 +256,12 @@ def courses_gui(
 
         def delete_course(course, dialog) -> None:
             try:
-                controller.delete_course(course_members, course)
+                if not run_configuration_change(
+                    on_change,
+                    lambda: controller.delete_course(course_members, course),
+                ):
+                    dialog.close()
+                    return
             except ValueError as exc:
                 ui.notify(str(exc), type="negative")
                 dialog.close()

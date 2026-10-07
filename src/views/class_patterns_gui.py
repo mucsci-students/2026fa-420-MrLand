@@ -1,11 +1,9 @@
 from nicegui import ui
 
-from src.services.class_pattern_service import (
-    add_class_pattern_from_values,
-    delete_class_pattern_from_values,
-    update_class_pattern_from_values,
-)
+from src.controllers.class_pattern_controller import ClassPatternController
 from src.views.common import ConfigurationChangeHandler, run_configuration_change
+
+controller = ClassPatternController()
 
 DAYS = ("MON", "TUE", "WED", "THU", "FRI")
 DELIVERY_MODES = ("in_person", "online")
@@ -205,7 +203,11 @@ def class_patterns_gui(
 
         def add_pattern() -> None:
             try:
-                controller.add_pattern(patterns, *pattern_values())
+                if not run_configuration_change(
+                    on_change,
+                    lambda: controller.add_pattern(patterns, *pattern_values()),
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -215,9 +217,13 @@ def class_patterns_gui(
 
         def update_pattern() -> None:
             try:
-                controller.update_pattern(
-                    patterns, editing_pattern["pattern"], *pattern_values()
-                )
+                if not run_configuration_change(
+                    on_change,
+                    lambda: controller.update_pattern(
+                        patterns, editing_pattern["pattern"], *pattern_values()
+                    ),
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -251,7 +257,7 @@ def class_patterns_gui(
             try:
                 if not run_configuration_change(
                     on_change,
-                    lambda: delete_class_pattern_from_values(patterns, pattern),
+                    lambda: controller.delete_pattern(patterns, pattern),
                 ):
                     dialog.close()
                     return

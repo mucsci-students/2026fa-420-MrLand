@@ -1,6 +1,7 @@
 from nicegui import ui
 
 from src.controllers.faculty_controller import FacultyController
+from src.views.common import ConfigurationChangeHandler, run_configuration_change
 
 controller = FacultyController()
 
@@ -166,7 +167,11 @@ def faculty_gui(
 
         def add_member() -> None:
             try:
-                controller.add_member(faculty_members, *form_values())
+                if not run_configuration_change(
+                    on_change,
+                    lambda: controller.add_member(faculty_members, *form_values()),
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -176,9 +181,13 @@ def faculty_gui(
 
         def update_member() -> None:
             try:
-                controller.update_member(
-                    faculty_members, editing_member["member"], *form_values()
-                )
+                if not run_configuration_change(
+                    on_change,
+                    lambda: controller.update_member(
+                        faculty_members, editing_member["member"], *form_values()
+                    ),
+                ):
+                    return
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -216,7 +225,12 @@ def faculty_gui(
 
         def delete_member(member, dialog) -> None:
             try:
-                controller.delete_member(faculty_members, member)
+                if not run_configuration_change(
+                    on_change,
+                    lambda: controller.delete_member(faculty_members, member),
+                ):
+                    dialog.close()
+                    return
             except ValueError as exc:
                 ui.notify(str(exc), type="negative")
                 dialog.close()
