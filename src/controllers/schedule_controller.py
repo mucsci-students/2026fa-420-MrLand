@@ -1,13 +1,11 @@
-"""Coordinate the Schedule Viewer: navigation, loading, saving, and exporting."""
-
-from pathlib import Path
+"""Coordinate the Schedule Viewer: navigation, loading, and exporting."""
 
 from src.controllers.schedule_filters_controller import create_resource_schedule
 from src.controllers.schedule_generator_controller import (
     ScheduleGeneratorController,
     schedule_generator_controller,
 )
-from src.models.schedule_viewer_model import FORMATS, ScheduleEntry, ScheduleViewerModel
+from src.models.schedule_viewer_model import ScheduleEntry, ScheduleViewerModel
 
 
 class ScheduleController:
@@ -84,37 +82,22 @@ class ScheduleController:
             return None, f"Could not load '{file_name}': {error}"
 
     # ------------------------------------------------------------------
-    # Saving and exporting
+    # Exporting
     # ------------------------------------------------------------------
 
-    def default_file_name(self, file_format: str) -> str:
+    def default_export_file_name(self, file_format: str) -> str:
         entry = self.model.current
-        return self.model.default_file_name(entry, file_format) if entry else ""
-
-    def save_current(
-        self, file_format: str, file_name: str, overwrite: bool = False
-    ) -> tuple[Path | None, str | None]:
-        entry = self.model.current
-        if entry is None:
-            return None, "There is no schedule to save."
-        try:
-            return self.model.save(entry, file_format, file_name, overwrite), None
-        except FileExistsError as error:
-            return None, f"{error} Choose another name or allow overwriting."
-        except (OSError, ValueError) as error:
-            return None, f"Could not save the schedule: {error}"
+        return self.model.default_export_file_name(entry, file_format) if entry else ""
 
     def export_current(self, file_format: str, file_name: str) -> tuple[tuple[bytes, str, str] | None, str | None]:
         """(content, file name, media type) for a browser download."""
         entry = self.model.current
         if entry is None:
             return None, "There is no schedule to export."
-        if file_format not in FORMATS:
-            return None, "Please choose CSV or JSON."
-        file_name = Path(file_name.strip() or self.default_file_name(file_format)).name
-        if Path(file_name).suffix.lower() != f".{file_format}":
-            file_name = f"{file_name}.{file_format}"
-        return (self.model.serialize(entry, file_format), file_name, FORMATS[file_format]), None
+        try:
+            return self.model.export(entry, file_format, file_name), None
+        except ValueError as error:
+            return None, str(error)
 
 
 schedule_controller = ScheduleController()
