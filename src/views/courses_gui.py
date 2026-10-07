@@ -1,11 +1,9 @@
 from nicegui import ui
 
-from src.services.course_service import (
-    add_course_from_values,
-    delete_course_from_values,
-    update_course_from_values,
-)
+from src.controllers.course_controller import CourseController
 from src.views.common import ConfigurationChangeHandler, run_configuration_change
+
+controller = CourseController()
 
 MODALITIES = ("in_person", "online", "hybrid")
 
@@ -204,7 +202,7 @@ def courses_gui(
             try:
                 if not run_configuration_change(
                     on_change,
-                    lambda: add_course_from_values(course_members, *form_values()),
+                    lambda: controller.add_course(course_members, *form_values()),
                 ):
                     return
             except (TypeError, ValueError) as exc:
@@ -218,7 +216,7 @@ def courses_gui(
             try:
                 if not run_configuration_change(
                     on_change,
-                    lambda: update_course_from_values(
+                    lambda: controller.update_course(
                         course_members, editing_course["course"], *form_values()
                     ),
                 ):
@@ -260,7 +258,7 @@ def courses_gui(
             try:
                 if not run_configuration_change(
                     on_change,
-                    lambda: delete_course_from_values(course_members, course),
+                    lambda: controller.delete_course(course_members, course),
                 ):
                     dialog.close()
                     return

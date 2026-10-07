@@ -1,11 +1,9 @@
 from nicegui import ui
 
-from src.services.faculty_service import (
-    add_faculty_from_values,
-    delete_faculty_from_values,
-    update_faculty_from_values,
-)
+from src.controllers.faculty_controller import FacultyController
 from src.views.common import ConfigurationChangeHandler, run_configuration_change
+
+controller = FacultyController()
 
 DAYS = ("MON", "TUE", "WED", "THU", "FRI")
 
@@ -95,7 +93,7 @@ def faculty_gui(
 
         mandatory_days = ui.select(
             list(DAYS), multiple=True, label="Mandatory teaching days"
-        ).props("use-chips clearable").classes("w-full")
+        ).props("use-chips clearable").classes("mandatory-days w-full")
 
         editing_member = {"member": None}
 
@@ -171,7 +169,7 @@ def faculty_gui(
             try:
                 if not run_configuration_change(
                     on_change,
-                    lambda: add_faculty_from_values(faculty_members, *form_values()),
+                    lambda: controller.add_member(faculty_members, *form_values()),
                 ):
                     return
             except (TypeError, ValueError) as exc:
@@ -185,7 +183,7 @@ def faculty_gui(
             try:
                 if not run_configuration_change(
                     on_change,
-                    lambda: update_faculty_from_values(
+                    lambda: controller.update_member(
                         faculty_members, editing_member["member"], *form_values()
                     ),
                 ):
@@ -229,7 +227,7 @@ def faculty_gui(
             try:
                 if not run_configuration_change(
                     on_change,
-                    lambda: delete_faculty_from_values(faculty_members, member),
+                    lambda: controller.delete_member(faculty_members, member),
                 ):
                     dialog.close()
                     return

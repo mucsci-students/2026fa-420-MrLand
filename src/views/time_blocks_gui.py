@@ -1,11 +1,9 @@
 from nicegui import ui
 
-from src.services.time_block_service import (
-    add_time_block_from_values,
-    delete_time_block_from_values,
-    update_time_block_from_values,
-)
+from src.controllers.time_block_controller import TimeBlockController
 from src.views.common import ConfigurationChangeHandler, run_configuration_change
+
+controller = TimeBlockController()
 
 DAYS = ("MON", "TUE", "WED", "THU", "FRI")
 
@@ -78,7 +76,7 @@ def time_blocks_gui(
             try:
                 if not run_configuration_change(
                     on_change,
-                    lambda: add_time_block_from_values(times, *form_values()),
+                    lambda: controller.add_block(times, *form_values()),
                 ):
                     return
             except (TypeError, ValueError) as exc:
@@ -92,7 +90,7 @@ def time_blocks_gui(
             try:
                 if not run_configuration_change(
                     on_change,
-                    lambda: update_time_block_from_values(
+                    lambda: controller.update_block(
                         times,
                         editing_block["day"],
                         editing_block["block"],
@@ -124,7 +122,7 @@ def time_blocks_gui(
             try:
                 if not run_configuration_change(
                     on_change,
-                    lambda: delete_time_block_from_values(times, block_day, block),
+                    lambda: controller.delete_block(times, block_day, block),
                 ):
                     dialog.close()
                     return

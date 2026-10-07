@@ -1,11 +1,9 @@
 from nicegui import ui
 
-from src.services.lab_service import (
-    add_lab_from_values,
-    delete_lab_from_values,
-    update_lab_from_values,
-)
+from src.controllers.lab_controller import LabController
 from src.views.common import ConfigurationChangeHandler, run_configuration_change
+
+controller = LabController()
 
 DAYS = ("MON", "TUE", "WED", "THU", "FRI")
 
@@ -127,7 +125,7 @@ def labs_gui(
         def add_lab() -> None:
             try:
                 if not run_configuration_change(
-                    on_change, lambda: add_lab_from_values(labs, *form_values())
+                    on_change, lambda: controller.add_lab(labs, *form_values())
                 ):
                     return
             except (TypeError, ValueError) as exc:
@@ -141,7 +139,7 @@ def labs_gui(
             try:
                 if not run_configuration_change(
                     on_change,
-                    lambda: update_lab_from_values(
+                    lambda: controller.update_lab(
                         labs, editing_lab["lab"], *form_values()
                     ),
                 ):
@@ -174,7 +172,7 @@ def labs_gui(
         def delete_lab(lab, dialog) -> None:
             try:
                 if not run_configuration_change(
-                    on_change, lambda: delete_lab_from_values(labs, lab)
+                    on_change, lambda: controller.delete_lab(labs, lab)
                 ):
                     dialog.close()
                     return
