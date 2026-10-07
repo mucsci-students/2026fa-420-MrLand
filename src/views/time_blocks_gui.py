@@ -1,10 +1,8 @@
 from nicegui import ui
 
-from src.services.time_block_service import (
-    add_time_block_from_values,
-    delete_time_block_from_values,
-    update_time_block_from_values,
-)
+from src.controllers.time_block_controller import TimeBlockController
+
+controller = TimeBlockController()
 
 DAYS = ("MON", "TUE", "WED", "THU", "FRI")
 
@@ -72,7 +70,7 @@ def time_blocks_gui(times: dict) -> None:
 
         def add_block() -> None:
             try:
-                add_time_block_from_values(times, *form_values())
+                controller.add_block(times, *form_values())
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -82,7 +80,7 @@ def time_blocks_gui(times: dict) -> None:
 
         def update_block() -> None:
             try:
-                update_time_block_from_values(
+                controller.update_block(
                     times,
                     editing_block["day"],
                     editing_block["block"],
@@ -110,7 +108,7 @@ def time_blocks_gui(times: dict) -> None:
 
         def delete_block(block_day, block, dialog) -> None:
             try:
-                delete_time_block_from_values(times, block_day, block)
+                controller.delete_block(times, block_day, block)
             except ValueError as exc:
                 ui.notify(str(exc), type="negative")
                 dialog.close()

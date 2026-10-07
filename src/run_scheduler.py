@@ -53,6 +53,9 @@ def run_scheduler(schedules):
 
     valid_count = sum(1 for schedule in generated if sched.audit_schedule(schedule).is_valid)
 
-    schedules.extend(ScheduleResult(config_name=config_name, schedule=s) for s in generated)
+    schedules.extend(
+        ScheduleResult(config_name=config_name, schedule=s, config=full_config)
+        for s in generated
+    )
 
     print(f"Scheduler ran successfully. Generated {len(generated)} schedule(s), {valid_count} valid.")

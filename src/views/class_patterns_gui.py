@@ -1,10 +1,8 @@
 from nicegui import ui
 
-from src.services.class_pattern_service import (
-    add_class_pattern_from_values,
-    delete_class_pattern_from_values,
-    update_class_pattern_from_values,
-)
+from src.controllers.class_pattern_controller import ClassPatternController
+
+controller = ClassPatternController()
 
 DAYS = ("MON", "TUE", "WED", "THU", "FRI")
 DELIVERY_MODES = ("in_person", "online")
@@ -34,7 +32,10 @@ def class_patterns_gui(patterns: list) -> None:
             start_time = ui.input("Default start time").props("type=time").classes("w-48")
             disabled = ui.checkbox("Disabled pattern").classes("text-[#d8e7e8]")
 
-        ui.label("Meetings").classes("mt-2 font-semibold text-white")
+        with ui.row().classes("mt-2 w-full items-center gap-2"):
+            ui.label("Meetings").classes("font-semibold text-white")
+            meetings_header_status = ui.label("").classes("text-sm font-medium text-[#75e6da]")
+            meetings_header_status.set_visibility(False)
         with ui.row().classes("w-full flex-wrap items-end gap-3"):
             meeting_day = ui.select(list(DAYS), value="MON", label="Day").classes("min-w-36")
             meeting_start = ui.input("Start time override").props("type=time").classes("w-48")
@@ -47,14 +48,39 @@ def class_patterns_gui(patterns: list) -> None:
             ).classes("min-w-40")
 
         meeting_drafts = []
-        draft_list = ui.column().classes("w-full gap-1")
         editing_pattern = {"pattern": None}
+        editing_meeting = {"index": None}
+        with ui.column().classes("w-full gap-2"):
+            meeting_section_header = ui.row().classes("w-full items-center gap-2")
+            with meeting_section_header:
+                ui.label("Meeting details").classes("text-sm font-semibold text-white")
+            draft_list = ui.column().classes("w-full gap-1")
 
         def integer_value(field, label):
             value = field.value
             if value is None or not float(value).is_integer() or value <= 0:
                 raise ValueError(f"{label} must be a positive integer.")
             return int(value)
+
+        def update_meeting_status() -> None:
+            if editing_meeting["index"] is None:
+                meetings_header_status.set_text("Adding a new meeting to this pattern.")
+                meetings_header_status.set_visibility(False)
+                return
+            meeting_number = editing_meeting["index"] + 1
+            meetings_header_status.set_text(f"Editing meeting #{meeting_number} in this pattern.")
+            meetings_header_status.set_visibility(True)
+
+        def reset_meeting_form() -> None:
+            editing_meeting["index"] = None
+            meeting_day.value = "MON"
+            meeting_start.value = ""
+            meeting_duration.value = 75
+            meeting_lab.value = False
+            meeting_delivery.value = "in_person"
+            add_meeting_button.set_text("Add meeting")
+            cancel_meeting_edit_button.set_visibility(False)
+            update_meeting_status()
 
         def refresh_drafts() -> None:
             draft_list.clear()
@@ -75,14 +101,35 @@ def class_patterns_gui(patterns: list) -> None:
                             f"{meeting['delivery']}"
                         )
                         ui.label(details).classes("break-words text-sm text-[#d8e7e8]")
-                        ui.button(
-                            icon="delete",
-                            on_click=lambda selected=index: remove_draft(selected),
-                        ).props("flat round dense").tooltip("Remove meeting")
+                        with ui.row().classes("items-center gap-1"):
+                            ui.button(
+                                icon="edit",
+                                on_click=lambda selected=index: begin_edit_meeting(selected),
+                            ).props("flat round dense").tooltip("Edit meeting")
+                            ui.button(
+                                icon="delete",
+                                on_click=lambda selected=index: remove_draft(selected),
+                            ).props("flat round dense").tooltip("Remove meeting")
 
         def remove_draft(index: int) -> None:
+            if editing_meeting["index"] == index:
+                reset_meeting_form()
             meeting_drafts.pop(index)
             refresh_drafts()
+
+        def begin_edit_meeting(index: int) -> None:
+            if index < 0 or index >= len(meeting_drafts):
+                return
+            meeting = meeting_drafts[index]
+            editing_meeting["index"] = index
+            meeting_day.value = meeting["day"]
+            meeting_start.value = meeting["start_time"] or ""
+            meeting_duration.value = meeting["duration"]
+            meeting_lab.value = bool(meeting["lab"])
+            meeting_delivery.value = meeting["delivery"]
+            add_meeting_button.set_text("Save meeting changes")
+            cancel_meeting_edit_button.set_visibility(True)
+            update_meeting_status()
 
         def add_meeting_draft() -> None:
             try:
@@ -93,17 +140,25 @@ def class_patterns_gui(patterns: list) -> None:
                     "lab": bool(meeting_lab.value),
                     "delivery": meeting_delivery.value,
                 }
-                meeting_drafts.append(draft)
+                if editing_meeting["index"] is not None:
+                    meeting_drafts[editing_meeting["index"]] = draft
+                else:
+                    meeting_drafts.append(draft)
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
-            meeting_start.value = ""
-            meeting_lab.value = False
+            reset_meeting_form()
             refresh_drafts()
 
-        ui.button("Add meeting", icon="add", on_click=add_meeting_draft).props(
-            "outline"
-        ).classes("border-[#45616b] text-[#d8e7e8]")
+        with ui.row().classes("w-full items-center gap-2"):
+            add_meeting_button = ui.button("Add meeting", icon="add", on_click=add_meeting_draft).props(
+                "outline"
+            ).classes("border-[#45616b] text-[#d8e7e8]")
+            cancel_meeting_edit_button = ui.button(
+                "Cancel edit",
+                on_click=lambda: (reset_meeting_form(), refresh_drafts()),
+            ).props("flat").classes("text-[#d8e7e8]")
+            cancel_meeting_edit_button.set_visibility(False)
         refresh_drafts()
 
         def pattern_values():
@@ -121,11 +176,7 @@ def class_patterns_gui(patterns: list) -> None:
             start_time.value = ""
             disabled.value = False
             meeting_drafts.clear()
-            meeting_day.value = "MON"
-            meeting_start.value = ""
-            meeting_duration.value = 75
-            meeting_lab.value = False
-            meeting_delivery.value = "in_person"
+            reset_meeting_form()
             refresh_drafts()
             form_container.set_visibility(True)
             add_submit_button.set_visibility(True)
@@ -139,11 +190,7 @@ def class_patterns_gui(patterns: list) -> None:
             start_time.value = ""
             disabled.value = False
             meeting_drafts.clear()
-            meeting_day.value = "MON"
-            meeting_start.value = ""
-            meeting_duration.value = 75
-            meeting_lab.value = False
-            meeting_delivery.value = "in_person"
+            reset_meeting_form()
             form_container.set_visibility(False)
             add_submit_button.set_visibility(True)
             update_button.set_visibility(False)
@@ -152,7 +199,7 @@ def class_patterns_gui(patterns: list) -> None:
 
         def add_pattern() -> None:
             try:
-                add_class_pattern_from_values(patterns, *pattern_values())
+                controller.add_pattern(patterns, *pattern_values())
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -162,7 +209,7 @@ def class_patterns_gui(patterns: list) -> None:
 
         def update_pattern() -> None:
             try:
-                update_class_pattern_from_values(
+                controller.update_pattern(
                     patterns, editing_pattern["pattern"], *pattern_values()
                 )
             except (TypeError, ValueError) as exc:
@@ -196,7 +243,7 @@ def class_patterns_gui(patterns: list) -> None:
 
         def delete_pattern(pattern, dialog) -> None:
             try:
-                delete_class_pattern_from_values(patterns, pattern)
+                controller.delete_pattern(patterns, pattern)
             except ValueError as exc:
                 ui.notify(str(exc), type="negative")
                 dialog.close()

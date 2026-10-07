@@ -24,8 +24,12 @@ def build_app() -> None:
             .q-select__dropdown-icon, .q-table th, .q-table td,
             .q-expansion-item__toggle-icon { color: #d8e7e8 !important; }
             .configuration-panel { color: #d8e7e8; }
-            .configuration-panel .q-checkbox__label,
-            .configuration-panel .q-chip__content { color: #d8e7e8 !important; }
+            .configuration-panel .q-checkbox__label { color: #d8e7e8 !important; }
+            .mandatory-days .q-chip--selected { background: #d8e7e8 !important; }
+            .mandatory-days .q-chip--selected .q-chip__content { color: #101820 !important; }
+            .mandatory-days .q-menu .q-checkbox__bg { border-color: #45616b !important; }
+            .mandatory-days .q-menu .q-checkbox__inner--truthy .q-checkbox__bg { background: #75e6da !important; border-color: #75e6da !important; }
+            .mandatory-days .q-menu .q-checkbox__svg { color: #101820 !important; }
             .q-field--outlined .q-field__control:before { border-color: #45616b; }
             .q-field--outlined.q-field--focused .q-field__control:after { border-color: #75e6da; }
         </style>

@@ -9,5 +9,5 @@ from scheduler.models.course import CourseInstance
 class ScheduleResult:
     """A single generated schedule, tagged with the config it came from."""
     config_name: str
-    config: CombinedConfig
     schedule: list[CourseInstance]
+    config: CombinedConfig | None = None
