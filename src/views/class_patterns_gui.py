@@ -1,10 +1,8 @@
 from nicegui import ui
 
-from src.services.class_pattern_service import (
-    add_class_pattern_from_values,
-    delete_class_pattern_from_values,
-    update_class_pattern_from_values,
-)
+from src.controllers.class_pattern_controller import ClassPatternController
+
+controller = ClassPatternController()
 
 DAYS = ("MON", "TUE", "WED", "THU", "FRI")
 DELIVERY_MODES = ("in_person", "online")
@@ -152,7 +150,7 @@ def class_patterns_gui(patterns: list) -> None:
 
         def add_pattern() -> None:
             try:
-                add_class_pattern_from_values(patterns, *pattern_values())
+                controller.add_pattern(patterns, *pattern_values())
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -162,7 +160,7 @@ def class_patterns_gui(patterns: list) -> None:
 
         def update_pattern() -> None:
             try:
-                update_class_pattern_from_values(
+                controller.update_pattern(
                     patterns, editing_pattern["pattern"], *pattern_values()
                 )
             except (TypeError, ValueError) as exc:
@@ -196,7 +194,7 @@ def class_patterns_gui(patterns: list) -> None:
 
         def delete_pattern(pattern, dialog) -> None:
             try:
-                delete_class_pattern_from_values(patterns, pattern)
+                controller.delete_pattern(patterns, pattern)
             except ValueError as exc:
                 ui.notify(str(exc), type="negative")
                 dialog.close()

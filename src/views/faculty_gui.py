@@ -1,10 +1,8 @@
 from nicegui import ui
 
-from src.services.faculty_service import (
-    add_faculty_from_values,
-    delete_faculty_from_values,
-    update_faculty_from_values,
-)
+from src.controllers.faculty_controller import FacultyController
+
+controller = FacultyController()
 
 DAYS = ("MON", "TUE", "WED", "THU", "FRI")
 
@@ -165,7 +163,7 @@ def faculty_gui(faculty_members: list) -> None:
 
         def add_member() -> None:
             try:
-                add_faculty_from_values(faculty_members, *form_values())
+                controller.add_member(faculty_members, *form_values())
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -175,7 +173,7 @@ def faculty_gui(faculty_members: list) -> None:
 
         def update_member() -> None:
             try:
-                update_faculty_from_values(
+                controller.update_member(
                     faculty_members, editing_member["member"], *form_values()
                 )
             except (TypeError, ValueError) as exc:
@@ -215,7 +213,7 @@ def faculty_gui(faculty_members: list) -> None:
 
         def delete_member(member, dialog) -> None:
             try:
-                delete_faculty_from_values(faculty_members, member)
+                controller.delete_member(faculty_members, member)
             except ValueError as exc:
                 ui.notify(str(exc), type="negative")
                 dialog.close()

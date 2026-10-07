@@ -135,7 +135,11 @@ class ScheduleGeneratorModel:
 
             with self._lock:
                 self._generated_schedules.extend(
-                    ScheduleResult(config_name, full_config, schedule)
+                    ScheduleResult(
+                        config_name=config_name,
+                        schedule=schedule,
+                        config=full_config,
+                    )
                     for schedule in generated
                 )
                 self._state.generated = len(generated)
