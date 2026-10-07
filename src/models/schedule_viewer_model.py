@@ -4,6 +4,8 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from scheduler.models.course import CourseInstance
+from scheduler.config import CombinedConfig
 from src.models.schedule_files import (
     SAVED_NAME_PATTERN,
     parse_schedule_file,
@@ -24,6 +26,8 @@ class ScheduleEntry:
     config_name: str
     source: str                       # "generated" or "file"
     records: list[dict[str, str]]
+    config: CombinedConfig | None = None
+    schedule: list[CourseInstance] | None = None
     file_name: str | None = None      # set for schedules loaded from a file
 
 
@@ -79,6 +83,8 @@ class ScheduleViewerModel:
                 config_name=result.config_name,
                 source="generated",
                 records=records_from_result(result),
+                config=result.config,
+                schedule=result.schedule,
             )
             for number, result in enumerate(results, start=1)
         ]
