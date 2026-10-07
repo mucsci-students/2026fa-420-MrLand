@@ -585,127 +585,6 @@ def schedule_generator() -> None:
     )
 
     # ------------------------------------------------------------------
-    # Save Generated Schedules
-    # ------------------------------------------------------------------
-
-    save_container = ui.column().classes(
-        "w-full max-w-2xl mt-6 gap-2"
-    )
-
-    save_container.visible = False
-
-    with save_container:
-        ui.label(
-            "Save Generated Schedules"
-        ).classes(
-            "text-lg font-semibold text-white"
-        )
-
-        ui.label(
-            "Choose the format for the generated schedules."
-        ).classes(
-            "text-sm text-gray-400"
-        )
-
-        file_format = ui.select(
-            options={
-                "json": "JSON",
-                "csv": "CSV",
-            },
-            value="json",
-            label="File Format",
-        ).classes(
-            "w-full max-w-xl"
-        ).props(
-            "dark outlined"
-        )
-
-        save_button = ui.button(
-            "Save Generated Schedules",
-            icon="download",
-        ).props(
-            "color=primary"
-        ).classes(
-            "w-full max-w-xl mt-2"
-        )
-
-        save_status = ui.label(
-            ""
-        ).classes(
-            "text-sm text-gray-400"
-        )
-
-    # ------------------------------------------------------------------
-    # Save Handler
-    # ------------------------------------------------------------------
-
-    def save_generated_schedules() -> None:
-        """Download all generated schedules as one file."""
-
-        if not generated_schedules:
-            save_status.text = (
-                "There are no generated schedules to save."
-            )
-            save_status.classes(
-                replace="text-red-400"
-            )
-            return
-
-        selected_format = file_format.value
-
-        config_name = generated_schedules[0].config_name
-
-        if selected_format == "json":
-            content = schedules_to_json(
-                generated_schedules
-            )
-
-            filename = (
-                f"{config_name}_schedules.json"
-            )
-
-            media_type = "application/json"
-
-        elif selected_format == "csv":
-            content = schedules_to_csv(
-                generated_schedules
-            )
-
-            filename = (
-                f"{config_name}_schedules.csv"
-            )
-
-            media_type = "text/csv"
-
-        else:
-            save_status.text = (
-                "Please select JSON or CSV."
-            )
-            save_status.classes(
-                replace="text-red-400"
-            )
-            return
-
-        ui.download(
-            content,
-            filename=filename,
-            media_type=media_type,
-        )
-
-        save_status.text = (
-            f"Downloaded {filename} containing "
-            f"{len(generated_schedules)} generated schedule(s)."
-        )
-
-        save_status.classes(
-            replace="text-green-400"
-        )
-
-    save_button.on_click(
-        save_generated_schedules
-    )
-
-    # ------------------------------------------------------------------
     # Poll Background Scheduler
     # ------------------------------------------------------------------
 
@@ -805,8 +684,6 @@ def schedule_generator() -> None:
                 "No valid schedules could be generated."
             )
 
-            save_container.visible = False
-
             if diagnosis is not None:
                 with result_container:
                     ui.label(
@@ -900,10 +777,6 @@ def schedule_generator() -> None:
                 "text-gray-400 mt-2"
             )
 
-        # Show save controls.
-        save_container.visible = True
-        save_status.text = ""
-
         # Stop polling once finished.
         progress_timer.cancel()
 
@@ -927,8 +800,6 @@ def schedule_generator() -> None:
                 return
 
         result_container.clear()
-        save_container.visible = False
-        save_status.text = ""
 
         # --------------------------------------------------------------
         # Validate configuration

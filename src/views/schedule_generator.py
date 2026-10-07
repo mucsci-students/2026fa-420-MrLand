@@ -177,69 +177,6 @@ def schedule_generator() -> None:
     result_container = ui.column().classes(
         "w-full max-w-2xl mt-6"
     )
-    save_container = ui.column().classes(
-        "w-full max-w-2xl mt-6 gap-2"
-    )
-    save_container.visible = False
-    with save_container:
-        ui.label("Save Generated Schedules").classes(
-            "text-lg font-semibold text-white"
-        )
-        ui.label(
-            "Choose the format for the generated schedules."
-        ).classes("text-sm text-gray-400")
-        file_format = ui.select(
-            options={"json": "JSON", "csv": "CSV"},
-            value="json",
-            label="File Format",
-        ).classes("w-full max-w-xl").props("dark outlined")
-        save_button = ui.button(
-            "Download Generated Schedules",
-            icon="download",
-        ).props("color=primary").classes("w-full max-w-xl mt-2")
-        save_status = ui.label("").classes("text-sm text-gray-400")
-
-    def save_generated_schedules() -> None:
-        schedules = controller.generated_schedules
-        if not schedules:
-            save_status.text = "There are no generated schedules to save."
-            save_status.classes(replace="text-red-400")
-            return
-
-        selected_format = file_format.value
-        if selected_format not in {"json", "csv"}:
-            save_status.text = "Please select JSON or CSV."
-            save_status.classes(replace="text-red-400")
-            return
-
-        config_name = schedules[0].config_name
-        for schedule_number, result in enumerate(schedules, start=1):
-            if selected_format == "json":
-                content = controller.schedule_to_json(
-                    result, schedule_number
-                )
-                extension = "json"
-                media_type = "application/json"
-            else:
-                content = controller.schedule_to_csv(
-                    result, schedule_number
-                )
-                extension = "csv"
-                media_type = "text/csv"
-
-            ui.download(
-                content,
-                filename=(
-                    f"{config_name}_schedule_{schedule_number}.{extension}"
-                ),
-                media_type=media_type,
-            )
-
-        save_status.text = f"Downloaded {len(schedules)} schedule file(s)."
-        save_status.classes(replace="text-green-400")
-
-    save_button.on_click(save_generated_schedules)
-
     completion_rendered = False
 
     def render_diagnosis(diagnosis) -> None:
@@ -314,7 +251,6 @@ def schedule_generator() -> None:
             progress.value = 0
             progress_percentage.text = "0%"
             progress_label.text = "No valid schedules could be generated."
-            save_container.visible = False
             if state.diagnosis is not None:
                 render_diagnosis(state.diagnosis)
             return
@@ -340,9 +276,6 @@ def schedule_generator() -> None:
                 "View the generated schedules in the "
                 "Schedule Viewer tab."
             ).classes("text-gray-400 mt-2")
-        save_container.visible = True
-        save_status.text = ""
-
     progress_timer = ui.timer(
         0.2,
         update_progress,
@@ -354,8 +287,6 @@ def schedule_generator() -> None:
         if controller.state_snapshot().running:
             return
         result_container.clear()
-        save_container.visible = False
-        save_status.text = ""
         completion_rendered = False
 
         optimizer_override = None

@@ -1,4 +1,4 @@
-"""Own the schedules shown in the Schedule Viewer and the saved schedule files."""
+"""Own the schedules shown in the Schedule Viewer and their serialization."""
 
 import re
 from dataclasses import dataclass
@@ -14,6 +14,7 @@ from src.models.schedule_files import (
     records_to_json,
 )
 from src.models.schedule_result import ScheduleResult
+
 
 SCHEDULE_DIRECTORY = Path(__file__).resolve().parents[1] / "schedules"
 FORMATS = {"csv": "text/csv", "json": "application/json"}
@@ -140,7 +141,7 @@ class ScheduleViewerModel:
         return entry
 
     # ------------------------------------------------------------------
-    # Saving and exporting
+    # Exporting
     # ------------------------------------------------------------------
 
     @staticmethod
@@ -151,7 +152,7 @@ class ScheduleViewerModel:
             return records_to_json(entry.records)
         raise ValueError("Please choose CSV or JSON.")
 
-    def default_file_name(self, entry: ScheduleEntry, file_format: str) -> str:
+    def default_export_file_name(self, entry: ScheduleEntry, file_format: str) -> str:
         """A loaded file keeps its name; a generated schedule gets the next free
         <config>_schedule<n> name, matching the CLI export."""
         if entry.file_name:
@@ -167,19 +168,20 @@ class ScheduleViewerModel:
             number += 1
         return f"{entry.config_name}_schedule{number}.{file_format}"
 
-    def save(self, entry: ScheduleEntry, file_format: str, file_name: str, overwrite: bool = False) -> Path:
-        file_name = file_name.strip()
-        if not file_name:
-            raise ValueError("Please enter a file name.")
+    def export(
+        self, entry: ScheduleEntry, file_format: str, file_name: str
+    ) -> tuple[bytes, str, str]:
+        """Return file contents, a safe download name, and its media type."""
+        if file_format not in FORMATS:
+            raise ValueError("Please choose CSV or JSON.")
+
+        file_name = Path(
+            file_name.strip()
+            or self.default_export_file_name(entry, file_format)
+        ).name
         if Path(file_name).suffix.lower() != f".{file_format}":
             file_name = f"{file_name}.{file_format}"
-        if Path(file_name).name != file_name or file_name.startswith("."):
-            raise ValueError("The file name cannot contain folders.")
+        if not file_name or file_name.startswith("."):
+            raise ValueError("Please enter a valid file name.")
 
-        content = self.serialize(entry, file_format)
-        self.directory.mkdir(parents=True, exist_ok=True)
-        path = self.directory / file_name
-        if path.exists() and not overwrite:
-            raise FileExistsError(f"'{file_name}' already exists.")
-        path.write_bytes(content)
-        return path
+        return self.serialize(entry, file_format), file_name, FORMATS[file_format]

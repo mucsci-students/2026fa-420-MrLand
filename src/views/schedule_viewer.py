@@ -169,36 +169,29 @@ def schedule_viewer() -> None:
                 ).props("accept=.csv,.json dark flat bordered").classes("w-full")
 
         # ---------------------------------------------------------
-        # Save dialog
+        # Export dialog
         # ---------------------------------------------------------
 
-        with ui.dialog() as save_dialog:
+        with ui.dialog() as export_dialog:
             with ui.card().classes("bg-[#101820] border border-[#29404b] w-[480px] gap-3"):
-                ui.label("Save Schedule").classes("text-lg font-semibold text-white")
-                save_description = ui.label("").classes("text-sm text-gray-400")
+                ui.label("Export Schedule").classes("text-lg font-semibold text-white")
+                export_description = ui.label("").classes("text-sm text-gray-400")
 
-                save_format = ui.select(
+                export_format = ui.select(
                     {"csv": "CSV", "json": "JSON"},
                     value="csv",
                     label="File Format",
                 ).props("outlined dark").classes("schedule-dropdown w-full")
 
-                save_name = ui.input(
+                export_name = ui.input(
                     label="File Name",
                 ).props("outlined dark").classes("schedule-dropdown w-full")
 
-                overwrite_checkbox = ui.checkbox(
-                    "Overwrite if the file already exists"
-                ).props("dark").classes("text-gray-300")
-
-                save_status = ui.label("").classes("text-sm text-red-400")
+                export_status = ui.label("").classes("text-sm text-red-400")
 
                 with ui.row().classes("w-full justify-end gap-2"):
-                    ui.button("Cancel", on_click=save_dialog.close).props("flat")
-                    download_button = ui.button(
-                        "Download", icon="download"
-                    ).props("outline")
-                    save_button = ui.button("Save", icon="save")
+                    ui.button("Cancel", on_click=export_dialog.close).props("flat")
+                    export_button = ui.button("Export", icon="download")
 
         # ---------------------------------------------------------
         # Schedule controls
@@ -213,11 +206,11 @@ def schedule_viewer() -> None:
                 on_click=lambda: open_load_dialog(),
             ).props("outline")
 
-            # Save button
-            save_open_button = ui.button(
-                "Save",
-                icon="save",
-                on_click=lambda: open_save_dialog(),
+            # Export button
+            export_open_button = ui.button(
+                "Export",
+                icon="export",
+                on_click=lambda: open_export_dialog(),
             ).props("outline")
 
             ui.space()
@@ -748,7 +741,7 @@ def schedule_viewer() -> None:
 
             empty_label.visible = not has_schedules
             schedule_select.set_enabled(has_schedules)
-            save_open_button.set_enabled(has_schedules)
+            export_open_button.set_enabled(has_schedules)
             previous_button.set_enabled(controller.can_step(-1))
             next_button.set_enabled(controller.can_step(1))
 
@@ -807,57 +800,49 @@ def schedule_viewer() -> None:
         upload.on_upload(on_upload)
 
         # ---------------------------------------------------------
-        # Saving
+        # Exporting
         # ---------------------------------------------------------
 
-        def open_save_dialog():
+        def open_export_dialog():
             entry = controller.current
             if entry is None:
                 return
-            save_description.text = (
-                f"Save '{entry.label}' to the schedules folder, "
-                "or download it to your computer."
+            export_description.text = (
+                f"Export '{entry.label}' as a file downloaded by your browser."
             )
-            save_name.value = controller.default_file_name(save_format.value)
-            overwrite_checkbox.value = False
-            save_status.text = ""
-            save_dialog.open()
+            export_name.value = controller.default_export_file_name(
+                export_format.value
+            )
+            export_status.text = ""
+            export_dialog.open()
 
-        def on_format_changed(event):
-            # keep the file name's extension in step with the format
-            name = (save_name.value or "").strip()
+        def on_export_format_changed(event):
+            name = (export_name.value or "").strip()
             stem = name.rsplit(".", 1)[0] if name.lower().endswith((".csv", ".json")) else name
-            save_name.value = (
-                f"{stem}.{event.value}" if stem else controller.default_file_name(event.value)
+            export_name.value = (
+                f"{stem}.{event.value}"
+                if stem
+                else controller.default_export_file_name(event.value)
             )
 
-        def on_save():
-            path, error = controller.save_current(
-                save_format.value,
-                save_name.value or "",
-                overwrite=overwrite_checkbox.value,
-            )
-            if error:
-                save_status.text = error
-                return
-            save_dialog.close()
-            ui.notify(f"Saved {path.name} to the schedules folder", type="positive")
-
-        def on_download():
+        def on_export():
             export, error = controller.export_current(
-                save_format.value,
-                save_name.value or "",
+                export_format.value,
+                export_name.value or "",
             )
             if error:
-                save_status.text = error
+                export_status.text = error
                 return
             content, file_name, media_type = export
             ui.download(content, filename=file_name, media_type=media_type)
-            save_dialog.close()
+            export_dialog.close()
+            ui.notify(
+                f"Exported {file_name}; your browser will download the file.",
+                type="positive",
+            )
 
-        save_format.on_value_change(on_format_changed)
-        save_button.on_click(on_save)
-        download_button.on_click(on_download)
+        export_format.on_value_change(on_export_format_changed)
+        export_button.on_click(on_export)
 
         # ---------------------------------------------------------
         # Dropdown events
