@@ -1,11 +1,8 @@
 from nicegui import ui
 
-from src.services.faculty_service import (
-    add_faculty_from_values,
-    delete_faculty_from_values,
-    update_faculty_from_values,
-)
-from src.views.common import ConfigurationChangeHandler, run_configuration_change
+from src.controllers.faculty_controller import FacultyController
+
+controller = FacultyController()
 
 DAYS = ("MON", "TUE", "WED", "THU", "FRI")
 
@@ -95,7 +92,7 @@ def faculty_gui(
 
         mandatory_days = ui.select(
             list(DAYS), multiple=True, label="Mandatory teaching days"
-        ).props("use-chips clearable").classes("w-full")
+        ).props("use-chips clearable").classes("mandatory-days w-full")
 
         editing_member = {"member": None}
 
@@ -169,11 +166,7 @@ def faculty_gui(
 
         def add_member() -> None:
             try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: add_faculty_from_values(faculty_members, *form_values()),
-                ):
-                    return
+                controller.add_member(faculty_members, *form_values())
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -183,13 +176,9 @@ def faculty_gui(
 
         def update_member() -> None:
             try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: update_faculty_from_values(
-                        faculty_members, editing_member["member"], *form_values()
-                    ),
-                ):
-                    return
+                controller.update_member(
+                    faculty_members, editing_member["member"], *form_values()
+                )
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -227,12 +216,7 @@ def faculty_gui(
 
         def delete_member(member, dialog) -> None:
             try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: delete_faculty_from_values(faculty_members, member),
-                ):
-                    dialog.close()
-                    return
+                controller.delete_member(faculty_members, member)
             except ValueError as exc:
                 ui.notify(str(exc), type="negative")
                 dialog.close()

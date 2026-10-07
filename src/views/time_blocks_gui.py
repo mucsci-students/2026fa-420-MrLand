@@ -1,11 +1,8 @@
 from nicegui import ui
 
-from src.services.time_block_service import (
-    add_time_block_from_values,
-    delete_time_block_from_values,
-    update_time_block_from_values,
-)
-from src.views.common import ConfigurationChangeHandler, run_configuration_change
+from src.controllers.time_block_controller import TimeBlockController
+
+controller = TimeBlockController()
 
 DAYS = ("MON", "TUE", "WED", "THU", "FRI")
 
@@ -76,11 +73,7 @@ def time_blocks_gui(
 
         def add_block() -> None:
             try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: add_time_block_from_values(times, *form_values()),
-                ):
-                    return
+                controller.add_block(times, *form_values())
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -90,16 +83,12 @@ def time_blocks_gui(
 
         def update_block() -> None:
             try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: update_time_block_from_values(
-                        times,
-                        editing_block["day"],
-                        editing_block["block"],
-                        *form_values(),
-                    ),
-                ):
-                    return
+                controller.update_block(
+                    times,
+                    editing_block["day"],
+                    editing_block["block"],
+                    *form_values(),
+                )
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -122,12 +111,7 @@ def time_blocks_gui(
 
         def delete_block(block_day, block, dialog) -> None:
             try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: delete_time_block_from_values(times, block_day, block),
-                ):
-                    dialog.close()
-                    return
+                controller.delete_block(times, block_day, block)
             except ValueError as exc:
                 ui.notify(str(exc), type="negative")
                 dialog.close()

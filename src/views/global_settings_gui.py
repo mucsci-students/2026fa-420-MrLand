@@ -1,11 +1,9 @@
 from nicegui import ui
 from scheduler.config import CombinedConfig, OptimizerFlags
 
-from src.services.settings_service import (
-    reset_settings_values,
-    update_settings_from_values,
-)
-from src.views.common import ConfigurationChangeHandler, run_configuration_change
+from src.controllers.settings_controller import SettingsController
+
+controller = SettingsController()
 
 
 def global_settings_gui(
@@ -43,15 +41,11 @@ def global_settings_gui(
             ui.notify("Generation limit must be a whole number.", type="negative")
             return
         try:
-            if not run_configuration_change(
-                on_change,
-                lambda: update_settings_from_values(
-                    combined_config,
-                    int(value),
-                    optimizer_flags.value or [],
-                ),
-            ):
-                return
+            controller.update_settings(
+                combined_config,
+                int(value),
+                optimizer_flags.value or [],
+            )
         except (TypeError, ValueError) as exc:
             ui.notify(str(exc), type="negative")
             return
@@ -59,14 +53,7 @@ def global_settings_gui(
         ui.notify("Global settings saved to the current draft.", type="positive")
 
     def reset_to_defaults() -> None:
-        try:
-            if not run_configuration_change(
-                on_change, lambda: reset_settings_values(combined_config)
-            ):
-                return
-        except (TypeError, ValueError) as exc:
-            ui.notify(str(exc), type="negative")
-            return
+        controller.reset_settings(combined_config)
         generation_limit.value = combined_config.limit
         optimizer_flags.value = [
             flag.value for flag in combined_config.optimizer_flags

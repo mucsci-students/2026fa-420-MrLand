@@ -1,11 +1,8 @@
 from nicegui import ui
 
-from src.services.course_service import (
-    add_course_from_values,
-    delete_course_from_values,
-    update_course_from_values,
-)
-from src.views.common import ConfigurationChangeHandler, run_configuration_change
+from src.controllers.course_controller import CourseController
+
+controller = CourseController()
 
 MODALITIES = ("in_person", "online", "hybrid")
 
@@ -202,11 +199,7 @@ def courses_gui(
 
         def add_course() -> None:
             try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: add_course_from_values(course_members, *form_values()),
-                ):
-                    return
+                controller.add_course(course_members, *form_values())
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -216,13 +209,9 @@ def courses_gui(
 
         def update_course() -> None:
             try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: update_course_from_values(
-                        course_members, editing_course["course"], *form_values()
-                    ),
-                ):
-                    return
+                controller.update_course(
+                    course_members, editing_course["course"], *form_values()
+                )
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -258,12 +247,7 @@ def courses_gui(
 
         def delete_course(course, dialog) -> None:
             try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: delete_course_from_values(course_members, course),
-                ):
-                    dialog.close()
-                    return
+                controller.delete_course(course_members, course)
             except ValueError as exc:
                 ui.notify(str(exc), type="negative")
                 dialog.close()

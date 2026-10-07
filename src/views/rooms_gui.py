@@ -1,11 +1,8 @@
 from nicegui import ui
 
-from src.services.rooms_service import (
-    add_room_from_values,
-    delete_room_from_values,
-    update_room_from_values,
-)
-from src.views.common import ConfigurationChangeHandler, run_configuration_change
+from src.controllers.room_controller import RoomController
+
+controller = RoomController()
 
 
 def _availability_text(times) -> str:
@@ -123,10 +120,7 @@ def rooms_gui(
 
         def add_room() -> None:
             try:
-                if not run_configuration_change(
-                    on_change, lambda: add_room_from_values(rooms, *form_values())
-                ):
-                    return
+                controller.add_room(rooms, *form_values())
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -136,13 +130,9 @@ def rooms_gui(
 
         def update_room() -> None:
             try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: update_room_from_values(
-                        rooms, editing_room["room"], *form_values()
-                    ),
-                ):
-                    return
+                controller.update_room(
+                    rooms, editing_room["room"], *form_values()
+                )
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
@@ -169,11 +159,7 @@ def rooms_gui(
 
         def delete_room(room, dialog) -> None:
             try:
-                if not run_configuration_change(
-                    on_change, lambda: delete_room_from_values(rooms, room)
-                ):
-                    dialog.close()
-                    return
+                controller.delete_room(rooms, room)
             except ValueError as exc:
                 ui.notify(str(exc), type="negative")
                 dialog.close()
