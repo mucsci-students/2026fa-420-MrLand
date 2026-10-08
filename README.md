@@ -93,8 +93,6 @@ This project is a schedule-planning application for creating and managing course
 │   │   ├── schedule_generator.py
 │   │   ├── schedule_viewer.py
 │   │   └── ...
-│   ├── navmenu.py       # Backward-compatible CLI entry point
-│   └── run_scheduler.py # Backward-compatible controller API
 ├── tests/
 │   ├── test_course.py
 │   ├── test_faculty.py
@@ -111,8 +109,8 @@ This project is a schedule-planning application for creating and managing course
 Application implementations are organized into MVC packages. Configuration
 validation and persistence live in `models`, domain actions in `controllers`,
 and user interfaces in `views`. The former services implementations have been
-moved into those MVC packages. The existing `src/navmenu.py` and
-`src/run_scheduler.py` paths remain as compatibility entry points.
+moved into those MVC packages. Use the `mrland-cli` and `mrland-gui` project
+commands to launch the respective interfaces.
 
 ---
 
