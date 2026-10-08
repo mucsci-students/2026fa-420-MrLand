@@ -612,13 +612,38 @@ def schedule_viewer() -> None:
 
                     ui.label(f"Course: {row['course']}")
                     ui.label(f"Faculty: {row['faculty']}")
-                    ui.label(f"Day: {row['day']}")
+                    ui.label(f"Day: {format_day(row['day'])}")
                     ui.label(f"Start: {row['start']}")
                     ui.label(f"End: {row['end']}")
 
                     ui.button("Close", on_click=dialog.close)
 
             dialog.open()
+
+        # helper to format the day from the schedule to a more user friendly format
+        # ex. MON --> Monday
+        def format_day(day):
+            days = {
+                "MON": "Monday",
+                "TUE": "Tuesday",
+                "WED": "Wednesday",
+                "THU": "Thursday",
+                "FRI": "Friday",
+            }
+            return days.get(day, day)
+
+        # helper to format the time from the schedule to a more user friendly format
+        # ex. 13:30 --> 1:30 PM
+        def format_time(time):
+            hour, minute = map(int, time.split(":"))
+
+            suffix = "AM" if hour < 12 else "PM"
+            display_hour = hour % 12
+
+            if display_hour == 0:
+                display_hour = 12
+
+            return f"{display_hour}:{minute:02d} {suffix}"
             
 
         # ---------------------------------------------------------
@@ -744,7 +769,16 @@ def schedule_viewer() -> None:
             # Update table
             # -----------------------------
 
-            table.rows = updated_schedule
+            display_schedule = []
+
+            # this adds time formatting for the displayed value only so it is more user friendly
+            for row in updated_schedule:
+                display_row = row.copy()
+                display_row["start"] = format_time(row["start"])
+                display_row["end"] = format_time(row["end"])
+                display_schedule.append(display_row)
+
+            table.rows = display_schedule
             table.update()
 
         # ---------------------------------------------------------
