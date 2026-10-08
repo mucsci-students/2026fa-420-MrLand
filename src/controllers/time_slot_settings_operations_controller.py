@@ -1,3 +1,7 @@
+"""Displays and edits time-slot settings through interactive prompts.
+
+Used by: CLI."""
+
 from scheduler.config import TimeSlotConfig
 
 

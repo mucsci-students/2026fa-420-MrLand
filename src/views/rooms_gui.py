@@ -1,3 +1,7 @@
+"""NiceGUI page for managing rooms.
+
+Used by: GUI."""
+
 from nicegui import ui
 
 from src.controllers.room_controller import RoomController

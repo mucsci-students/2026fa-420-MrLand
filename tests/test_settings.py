@@ -6,7 +6,7 @@ from scheduler.config import (
     OptimizerFlags,
 )
 
-from services.settings_service import (
+from src.controllers.settings_operations_controller import (
     view_settings,
     modify_settings,
     reset_settings,

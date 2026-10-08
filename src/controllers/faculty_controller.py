@@ -1,4 +1,8 @@
-from src.services.faculty_service import (
+"""GUI controller for faculty updates.
+
+Used by: GUI."""
+
+from src.controllers.faculty_operations_controller import (
     add_faculty_from_values,
     delete_faculty_from_values,
     update_faculty_from_values,

@@ -1,4 +1,8 @@
-from src.services.lab_service import (
+"""GUI controller for lab updates.
+
+Used by: GUI."""
+
+from src.controllers.lab_operations_controller import (
     add_lab_from_values,
     delete_lab_from_values,
     update_lab_from_values,

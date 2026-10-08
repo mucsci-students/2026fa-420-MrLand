@@ -1,3 +1,7 @@
+"""NiceGUI page for managing labs.
+
+Used by: GUI."""
+
 from nicegui import ui
 
 from src.controllers.lab_controller import LabController

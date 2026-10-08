@@ -61,33 +61,38 @@ This project is a schedule-planning application for creating and managing course
 │   ├── configs/
 │   │   ├── example_config.json
 │   │   └── ...
-│   ├── controllers/
-│   │   ├── config_controller.py
-│   │   ├── schedule_generator_controller.py
-│   │   └── schedule_viewer_controller.py
-│   ├── models/
-│   │   ├── config_model.py
-│   │   ├── schedule_generator_model.py
+│   ├── schemas/
+│   │   └── combined-config.schema.json
+│   ├── schedules/
 │   │   └── ...
-│   ├── services/
-│   │   ├── __init__.py
-│   │   ├── config_io.py
-│   │   ├── config_service.py
-│   │   ├── course_service.py
-│   │   ├── faculty_service.py
-│   │   ├── lab_service.py
-│   │   ├── rooms_service.py
-│   │   ├── schedule_service.py
+│   ├── controllers/
+│   │   ├── configuration_controller.py
+│   │   ├── course_operations_controller.py
+│   │   ├── faculty_operations_controller.py
+│   │   ├── lab_operations_controller.py
+│   │   ├── room_operations_controller.py
+│   │   ├── class_pattern_operations_controller.py
+│   │   ├── time_block_operations_controller.py
+│   │   ├── settings_operations_controller.py
+│   │   ├── schedule_generator_controller.py
+│   │   ├── schedule_controller.py
+│   │   ├── run_scheduler_controller.py
+│   │   └── ...
+│   ├── models/
+│   │   ├── configuration.py
+│   │   ├── configuration_model.py
+│   │   ├── configuration_repository.py
+│   │   ├── schedule_generator_model.py
 │   │   └── ...
 │   ├── views/
 │   │   ├── common.py
 │   │   ├── configuration_editor.py
+│   │   ├── legacy_schedule.py
+│   │   ├── navmenu.py
 │   │   ├── gui.py
 │   │   ├── schedule_generator.py
 │   │   ├── schedule_viewer.py
 │   │   └── ...
-│   ├── navmenu.py
-│   └── run_scheduler.py
 ├── tests/
 │   ├── test_course.py
 │   ├── test_faculty.py
@@ -101,7 +106,11 @@ This project is a schedule-planning application for creating and managing course
 └── .venv/
 ```
 
-Note: the legacy CLI menu files are no longer the primary application entry point. The current user workflow uses the GUI app in `src/views/gui.py`.
+Application implementations are organized into MVC packages. Configuration
+validation and persistence live in `models`, domain actions in `controllers`,
+and user interfaces in `views`. The former services implementations have been
+moved into those MVC packages. Use the `mrland-cli` and `mrland-gui` project
+commands to launch the respective interfaces.
 
 ---
 
@@ -125,24 +134,28 @@ git clone https://github.com/mucsci-students/2026fa-420-MrLand.git
 cd 2026fa-420-MrLand
 ```
 
-2. Install dependencies:
+2. Launch the GUI or CLI from the project directory. `uv run` creates and
+   synchronizes the environment from `pyproject.toml`, installing dependencies
+   if needed.
+
+   Start the GUI:
+   ```bash
+   uv run mrland-gui
+   ```
+
+   Open the GUI in your browser at:
+   ```text
+   http://localhost:8080
+   ```
+
+   Or start the interactive CLI:
+   ```bash
+   uv run mrland-cli
+   ```
+
+For development, install/synchronize dependencies without starting the app:
 ```bash
 uv sync
-```
-
-3. Start the application:
-```bash
-uv run python -m src.views.gui
-```
-
-4. Open the app in a browser at:
-```text
-http://localhost:8080
-```
-
-If needed, change the port:
-```bash
-MRLAND_GUI_PORT=8080 uv run python -m src.views.gui
 ```
 
 ---

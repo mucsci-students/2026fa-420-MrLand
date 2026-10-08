@@ -1,13 +1,18 @@
+"""Coordinates configuration creation, validation, loading, saving, and edits.
+
+Used by: GUI."""
+
 from collections.abc import Callable
 from typing import TypeVar
 
-from scheduler.config import CombinedConfig, SchedulerConfig, TimeSlotConfig
+from scheduler.config import CombinedConfig
 
-from src.services.config_service import (
+from src.models.configuration_model import (
     ConfigService,
     ConfigValidationError,
     ValidationProblem,
     apply_configuration_change,
+    create_draft_config,
     validate_config,
 )
 
@@ -24,14 +29,7 @@ class ConfigurationController:
     def new_configuration(self) -> CombinedConfig:
         # model_construct skips validation: an empty config can't pass the
         # library's rules yet. Validate/Save check it once it's filled in.
-        self.configuration = CombinedConfig.model_construct(
-            config=SchedulerConfig.model_construct(
-                rooms=[], labs=[], courses=[], faculty=[]
-            ),
-            time_slot_config=TimeSlotConfig.model_construct(times={}, classes=[]),
-            limit=10,
-            optimizer_flags=[],
-        )
+        self.configuration = create_draft_config()
         self._has_valid_configuration = False
         return self.configuration
 

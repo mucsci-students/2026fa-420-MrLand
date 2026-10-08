@@ -8,7 +8,9 @@ A *record* is one course section in the same shape as the CLI's CSV export:
 `times` uses the scheduler's own TimeSlot format: comma-separated meetings,
 `^` marks the lab meeting, and `@online` marks an online meeting.
 Records are what get saved, loaded, and turned into viewer rows.
-"""
+
+
+Used by: GUI and CLI."""
 
 import csv
 import io

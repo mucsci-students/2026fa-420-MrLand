@@ -1,3 +1,7 @@
+"""Lab creation, editing, and interactive management operations.
+
+Used by: GUI and CLI."""
+
 import re
 
 from scheduler.config import LabConfig

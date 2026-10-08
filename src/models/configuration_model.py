@@ -1,3 +1,7 @@
+"""Configuration validation, change management, and application-level persistence API.
+
+Used by: GUI and CLI."""
+
 from dataclasses import dataclass
 import copy
 import json
@@ -7,9 +11,9 @@ from typing import Callable, TypeVar
 from jsonschema import Draft202012Validator, FormatChecker
 from pydantic import ValidationError
 
-from scheduler.config import CombinedConfig
+from scheduler.config import CombinedConfig, SchedulerConfig, TimeSlotConfig
 
-from src.services.config_io import (
+from src.models.configuration_repository import (
     clean_config_name,
     config_exists,
     list_configs,
@@ -30,6 +34,18 @@ _CONFIG_SCHEMA_VALIDATOR = Draft202012Validator(
     _CONFIG_SCHEMA,
     format_checker=FormatChecker(),
 )
+
+
+def create_draft_config() -> CombinedConfig:
+    """Create an incomplete configuration that can be filled before validation."""
+    return CombinedConfig.model_construct(
+        config=SchedulerConfig.model_construct(
+            rooms=[], labs=[], courses=[], faculty=[]
+        ),
+        time_slot_config=TimeSlotConfig.model_construct(times={}, classes=[]),
+        limit=10,
+        optimizer_flags=[],
+    )
 
 
 def validate_config_name(name: str) -> str:

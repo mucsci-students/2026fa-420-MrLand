@@ -1,4 +1,8 @@
-from src.services.course_service import (
+"""GUI controller for course updates.
+
+Used by: GUI."""
+
+from src.controllers.course_operations_controller import (
     add_course_from_values,
     delete_course_from_values,
     update_course_from_values,

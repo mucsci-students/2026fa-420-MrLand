@@ -1,21 +1,32 @@
+"""Interactive text menu for configuration and schedule workflows.
+
+Used by: CLI."""
+
 from dataclasses import dataclass, field
+from pathlib import Path
+import sys
 from typing import Callable, Optional
-from services.lab_service import add_lab, modify_lab, delete_lab, view_labs
-from services.faculty_service import add_faculty, modify_faculty, delete_faculty, view_faculty
-from services.rooms_service import add_rooms, modify_rooms, delete_rooms, view_rooms
-from services.course_service import add_course, modify_course, delete_course, view_courses
-from services.class_pattern_service import (
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+from src.controllers.lab_operations_controller import add_lab, modify_lab, delete_lab, view_labs
+from src.controllers.faculty_operations_controller import add_faculty, modify_faculty, delete_faculty, view_faculty
+from src.controllers.room_operations_controller import add_rooms, modify_rooms, delete_rooms, view_rooms
+from src.controllers.course_operations_controller import add_course, modify_course, delete_course, view_courses
+from src.controllers.class_pattern_operations_controller import (
     add_class_pattern, modify_class_pattern, delete_class_pattern, view_class_patterns,
     add_meeting, modify_meeting, delete_meeting, view_meetings,
 )
-from services.time_block_service import (
+from src.controllers.time_block_operations_controller import (
     add_time_block, modify_time_block, delete_time_block, view_time_blocks,
 )
-import services.config_service as config_service
-from run_scheduler import run_scheduler
-from services.schedule_service import view_schedules, export_schedules
-import services.settings_service as settings_service
-import services.time_slot_settings_service as time_slot_settings_service
+import src.models.configuration_model as config_service
+from src.controllers.run_scheduler_controller import confirm_yes_no, run_scheduler
+from src.models.schedule_files import records_from_result
+from src.models.schedule_viewer_model import ScheduleViewerModel
+import src.controllers.settings_operations_controller as settings_service
+import src.controllers.time_slot_settings_operations_controller as time_slot_settings_service
 
 current_config = None
 config_name = None
@@ -184,8 +195,8 @@ def time_slots():
     return Page(
         "time slots",
         [
-            Command.parse("tb|timeblocks", "manage time blocks", time_blocks),
-            Command.parse("cp|classpatterns", "manage class patterns", class_patterns),
+            Command.parse("ti|timeblocks", "manage time blocks", time_blocks),
+            Command.parse("cl|classpatterns", "manage class patterns", class_patterns),
             Command.parse("s|settings", "manage time slot settings", time_slot_settings),
             Command.parse("h|home", "go to home page", home),
         ]
@@ -229,6 +240,72 @@ def time_slot_settings():
             Command.parse("h|home", "go to home page", home),
         ]
     )
+
+
+def view_schedules(schedules):
+    if not schedules:
+        print("No schedules are available to view.")
+        return
+
+    for number, result in enumerate(schedules, start=1):
+        print(f"\nSchedule {number} — {result.config_name}")
+        for record in records_from_result(result):
+            details = [
+                f"Course: {record['course']}",
+                f"Faculty: {record['faculty']}",
+                f"Room: {record['room'] or 'N/A'}",
+                f"Lab: {record['lab'] or 'N/A'}",
+                f"Times: {record['times']}",
+            ]
+            print("  " + " | ".join(details))
+
+
+def export_schedules(schedules):
+    model = ScheduleViewerModel()
+    model.set_generated(schedules)
+    entries = model.entries
+    if not entries:
+        print("No schedules are available to export.")
+        return
+
+    print("Schedules:")
+    for number, entry in enumerate(entries, start=1):
+        print(f"  {number}. {entry.label}")
+
+    while True:
+        choice = input("Select a schedule to export (or q to cancel): ").strip().lower()
+        if choice == "q":
+            return
+        try:
+            selected = int(choice) - 1
+        except ValueError:
+            print("Enter a schedule number or q.")
+            continue
+        if 0 <= selected < len(entries):
+            break
+        print(f"Choose a number from 1 to {len(entries)}.")
+
+    file_format = input("Export format (csv/json): ").strip().lower()
+    if file_format not in {"csv", "json"}:
+        print("Please choose CSV or JSON.")
+        return
+
+    entry = entries[selected]
+    default_name = model.default_export_file_name(entry, file_format)
+    file_name = input(f"File name [{default_name}]: ").strip()
+    try:
+        content, safe_name, _media_type = model.export(entry, file_format, file_name)
+        model.directory.mkdir(parents=True, exist_ok=True)
+        path = model.directory / safe_name
+        if path.exists() and not confirm_yes_no(f"'{safe_name}' already exists. Overwrite it?"):
+            return
+        path.write_bytes(content)
+    except (OSError, ValueError) as error:
+        print(f"Could not export schedule: {error}")
+        return
+
+    print(f"Schedule exported to {path}.")
+
 
 def schedule():
     return Page(

@@ -1,4 +1,8 @@
-from src.services.time_block_service import (
+"""GUI controller for time-block updates.
+
+Used by: GUI."""
+
+from src.controllers.time_block_operations_controller import (
     add_time_block_from_values,
     delete_time_block_from_values,
     update_time_block_from_values,

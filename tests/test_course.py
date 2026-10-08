@@ -22,7 +22,7 @@ assertRaises(...)	        code should produce an exception
 
 import unittest
 from unittest.mock import patch
-from src.services import course_service
+from src.controllers import course_operations_controller as course_service
 from src.views.courses_gui import _faculty_candidates
 from scheduler.config import CourseConfig
 

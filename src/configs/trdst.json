@@ -6,6 +6,12 @@
                 "capacity": 50,
                 "features": [],
                 "times": null
+            },
+            {
+                "name": "Rooom 2",
+                "capacity": 1,
+                "features": [],
+                "times": null
             }
         ],
         "labs": [
@@ -63,8 +69,8 @@
                 "room_preferences": {},
                 "lab_preferences": {},
                 "mandatory_days": [
-                    "MON",
-                    "TUE"
+                    "TUE",
+                    "MON"
                 ]
             }
         ]

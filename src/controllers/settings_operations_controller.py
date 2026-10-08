@@ -1,3 +1,7 @@
+"""Reads and updates global settings, including interactive CLI prompts.
+
+Used by: GUI and CLI."""
+
 from scheduler.config import CombinedConfig, OptimizerFlags
 
 

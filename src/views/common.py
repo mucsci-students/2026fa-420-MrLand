@@ -1,3 +1,7 @@
+"""Shared NiceGUI helpers for applying configuration changes.
+
+Used by: GUI."""
+
 from collections.abc import Callable
 
 from nicegui import ui

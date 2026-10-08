@@ -1,3 +1,7 @@
+"""NiceGUI controls for global scheduler settings.
+
+Used by: GUI."""
+
 from nicegui import ui
 from scheduler.config import CombinedConfig, OptimizerFlags
 

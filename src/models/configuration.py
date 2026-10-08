@@ -1,3 +1,7 @@
+"""Application configuration data structure and dictionary conversion.
+
+Used by: GUI and CLI."""
+
 from dataclasses import dataclass, field
 
 

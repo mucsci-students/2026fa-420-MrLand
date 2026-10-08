@@ -1,3 +1,7 @@
+"""Class-pattern creation, editing, and interactive management operations.
+
+Used by: GUI and CLI."""
+
 from pydantic import ValidationError
 
 from scheduler.config import (

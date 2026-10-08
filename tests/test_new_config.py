@@ -1,7 +1,7 @@
 import pytest
 
-import services.config_service as config_service
-from services.config_service import validate_config_name
+import src.models.configuration_model as config_service
+from src.models.configuration_model import validate_config_name
 
 
 @pytest.fixture(autouse=True)

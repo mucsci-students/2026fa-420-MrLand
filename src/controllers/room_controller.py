@@ -1,4 +1,8 @@
-from src.services.rooms_service import (
+"""GUI controller for room updates.
+
+Used by: GUI."""
+
+from src.controllers.room_operations_controller import (
     add_room_from_values,
     delete_room_from_values,
     update_room_from_values,

@@ -1,9 +1,9 @@
 
 import unittest
 from unittest.mock import patch, MagicMock
-from src.services import lab_service
+from src.controllers import lab_operations_controller as lab_service
 
-MODULE = "src.services.lab_service"
+MODULE = "src.controllers.lab_operations_controller"
 
 lab_menu = lab_service
 
@@ -903,4 +903,3 @@ class TestDeleteLab(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

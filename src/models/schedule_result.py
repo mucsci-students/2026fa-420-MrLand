@@ -1,3 +1,7 @@
+"""Data model associating a generated schedule with its source configuration.
+
+Used by: GUI and CLI."""
+
 # schedule_result.py
 
 from dataclasses import dataclass

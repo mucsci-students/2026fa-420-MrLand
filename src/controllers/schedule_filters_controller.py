@@ -1,3 +1,7 @@
+"""Builds, sorts, and filters schedule rows for the viewer.
+
+Used by: GUI."""
+
 # File name: schedule_filters_controller.py
 # Primary Author: Dylan Groff
 

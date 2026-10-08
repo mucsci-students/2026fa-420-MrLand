@@ -16,7 +16,7 @@ from scheduler.config import (
     Meeting,
 )
 
-from services.time_block_service import (
+from src.controllers.time_block_operations_controller import (
     get_day,
     get_integer,
     add_time_block,
@@ -453,4 +453,3 @@ class TestTimeBlockEdgeCases(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 from scheduler.config import TimeRange
 
-import src.services.rooms_service as rooms_service
+from src.controllers import room_operations_controller as rooms_service
 
 # Unit tests for the rooms_service module
 class TestRoomCRUD(unittest.TestCase):

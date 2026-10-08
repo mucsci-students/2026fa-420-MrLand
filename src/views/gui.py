@@ -1,3 +1,7 @@
+"""Builds and launches the NiceGUI scheduling application.
+
+Used by: GUI."""
+
 import os
 
 from nicegui import ui
@@ -59,11 +63,14 @@ def build_app() -> None:
                 schedule_viewer()
 
 
-build_app()
-
-if __name__ in {"__main__", "__mp_main__"}:
+def main() -> None:
     ui.run(
+        root=build_app,
         title="MrLand Scheduler",
         reload=False,
         port=int(os.environ.get("MRLAND_GUI_PORT", "8080")),
     )
+
+
+if __name__ in {"__main__", "__mp_main__"}:
+    main()
