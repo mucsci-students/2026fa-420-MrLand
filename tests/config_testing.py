@@ -1,4 +1,4 @@
-"""Quick smoke tests for src/services/config_io.py (write/read/exists/print)."""
+"""Quick smoke tests for src/models/configuration_repository.py."""
 
 import os
 import sys
