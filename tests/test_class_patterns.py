@@ -18,7 +18,7 @@ from scheduler.config import (
     DeliveryMode,
 )
 
-import services.class_pattern_service as class_pattern
+from src.controllers import class_pattern_operations_controller as class_pattern
 
 
 class TestClassPatternCRUD(unittest.TestCase):
@@ -734,4 +734,3 @@ class TestClassPatternCRUD(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -3,8 +3,8 @@ from __future__ import annotations
 from nicegui import ui
 
 from src.controllers.configuration_controller import ConfigurationController
-from src.services.config_io import ConfigLoadError
-from src.services.config_service import ConfigValidationError, validate_config_name
+from src.models.configuration_repository import ConfigLoadError
+from src.models.configuration_model import ConfigValidationError, validate_config_name
 from src.views.class_patterns_gui import class_patterns_gui
 from src.views.common import coming_soon, section_header
 from src.views.courses_gui import courses_gui

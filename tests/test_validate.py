@@ -2,7 +2,7 @@ import copy
 
 from scheduler.config import CombinedConfig, SchedulerConfig, TimeSlotConfig
 
-from src.services.config_service import (
+from src.models.configuration_model import (
     ValidationProblem,
     apply_configuration_change,
     validate_config,

@@ -3,7 +3,7 @@ from typing import TypeVar
 
 from scheduler.config import CombinedConfig, SchedulerConfig, TimeSlotConfig
 
-from src.services.config_service import (
+from src.models.configuration_model import (
     ConfigService,
     ConfigValidationError,
     ValidationProblem,

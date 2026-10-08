@@ -61,33 +61,40 @@ This project is a schedule-planning application for creating and managing course
 │   ├── configs/
 │   │   ├── example_config.json
 │   │   └── ...
-│   ├── controllers/
-│   │   ├── config_controller.py
-│   │   ├── schedule_generator_controller.py
-│   │   └── schedule_viewer_controller.py
-│   ├── models/
-│   │   ├── config_model.py
-│   │   ├── schedule_generator_model.py
+│   ├── schemas/
+│   │   └── combined-config.schema.json
+│   ├── schedules/
 │   │   └── ...
-│   ├── services/
-│   │   ├── __init__.py
-│   │   ├── config_io.py
-│   │   ├── config_service.py
-│   │   ├── course_service.py
-│   │   ├── faculty_service.py
-│   │   ├── lab_service.py
-│   │   ├── rooms_service.py
-│   │   ├── schedule_service.py
+│   ├── controllers/
+│   │   ├── configuration_controller.py
+│   │   ├── course_operations_controller.py
+│   │   ├── faculty_operations_controller.py
+│   │   ├── lab_operations_controller.py
+│   │   ├── room_operations_controller.py
+│   │   ├── class_pattern_operations_controller.py
+│   │   ├── time_block_operations_controller.py
+│   │   ├── settings_operations_controller.py
+│   │   ├── schedule_generator_controller.py
+│   │   ├── schedule_controller.py
+│   │   ├── run_scheduler_controller.py
+│   │   └── ...
+│   ├── models/
+│   │   ├── configuration.py
+│   │   ├── configuration_model.py
+│   │   ├── configuration_repository.py
+│   │   ├── schedule_generator_model.py
 │   │   └── ...
 │   ├── views/
 │   │   ├── common.py
 │   │   ├── configuration_editor.py
+│   │   ├── legacy_schedule.py
+│   │   ├── navmenu.py
 │   │   ├── gui.py
 │   │   ├── schedule_generator.py
 │   │   ├── schedule_viewer.py
 │   │   └── ...
-│   ├── navmenu.py
-│   └── run_scheduler.py
+│   ├── navmenu.py       # Backward-compatible CLI entry point
+│   └── run_scheduler.py # Backward-compatible controller API
 ├── tests/
 │   ├── test_course.py
 │   ├── test_faculty.py
@@ -101,7 +108,11 @@ This project is a schedule-planning application for creating and managing course
 └── .venv/
 ```
 
-Note: the legacy CLI menu files are no longer the primary application entry point. The current user workflow uses the GUI app in `src/views/gui.py`.
+Application implementations are organized into MVC packages. Configuration
+validation and persistence live in `models`, domain actions in `controllers`,
+and user interfaces in `views`. The former services implementations have been
+moved into those MVC packages. The existing `src/navmenu.py` and
+`src/run_scheduler.py` paths remain as compatibility entry points.
 
 ---
 
@@ -143,6 +154,17 @@ http://localhost:8080
 If needed, change the port:
 ```bash
 MRLAND_GUI_PORT=8080 uv run python -m src.views.gui
+```
+
+To start the CLI menu instead, run:
+```bash
+uv run python -m src.views.navmenu
+```
+
+The existing script paths remain usable as well:
+```bash
+uv run src/navmenu.py
+uv run src/views/gui.py
 ```
 
 ---

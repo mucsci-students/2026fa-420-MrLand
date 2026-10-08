@@ -9,7 +9,7 @@ _SRC_DIR = os.path.normpath(os.path.join(_TESTS_DIR, "..", "src"))
 if _SRC_DIR not in sys.path:
     sys.path.insert(0, _SRC_DIR)
 
-from services.config_io import config_file_exists, read_config_file, print_config, write_config_file, filepath
+from src.models.configuration_repository import config_file_exists, read_config_file, print_config, write_config_file, filepath
 from scheduler.config import CombinedConfig
 
 TEST_CONFIG_NAME = "test_config_io_smoke"

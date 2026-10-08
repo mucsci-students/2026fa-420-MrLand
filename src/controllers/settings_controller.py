@@ -1,4 +1,4 @@
-from src.services.settings_service import (
+from src.controllers.settings_operations_controller import (
     reset_settings_values,
     update_settings_from_values,
 )

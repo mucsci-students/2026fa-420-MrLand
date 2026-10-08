@@ -9,7 +9,7 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 src_path = os.path.join(project_root, "src")
 sys.path.insert(0, src_path)
 
-import src.services.faculty_service as faculty
+from src.controllers import faculty_operations_controller as faculty
 
 
 class TestFacultyCRUD(unittest.TestCase):
@@ -862,4 +862,3 @@ class TestDeleteFacultyEdgeCases(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

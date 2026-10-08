@@ -7,7 +7,7 @@ from typing import Any
 from scheduler.scheduler import Scheduler
 from src.models.schedule_files import records_from_result, records_to_csv
 from src.models.schedule_result import ScheduleResult
-from src.services.config_service import config_exists, load_config
+from src.models.configuration_model import config_exists, load_config
 
 
 @dataclass

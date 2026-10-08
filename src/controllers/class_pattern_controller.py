@@ -1,4 +1,4 @@
-from src.services.class_pattern_service import (
+from src.controllers.class_pattern_operations_controller import (
     add_class_pattern_from_values,
     delete_class_pattern_from_values,
     update_class_pattern_from_values,

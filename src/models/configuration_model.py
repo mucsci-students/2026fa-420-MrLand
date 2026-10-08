@@ -9,7 +9,7 @@ from pydantic import ValidationError
 
 from scheduler.config import CombinedConfig
 
-from src.services.config_io import (
+from src.models.configuration_repository import (
     clean_config_name,
     config_exists,
     list_configs,

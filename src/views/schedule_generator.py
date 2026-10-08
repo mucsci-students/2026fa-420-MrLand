@@ -4,7 +4,7 @@ from src.controllers.schedule_generator_controller import (
     schedule_generator_controller as controller,
 )
 from src.models.schedule_generator_model import ScheduleGenerationState
-from src.services.config_io import ConfigLoadError
+from src.models.configuration_repository import ConfigLoadError
 
 
 def schedule_generator() -> None:

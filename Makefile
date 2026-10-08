@@ -10,10 +10,10 @@ install:
 	uv sync
 
 cli:
-	uv run src/navmenu.py
+	uv run python -m src.views.navmenu
 
 gui:
-	uv run src/views/gui.py
+	uv run python -m src.views.gui
 
 clean:
 	rm -rf .venv

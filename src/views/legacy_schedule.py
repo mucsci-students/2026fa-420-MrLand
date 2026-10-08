@@ -4,9 +4,9 @@ from typing import Any
 
 from nicegui import ui
 
-from services.config_service import load_config as config_load, config_exists
+from src.models.configuration_model import load_config as config_load, config_exists
 from scheduler.scheduler import Scheduler
-from schedule_result import ScheduleResult
+from src.models.schedule_result import ScheduleResult
 
 
 # Stores generated schedules so the Schedule Viewer can access them.
