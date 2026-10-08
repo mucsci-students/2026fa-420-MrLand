@@ -153,6 +153,11 @@ cd 2026fa-420-MrLand
    uv run mrland-cli
    ```
 
+   Or run the tests
+   ```bash
+   uv run pytest
+   ```
+
 For development, install/synchronize dependencies without starting the app:
 ```bash
 uv sync
