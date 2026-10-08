@@ -22,7 +22,14 @@ from src.views.time_blocks_gui import time_blocks_gui
 controller = ConfigurationController()
 
 def configuration_editor() -> None:
-    state = {"config": None, "name": None}
+    state = {"config": None, "name": None, "saved": False, "status_badge": None}
+
+    def set_saved_status(saved: bool) -> None:
+        state["saved"] = saved
+        badge = state["status_badge"]
+        if badge is not None:
+            badge.set_text("Draft saved" if saved else "Draft - not saved")
+            badge.props(f"color={'green' if saved else 'orange'}")
 
     def apply_config_change(mutation) -> bool:
         try:
@@ -38,6 +45,7 @@ def configuration_editor() -> None:
             editor_body.refresh()
             show_problems("Change rejected", problems, restored=True)
             return False
+        set_saved_status(False)
         if problems:
             show_problems("Draft validation", problems)
         return True
@@ -59,7 +67,9 @@ def configuration_editor() -> None:
 
         with ui.row().classes("items-center gap-3"):
             ui.label(f"Editing: {state['name']}").classes("text-xl font-semibold text-white")
-            ui.badge("Draft - not saved").props("color=orange")
+            state["status_badge"] = ui.badge(
+                "Draft saved" if state["saved"] else "Draft - not saved"
+            ).props(f"color={'green' if state['saved'] else 'orange'}")
 
         current_problems = controller.validate_configuration()
         with ui.card().classes("w-full border border-[#29404b] bg-[#182630] p-4"):
@@ -163,6 +173,7 @@ def configuration_editor() -> None:
         except Exception as exc:  # pragma: no cover - UI guard
             ui.notify(f"Unable to save configuration: {exc}", type="negative")
             return
+        set_saved_status(True)
         ui.notify(f"Saved '{state['name']}'.", type="positive")
 
     with ui.column().classes("w-full gap-6"):
@@ -275,6 +286,7 @@ def configuration_editor() -> None:
 
         state["config"] = config
         state["name"] = name
+        set_saved_status(False)
         create_dialog.close()
         editor_body.refresh()
         ui.notify(f"Configuration '{name}' created. Add items, then save.", type="positive")
@@ -298,6 +310,7 @@ def configuration_editor() -> None:
 
         state["config"] = loaded_config
         state["name"] = config_name
+        set_saved_status(True)
         editor_body.refresh()
         ui.notify(f"Loaded '{config_name}'.", type="positive")
 

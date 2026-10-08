@@ -213,7 +213,7 @@ def schedule_viewer() -> None:
             # Export button
             export_open_button = ui.button(
                 "Export",
-                icon="export",
+                icon="file_download",
                 on_click=lambda: open_export_dialog(),
             ).props("outline")
 
