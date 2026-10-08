@@ -136,35 +136,28 @@ git clone https://github.com/mucsci-students/2026fa-420-MrLand.git
 cd 2026fa-420-MrLand
 ```
 
-2. Install dependencies:
+2. Launch the GUI or CLI from the project directory. `uv run` creates and
+   synchronizes the environment from `pyproject.toml`, installing dependencies
+   if needed.
+
+   Start the GUI:
+   ```bash
+   uv run mrland-gui
+   ```
+
+   Open the GUI in your browser at:
+   ```text
+   http://localhost:8080
+   ```
+
+   Or start the interactive CLI:
+   ```bash
+   uv run mrland-cli
+   ```
+
+For development, install/synchronize dependencies without starting the app:
 ```bash
 uv sync
-```
-
-3. Start the application:
-```bash
-uv run python -m src.views.gui
-```
-
-4. Open the app in a browser at:
-```text
-http://localhost:8080
-```
-
-If needed, change the port:
-```bash
-MRLAND_GUI_PORT=8080 uv run python -m src.views.gui
-```
-
-To start the CLI menu instead, run:
-```bash
-uv run python -m src.views.navmenu
-```
-
-The existing script paths remain usable as well:
-```bash
-uv run src/navmenu.py
-uv run src/views/gui.py
 ```
 
 ---
