@@ -195,8 +195,8 @@ def time_slots():
     return Page(
         "time slots",
         [
-            Command.parse("tb|timeblocks", "manage time blocks", time_blocks),
-            Command.parse("cp|classpatterns", "manage class patterns", class_patterns),
+            Command.parse("ti|timeblocks", "manage time blocks", time_blocks),
+            Command.parse("cl|classpatterns", "manage class patterns", class_patterns),
             Command.parse("s|settings", "manage time slot settings", time_slot_settings),
             Command.parse("h|home", "go to home page", home),
         ]
