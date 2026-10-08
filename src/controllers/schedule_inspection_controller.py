@@ -1,3 +1,7 @@
+"""Looks up course, faculty, room, and lab details for schedule inspection.
+
+Used by: GUI."""
+
 # File name: schedule_filters_controller.py
 # Primary Author: Dylan Groff
 

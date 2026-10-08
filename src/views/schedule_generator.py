@@ -1,3 +1,7 @@
+"""NiceGUI page for generating and downloading schedules.
+
+Used by: GUI."""
+
 from nicegui import ui
 
 from src.controllers.schedule_generator_controller import (

@@ -1,3 +1,7 @@
+"""NiceGUI page for managing courses.
+
+Used by: GUI."""
+
 from nicegui import ui
 
 from src.controllers.course_controller import CourseController

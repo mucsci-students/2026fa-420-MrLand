@@ -1,3 +1,7 @@
+"""Interactive text menu for configuration and schedule workflows.
+
+Used by: CLI."""
+
 from dataclasses import dataclass, field
 from pathlib import Path
 import sys

@@ -1,3 +1,7 @@
+"""Stores generation state, runs scheduling, and prepares schedule exports.
+
+Used by: GUI."""
+
 import json
 import os
 import threading

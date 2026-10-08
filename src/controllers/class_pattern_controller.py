@@ -1,3 +1,7 @@
+"""GUI controller for class-pattern updates.
+
+Used by: GUI."""
+
 from src.controllers.class_pattern_operations_controller import (
     add_class_pattern_from_values,
     delete_class_pattern_from_values,

@@ -1,3 +1,7 @@
+"""GUI controller for global scheduler settings.
+
+Used by: GUI."""
+
 from src.controllers.settings_operations_controller import (
     reset_settings_values,
     update_settings_from_values,

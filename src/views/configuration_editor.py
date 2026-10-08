@@ -1,3 +1,7 @@
+"""NiceGUI configuration editor for creating, loading, and editing configurations.
+
+Used by: GUI."""
+
 from __future__ import annotations
 
 from nicegui import ui

@@ -1,3 +1,7 @@
+"""Runs the scheduler from a named saved configuration and reports results.
+
+Used by: CLI."""
+
 from src.models.schedule_result import ScheduleResult
 from src.models.configuration_model import (
     config_exists,

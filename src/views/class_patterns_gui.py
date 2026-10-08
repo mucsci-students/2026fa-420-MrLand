@@ -1,3 +1,7 @@
+"""NiceGUI page for managing class patterns and meetings.
+
+Used by: GUI."""
+
 from nicegui import ui
 
 from src.controllers.class_pattern_controller import ClassPatternController

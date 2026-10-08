@@ -1,3 +1,7 @@
+"""Time-block validation, editing, and interactive management operations.
+
+Used by: GUI and CLI."""
+
 from pydantic import ValidationError
 
 from scheduler.config import TimeSlotConfig, TimeBlock
@@ -212,4 +216,3 @@ def delete_time_block(time_slot_config: TimeSlotConfig):
     blocks.pop(index)
 
     print("Time block deleted successfully.")
-

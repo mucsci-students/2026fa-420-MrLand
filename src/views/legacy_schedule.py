@@ -1,3 +1,7 @@
+"""Legacy NiceGUI schedule-generation and export page.
+
+Used by: GUI (legacy)."""
+
 import json
 import threading
 from typing import Any

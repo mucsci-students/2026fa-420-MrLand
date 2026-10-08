@@ -1,4 +1,6 @@
-"""Own the schedules shown in the Schedule Viewer and their serialization."""
+"""Own the schedules shown in the Schedule Viewer and their serialization.
+
+Used by: GUI."""
 
 import re
 from dataclasses import dataclass

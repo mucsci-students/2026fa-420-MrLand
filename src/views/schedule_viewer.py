@@ -1,3 +1,7 @@
+"""NiceGUI page for browsing, filtering, and exporting schedules.
+
+Used by: GUI."""
+
 # File name: schedule_viewer.py
 # Primary author: Dylan Groff
 # Secondary Author: Micah Schafer

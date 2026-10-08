@@ -1,3 +1,7 @@
+"""Course creation, editing, and interactive management operations.
+
+Used by: GUI and CLI."""
+
 # File name: course.py
 # Primary Author: Dylan Groff
 
@@ -700,5 +704,3 @@ def get_reserve_room():
     except ValueError as e:
         print(f"Invalid input: {e}")
         return get_reserve_room()
-    
-

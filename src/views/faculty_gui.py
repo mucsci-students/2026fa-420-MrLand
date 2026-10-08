@@ -1,3 +1,7 @@
+"""NiceGUI page for managing faculty.
+
+Used by: GUI."""
+
 from nicegui import ui
 
 from src.controllers.faculty_controller import FacultyController

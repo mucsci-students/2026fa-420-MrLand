@@ -1,3 +1,7 @@
+"""NiceGUI page for managing time blocks and class patterns.
+
+Used by: GUI."""
+
 from nicegui import ui
 
 from src.controllers.time_block_controller import TimeBlockController

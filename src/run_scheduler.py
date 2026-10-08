@@ -1,4 +1,6 @@
-"""Backward-compatible API for the CLI schedule controller."""
+"""Backward-compatible API for the CLI schedule controller.
+
+Used by: CLI."""
 
 from pathlib import Path
 import sys

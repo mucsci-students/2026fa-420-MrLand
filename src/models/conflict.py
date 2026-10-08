@@ -1,3 +1,7 @@
+"""Conflict data and validation helpers for scheduler constraints.
+
+Used by: GUI and CLI."""
+
 # conflict.py
 
 # ---- validation helpers -----------------------------------------------

@@ -1,4 +1,6 @@
-"""Backward-compatible entry point for the CLI view."""
+"""Backward-compatible entry point for the CLI view.
+
+Used by: CLI."""
 
 from pathlib import Path
 import sys

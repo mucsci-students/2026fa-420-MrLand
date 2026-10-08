@@ -1,3 +1,7 @@
+"""Validates and coordinates background schedule generation.
+
+Used by: GUI."""
+
 import threading
 
 from src.models.schedule_generator_model import (

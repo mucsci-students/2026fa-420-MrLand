@@ -1,4 +1,6 @@
-"""Coordinate the Schedule Viewer: navigation, loading, and exporting."""
+"""Coordinate the Schedule Viewer: navigation, loading, and exporting.
+
+Used by: GUI."""
 
 from src.controllers.schedule_filters_controller import create_resource_schedule
 from src.controllers.schedule_generator_controller import (

@@ -1,3 +1,7 @@
+"""Room creation, editing, and interactive management operations.
+
+Used by: GUI and CLI."""
+
 from scheduler.config import RoomConfig, TimeRange
 
 # Gets room name from user input, ensuring it's not empty and unique

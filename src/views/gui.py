@@ -1,3 +1,7 @@
+"""Builds and launches the NiceGUI scheduling application.
+
+Used by: GUI."""
+
 import os
 
 from nicegui import ui
