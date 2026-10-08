@@ -223,10 +223,10 @@ def class_patterns():
             Command.parse("m|modify", "modify class pattern", lambda: modify_class_pattern(current_config.time_slot_config)),
             Command.parse("d|delete", "delete class pattern", lambda: delete_class_pattern(current_config.time_slot_config)),
             Command.parse("v|view", "view class patterns", lambda: view_class_patterns(current_config.time_slot_config)),
-            Command.parse("am|addmeeting", "add meeting", lambda: add_meeting(current_config.time_slot_config)),
-            Command.parse("mm|modifymeeting", "modify meeting", lambda: modify_meeting(current_config.time_slot_config)),
-            Command.parse("dm|deletemeeting", "delete meeting", lambda: delete_meeting(current_config.time_slot_config)),
-            Command.parse("vm|viewmeetings", "view meetings", lambda: view_meetings(current_config.time_slot_config)),
+            Command.parse("ad|addmeeting", "add meeting", lambda: add_meeting(current_config.time_slot_config)),
+            Command.parse("mo|modifymeeting", "modify meeting", lambda: modify_meeting(current_config.time_slot_config)),
+            Command.parse("de|deletemeeting", "delete meeting", lambda: delete_meeting(current_config.time_slot_config)),
+            Command.parse("vi|viewmeetings", "view meetings", lambda: view_meetings(current_config.time_slot_config)),
             Command.parse("h|home", "go to home page", home),
         ]
     )
