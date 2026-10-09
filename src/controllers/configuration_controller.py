@@ -33,6 +33,9 @@ class ConfigurationController:
         self._has_valid_configuration = False
         return self.configuration
 
+    # Saves the open configuration under config_name. It validates first and
+    # raises ConfigValidationError (with the list of problems) instead of
+    # writing an invalid file. Raises ValueError if nothing is open.
     def save_configuration(self, config_name: str) -> None:
         if self.configuration is None:
             raise ValueError("No configuration has been created.")
@@ -41,11 +44,16 @@ class ConfigurationController:
             raise ConfigValidationError(problems)
         self.config_service.save(self.configuration, config_name)
 
+    # Loads a saved configuration and makes it the open one. A loaded file has
+    # already passed validation, so _has_valid_configuration is set to True,
+    # which means later edits that make it invalid will be rolled back.
+    # Raises FileNotFoundError or ConfigLoadError if the file is missing or bad.
     def load_configuration(self, config_name: str) -> CombinedConfig:
         self.configuration = self.config_service.load(config_name)
         self._has_valid_configuration = True
         return self.configuration
 
+    # Names of saved configs for user's load list
     def list_names(self) -> list[str]:
         return self.config_service.list_names()
 
