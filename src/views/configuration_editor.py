@@ -21,9 +21,12 @@ from src.views.time_blocks_gui import time_blocks_gui
 
 controller = ConfigurationController()
 
+# Name - config name
+# saved - True when screen view matches file on the disk
 def configuration_editor() -> None:
     state = {"config": None, "name": None, "saved": False, "status_badge": None}
 
+    # Updates saved flag 
     def set_saved_status(saved: bool) -> None:
         state["saved"] = saved
         badge = state["status_badge"]
@@ -158,6 +161,9 @@ def configuration_editor() -> None:
             for page_name, panel in panels.items():
                 panel.set_visibility(page_name == action)
 
+    # button handler:
+    # Saves the open config under state["name"]
+    # Shows errors if any and does not save, otherwise updates badge and saves changes
     def save_current_config() -> None:
         if state["config"] is None:
             ui.notify("No configuration is open to save.", type="negative")
@@ -207,6 +213,7 @@ def configuration_editor() -> None:
                 on_click=lambda: validate_current_config(),
             ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
 
+        # dropdown menu of saved configs
         load_select = ui.select(
             options=controller.list_names(),
             label="Select Configuration",

@@ -522,8 +522,8 @@
                 },
                 "mandatory_days": [
                     "WED",
-                    "FRI",
-                    "MON"
+                    "MON",
+                    "FRI"
                 ]
             },
             {
