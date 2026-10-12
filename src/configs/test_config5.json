@@ -81,9 +81,9 @@
                 "room_preferences": {},
                 "lab_preferences": {},
                 "mandatory_days": [
+                    "FRI",
                     "MON",
-                    "WED",
-                    "FRI"
+                    "WED"
                 ]
             }
         ]

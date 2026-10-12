@@ -1,0 +1,370 @@
+"""NiceGUI configuration editor for creating, loading, and editing configurations.
+
+Used by: GUI."""
+
+from __future__ import annotations
+
+from nicegui import ui
+
+from src.controllers.configuration_controller import ConfigurationController
+from src.models.configuration_repository import ConfigLoadError
+from src.models.configuration_model import ConfigValidationError, validate_config_name
+from src.views.class_patterns_gui import class_patterns_gui
+from src.views.common import coming_soon, section_header
+from src.views.courses_gui import courses_gui
+from src.views.faculty_gui import faculty_gui
+from src.views.global_settings_gui import global_settings_gui
+from src.views.labs_gui import labs_gui
+from src.views.rooms_gui import rooms_gui
+from src.views.time_blocks_gui import time_blocks_gui
+
+
+controller = ConfigurationController()
+
+# Name - config name
+# saved - True when screen view matches file on the disk
+def configuration_editor() -> None:
+    state = {"config": None, "name": None, "saved": False, "status_badge": None}
+
+    # Updates saved flag 
+    def set_saved_status(saved: bool) -> None:
+        state["saved"] = saved
+        badge = state["status_badge"]
+        if badge is not None:
+            badge.set_text("Draft saved" if saved else "Draft - not saved")
+            badge.props(f"color={'green' if saved else 'orange'}")
+
+    def apply_config_change(mutation) -> bool:
+        try:
+            accepted, problems = controller.apply_change(mutation)
+        except Exception as exc:
+            state["config"] = controller.configuration
+            editor_body.refresh()
+            ui.notify(f"Change was not applied: {exc}", type="negative")
+            return False
+
+        if not accepted:
+            state["config"] = controller.configuration
+            editor_body.refresh()
+            show_problems("Change rejected", problems, restored=True)
+            return False
+        set_saved_status(False)
+        if problems:
+            show_problems("Draft validation", problems)
+        return True
+
+    @ui.refreshable
+    def editor_body() -> None:
+        config = state["config"]
+
+        if config is None:
+            with ui.card().classes(
+                "w-full items-center border border-dashed border-[#45616b] bg-[#182630] p-10"
+            ):
+                ui.icon("note_add", size="48px").classes("text-[#75e6da]")
+                ui.label("No configuration loaded").classes("text-lg font-semibold text-white")
+                ui.label(
+                    "Create a new configuration or load an existing one to get started."
+                ).classes("text-sm text-[#9fb2b8]")
+            return
+
+        with ui.row().classes("items-center gap-3"):
+            ui.label(f"Editing: {state['name']}").classes("text-xl font-semibold text-white")
+            state["status_badge"] = ui.badge(
+                "Draft saved" if state["saved"] else "Draft - not saved"
+            ).props(f"color={'green' if state['saved'] else 'orange'}")
+
+        current_problems = controller.validate_configuration()
+        with ui.card().classes("w-full border border-[#29404b] bg-[#182630] p-4"):
+            if not current_problems:
+                ui.label("Configuration is valid.").classes("text-green-400")
+            else:
+                ui.label(
+                    f"Draft has {len(current_problems)} validation problem(s). "
+                    "Edits are checked against the complete configuration."
+                ).classes("font-semibold text-amber-300")
+                for problem in current_problems:
+                    prefix = f"{problem.item}: " if problem.item else ""
+                    ui.label(
+                        f"{problem.area} — {prefix}{problem.message}"
+                    ).classes("break-words text-sm text-[#d8e7e8]")
+
+        with ui.card().classes("w-full border border-[#29404b] bg-[#182630] p-6"):
+            ui.label("Configuration pages").classes("text-lg font-semibold text-white")
+            ui.label("Select an item to add/modify/delete objects to/from configuration.").classes(
+                "text-sm text-[#9fb2b8]"
+            )
+
+            with ui.row().classes("mt-6 w-full flex-wrap gap-3"):
+                for label, icon in (
+                    ("Courses", "menu_book"),
+                    ("Faculty", "person"),
+                    ("Rooms", "meeting_room"),
+                    ("Labs", "science"),
+                    ("Time blocks", "schedule"),
+                    ("Class patterns", "view_timeline"),
+                    ("Global settings", "tune"),
+                ):
+                    ui.button(
+                        label,
+                        icon=icon,
+                        on_click=lambda action=label: show_page(action),
+                    ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
+
+        panel_classes = "configuration-panel w-full gap-4 border-t border-[#29404b] pt-6"
+        config_section = getattr(config, "config", None)
+        rooms_list = getattr(config_section, "rooms", []) if config_section is not None else []
+        faculty_list = getattr(config_section, "faculty", []) if config_section is not None else []
+        courses_list = getattr(config_section, "courses", []) if config_section is not None else []
+        labs_list = getattr(config_section, "labs", []) if config_section is not None else []
+
+        time_slot_config = getattr(config, "time_slot_config", None)
+        time_blocks_list = getattr(time_slot_config, "times", {}) if time_slot_config is not None else {}
+        class_patterns_list = getattr(time_slot_config, "classes", []) if time_slot_config is not None else []
+
+        with ui.column().classes(panel_classes) as rooms_panel:
+            rooms_gui(rooms_list, on_change=apply_config_change)
+        with ui.column().classes(panel_classes) as faculty_panel:
+            faculty_gui(faculty_list, on_change=apply_config_change)
+        with ui.column().classes(panel_classes) as courses_panel:
+            courses_gui(courses_list, on_change=apply_config_change)
+        with ui.column().classes(panel_classes) as labs_panel:
+            labs_gui(labs_list, on_change=apply_config_change)
+        with ui.column().classes(panel_classes) as time_blocks_panel:
+            time_blocks_gui(time_blocks_list, on_change=apply_config_change)
+        with ui.column().classes(panel_classes) as class_patterns_panel:
+            class_patterns_gui(class_patterns_list, on_change=apply_config_change)
+        with ui.column().classes(panel_classes) as global_settings_panel:
+            if hasattr(config, "limit") and hasattr(config, "optimizer_flags"):
+                global_settings_gui(config, on_change=apply_config_change)
+            else:
+                ui.label("Global settings are unavailable for this draft.").classes(
+                    "text-sm text-[#9fb2b8]"
+                )
+
+        panels = {
+            "Courses": courses_panel,
+            "Faculty": faculty_panel,
+            "Rooms": rooms_panel,
+            "Labs": labs_panel,
+            "Time blocks": time_blocks_panel,
+            "Class patterns": class_patterns_panel,
+            "Global settings": global_settings_panel,
+        }
+        for panel in panels.values():
+            panel.set_visibility(False)
+
+        def show_page(action: str) -> None:
+            if action not in panels:
+                coming_soon(action)
+                return
+            for page_name, panel in panels.items():
+                panel.set_visibility(page_name == action)
+
+    # button handler:
+    # Saves the open config under state["name"]
+    # Shows errors if any and does not save, otherwise updates badge and saves changes
+    def save_current_config() -> None:
+        if state["config"] is None:
+            ui.notify("No configuration is open to save.", type="negative")
+            return
+        if not state["name"]:
+            ui.notify("Give the configuration a name before saving.", type="negative")
+            return
+        try:
+            controller.save_configuration(state["name"])
+        except ConfigValidationError as exc:
+            show_problems("Can't save yet", exc.problems)
+            return
+        except Exception as exc:  # pragma: no cover - UI guard
+            ui.notify(f"Unable to save configuration: {exc}", type="negative")
+            return
+        set_saved_status(True)
+        ui.notify(f"Saved '{state['name']}'.", type="positive")
+
+    with ui.column().classes("w-full gap-6"):
+        section_header(
+            "Workspace",
+            "Configuration Editor",
+            "Edit the Schedule Configuration File",
+        )
+
+
+
+        with ui.row().classes("w-full flex-wrap gap-3"):
+            ui.button(
+                "Load configuration",
+                icon="folder_open",
+                on_click=lambda: toggle_load_select(),
+            ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
+            ui.button(
+                "Create configuration",
+                icon="add",
+                on_click=lambda: start_create(),
+            ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
+            ui.button(
+                "Save configuration",
+                icon="save",
+                on_click=save_current_config,
+            ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
+            ui.button(
+                "Validate configuration",
+                icon="fact_check",
+                on_click=lambda: validate_current_config(),
+            ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
+
+        # dropdown menu of saved configs
+        load_select = ui.select(
+            options=controller.list_names(),
+            label="Select Configuration",
+        ).classes("w-full max-w-xl").props("dark outlined")
+        load_select.set_visibility(False)
+        load_select.on_value_change(lambda e: on_select_change(e.value))
+
+        editor_body()
+
+    with ui.dialog() as discard_dialog, ui.card().classes("border border-[#29404b] bg-[#182630]"):
+        ui.label("Start a new configuration?").classes("text-lg font-semibold text-white")
+        ui.label(
+            "Any unsaved changes to the current configuration will be lost."
+        ).classes("text-sm text-[#9fb2b8]")
+        with ui.row().classes("mt-4 w-full justify-end gap-2"):
+            ui.button("Keep editing", on_click=discard_dialog.close).props("flat")
+            ui.button("Continue", on_click=lambda: open_create_dialog()).props(
+                "unelevated color=negative"
+            )
+
+    with ui.dialog() as create_dialog, ui.card().classes("border border-[#29404b] bg-[#182630]"):
+        ui.label("Create new configuration").classes("text-lg font-semibold text-white")
+        name_input = ui.input(
+            "Configuration name", placeholder="fall_2026"
+        ).props("autofocus").classes("w-80")
+        name_input.on("keydown.enter", lambda: confirm_create())
+        with ui.row().classes("mt-4 w-full justify-end gap-2"):
+            ui.button("Cancel", on_click=create_dialog.close).props("flat")
+            ui.button("Create", on_click=lambda: confirm_create()).props("unelevated").classes(
+                "bg-[#75e6da] text-[#101820]"
+            )
+
+    def start_create() -> None:
+        if state["config"] is not None:
+            discard_dialog.open()
+        else:
+            open_create_dialog()
+
+    def open_create_dialog() -> None:
+        discard_dialog.close()
+        name_input.value = ""
+        name_input.error = None
+        create_dialog.open()
+
+    def refresh_load_options() -> None:
+        load_select.set_options(controller.list_names(), value=None)
+
+    def toggle_load_select() -> None:
+        if load_select.visible:
+            load_select.set_visibility(False)
+            return
+        refresh_load_options()
+        load_select.set_visibility(True)
+        load_select.run_method("showPopup")  # opens the list right away
+
+    def on_select_change(name: str | None) -> None:
+        if not name:
+            return
+        if name != state["name"]:
+            confirm_load(name)
+        # Hide again only if the load worked (or it was already open).
+        if state["name"] == name:
+            load_select.set_visibility(False)
+            load_select.value = None
+
+    def confirm_create() -> None:
+        try:
+            name = validate_config_name(name_input.value or "")
+        except ValueError as exc:
+            name_input.error = str(exc)
+            return
+        try:
+            config = controller.new_configuration()
+        except Exception as exc:  # pragma: no cover - UI guard
+            ui.notify(f"Unable to create configuration: {exc}", type="negative")
+            return
+
+        state["config"] = config
+        state["name"] = name
+        set_saved_status(False)
+        create_dialog.close()
+        editor_body.refresh()
+        ui.notify(f"Configuration '{name}' created. Add items, then save.", type="positive")
+
+    def confirm_load(name: str | None) -> None:
+        config_name = (name or "").strip()
+        if not config_name:
+            ui.notify("Pick a configuration first.", type="negative")
+            return
+        try:
+            loaded_config = controller.load_configuration(config_name)
+        except FileNotFoundError:
+            ui.notify(f"Configuration '{config_name}' was not found.", type="negative")
+            return
+        except ConfigLoadError as exc:
+            ui.notify(f"'{config_name}' is not a valid configuration: {exc}", type="negative")
+            return
+        except Exception as exc:  # pragma: no cover - UI guard
+            ui.notify(f"Unable to load configuration: {exc}", type="negative")
+            return
+
+        state["config"] = loaded_config
+        state["name"] = config_name
+        set_saved_status(True)
+        editor_body.refresh()
+        ui.notify(f"Loaded '{config_name}'.", type="positive")
+
+    with ui.dialog() as validate_dialog, ui.card().classes(
+        "min-w-[28rem] max-w-2xl border border-[#29404b] bg-[#182630]"
+    ):
+        validate_title = ui.label().classes("text-lg font-semibold text-white")
+        validate_results = ui.column().classes("w-full gap-3")
+        with ui.row().classes("mt-4 w-full justify-end"):
+            ui.button("Close", on_click=validate_dialog.close).props("flat")
+
+    def show_problems(title: str, problems, *, restored: bool = False) -> None:
+        validate_title.set_text(title)
+        validate_results.clear()
+        with validate_results:
+            if not problems:
+                with ui.row().classes("items-center gap-2"):
+                    ui.icon("check_circle", size="28px").classes("text-green-400")
+                    ui.label("Valid configuration. It's ready to save.").classes("text-[#d8e7e8]")
+            else:
+                ui.label(
+                    f"Found {len(problems)} problem(s). "
+                    + (
+                        "The invalid change was rolled back."
+                        if restored
+                        else "The incomplete draft is retained; fix these issues before saving."
+                    )
+                ).classes("text-sm text-[#9fb2b8]")
+                by_area: dict[str, list] = {}
+                for problem in problems:
+                    by_area.setdefault(problem.area, []).append(problem)
+                for area, area_problems in by_area.items():
+                    ui.label(area).classes("mt-2 font-semibold text-[#75e6da]")
+                    for problem in area_problems:
+                        prefix = f"{problem.item}: " if problem.item else ""
+                        ui.label(f"• {prefix}{problem.message}").classes(
+                            "break-words text-sm text-[#d8e7e8]"
+                        )
+        validate_dialog.open()
+
+    def validate_current_config() -> None:
+        if state["config"] is None:
+            ui.notify("Create or load a configuration first.", type="warning")
+            return
+        try:
+            problems = controller.validate_configuration()
+        except Exception as exc:  # pragma: no cover - UI guard
+            ui.notify(f"Unable to validate configuration: {exc}", type="negative")
+            return
+        show_problems("Validate configuration", problems)
