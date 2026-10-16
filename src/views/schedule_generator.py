@@ -289,6 +289,9 @@ def schedule_generator() -> None:
     def generate_schedules() -> None:
         nonlocal completion_rendered
         if controller.state_snapshot().running:
+            ui.label(
+                "Generation is already in progress. Please wait for it to finish."
+            ).classes("text-red-400")
             return
         result_container.clear()
         completion_rendered = False
