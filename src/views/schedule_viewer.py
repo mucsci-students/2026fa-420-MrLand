@@ -351,7 +351,6 @@ def schedule_viewer() -> None:
             columns=columns,
             rows=[],
             row_key="id",
-            pagination=10,
         ).props("flat bordered").classes("w-full")
 
         # ---------------------------------------------------------
