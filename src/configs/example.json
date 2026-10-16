@@ -81,7 +81,7 @@
                 "course_id": "CMSC 152",
                 "section_id": null,
                 "credits": 4,
-                "capacity": 28,
+                "capacity": 27,
                 "room": [
                     "Roddy 136",
                     "Roddy 140",
@@ -521,6 +521,7 @@
                     "Mac": 3
                 },
                 "mandatory_days": [
+                    "MON",
                     "WED",
                     "MON",
                     "FRI"
@@ -578,8 +579,8 @@
                     "Mac": 1
                 },
                 "mandatory_days": [
-                    "WED",
-                    "MON"
+                    "MON",
+                    "WED"
                 ]
             },
             {

@@ -42,7 +42,7 @@ class ScheduleGeneratorController:
         optimizer_override: list[str] | None,
     ) -> tuple[int | None, str | None]:
         if self.model.state_snapshot().running:
-            return None, None
+            return None, "Generation is already in progress. Please wait for it to finish."
         if not config_name:
             return None, "Please select a configuration."
 
