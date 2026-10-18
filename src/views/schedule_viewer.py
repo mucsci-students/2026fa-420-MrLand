@@ -12,17 +12,11 @@ from src.controllers.schedule_controller import (
     schedule_controller as controller,
 )
 from src.controllers.schedule_filters_controller import (
-    sort_schedule,
     filter_by_resource,
     filter_by_faculty,
     filter_by_course,
 )
-from src.controllers.schedule_inspection_controller import (
-    get_course_details,
-    get_faculty_details,
-    get_room_details,
-    get_lab_details,
-)
+from src.views.schedule_table_view import schedule_table_view
 
 # set the background and accent colors for the schedule viewer
 BACKGROUND = "#101820"
@@ -55,59 +49,17 @@ def schedule_viewer() -> None:
             }}
 
             .schedule-dropdown .q-field__control:hover:before {{
-                border-color: #75e6da !important;
+                border-color: {ACCENT} !important;
             }}
 
             .schedule-dropdown .q-field--focused .q-field__control:after {{
-                border-color: #75e6da !important;
+                border-color: {ACCENT} !important;
             }}
 
             .schedule-dropdown .q-field__native,
             .schedule-dropdown .q-field__input,
             .schedule-dropdown .q-field__label,
             .schedule-dropdown .q-select__dropdown-icon {{
-                color: #d8e7e8 !important;
-            }}
-
-            /* Table */
-            .q-table__container,
-            .q-table__middle,
-            .q-table {{
-                background: {BACKGROUND} !important;
-            }}
-
-            .q-table thead tr {{
-                background: #17252d !important;
-            }}
-
-            .q-table tbody tr {{
-                background: {BACKGROUND} !important;
-            }}
-
-            .q-table tbody tr:hover {{
-                background: #1c3039 !important;
-            }}
-
-            .q-table th,
-            .q-table td {{
-                color: #d8e7e8 !important;
-            }}
-
-            /* Table pagination */
-            .q-table__bottom {{
-                background: {BACKGROUND} !important;
-                color: #d8e7e8 !important;
-                border-top: 1px solid #29404b !important;
-            }}
-
-            .q-table__bottom .q-field__native,
-            .q-table__bottom .q-field__input,
-            .q-table__bottom .q-field__label,
-            .q-table__bottom .q-select__dropdown-icon {{
-                color: #d8e7e8 !important;
-            }}
-
-            .q-table__bottom .q-btn {{
                 color: #d8e7e8 !important;
             }}
         </style>
@@ -250,27 +202,8 @@ def schedule_viewer() -> None:
 
         with ui.row().classes("w-full items-center gap-4 mb-6 flex-nowrap"):
 
-            sort_select = ui.select(
-                [
-                    "Day",
-                    "Start Time",
-                    "Course",
-                    "Faculty",
-                    "Room / Lab",
-                ],
-                value="Day",
-                label="Sort",
-            ).props("outlined").classes("schedule-dropdown").style(
-                "width: 180px;"
-            )
-
             filter_select = ui.select(
-                [
-                    "None",
-                    "Course",
-                    "Faculty",
-                    "Room / Lab",
-                ],
+                ["None", "Course", "Faculty", "Room / Lab"],
                 value="None",
                 label="Filter By",
             ).props("outlined").classes("schedule-dropdown").style(
@@ -285,368 +218,21 @@ def schedule_viewer() -> None:
                 "width: 200px;"
             )
 
-            order_select = ui.select(
-                [
-                    "Ascending",
-                    "Descending",
-                ],
-                value="Ascending",
-                label="Order",
-            ).props("outlined").classes("schedule-dropdown").style(
-                "width: 180px;"
-            )
 
         # ---------------------------------------------------------
-        # Table columns
+        # Calendar and Table tabs
         # ---------------------------------------------------------
+        with ui.tabs() as view_tabs:
+            calendar_tab = ui.tab("Calendar")
+            table_tab = ui.tab("Table")
 
-        # create the columns the table will use
-        columns = [
-            {
-                "name": "course",
-                "label": "Course",
-                "field": "course",
-                "align": "left",
-                "sortable": True,
-            },
-            {
-                "name": "faculty",
-                "label": "Faculty",
-                "field": "faculty",
-                "align": "left",
-                "sortable": True,
-            },
-            {
-                "name": "resource",
-                "label": "Room / Lab",
-                "field": "resource",
-                "align": "left",
-                "sortable": True,
-            },
-            {
-                "name": "day",
-                "label": "Day",
-                "field": "day",
-                "align": "left",
-                "sortable": True,
-            },
-            {
-                "name": "start",
-                "label": "Start",
-                "field": "start",
-                "align": "left",
-                "sortable": True,
-            },
-            {
-                "name": "end",
-                "label": "End",
-                "field": "end",
-                "align": "left",
-                "sortable": True,
-            },
-        ]
+        with ui.tab_panels(view_tabs, value=calendar_tab).classes("w-full"):
+            with ui.tab_panel(calendar_tab):
+                # place holder text
+                ui.label("Calendar view will go here.")
 
-        # create table object
-        table = ui.table(
-            columns=columns,
-            rows=[],
-            row_key="id",
-        ).props("flat bordered").classes("w-full")
-
-        # ---------------------------------------------------------
-        # Add clickable cells to table
-        # ---------------------------------------------------------
-
-        # makes each element in the course column clickable
-        table.add_slot(
-            "body-cell-course",
-            """
-            <q-td :props="props">
-                <q-btn
-                    flat
-                    dense
-                    no-caps
-                    :label="props.value"
-                    @click="$parent.$emit('inspect-course', props.value)"
-                />
-            </q-td>
-            """
-        )
-        # calls the inspect_course function when course is clicked
-        table.on(
-            "inspect-course",
-            lambda event: inspect_course(event.args)
-        )
-
-        # makes each element in the faculty column clickable
-        table.add_slot(
-            "body-cell-faculty",
-            """
-            <q-td :props="props">
-                <q-btn
-                    flat
-                    dense
-                    no-caps
-                    :label="props.value"
-                    @click="$parent.$emit('inspect-faculty', props.value)"
-                />
-            </q-td>
-            """
-        )
-        # calls the inspect_faculty function when faculty is clicked
-        table.on(
-            "inspect-faculty",
-            lambda event: inspect_faculty(event.args)\
-        )
-
-        # makes each element in the resource column clickable
-        table.add_slot(
-            "body-cell-resource",
-            """
-            <q-td :props="props">
-                <q-btn
-                    flat
-                    dense
-                    no-caps
-                    :label="props.value"
-                    @click="$parent.$emit('inspect-resource', props.row)"
-                />
-            </q-td>
-            """
-        )
-        # calls the inspect_resource function when resource is clicked
-        table.on(
-            "inspect-resource",
-            lambda event: inspect_resource(event.args)
-        )
-
-        # makes each element in the day column clickable
-        table.add_slot(
-            "body-cell-day",
-            """
-            <q-td :props="props">
-                <q-btn
-                    flat
-                    dense
-                    no-caps
-                    :label="props.value"
-                    @click="$parent.$emit('inspect-time', props.row)"
-                />
-            </q-td>
-            """
-        )
-        # makes each element in the start column clickable
-        table.on(
-            "inspect-time",
-            lambda event: inspect_time(event.args)
-        )
-
-
-        # ---------------------------------------------------------
-        # Inspect Elements Methods
-        # ---------------------------------------------------------
-
-        # method to get course elements from the config and display them in a dialog box
-        def inspect_course(course_id):
-            # handles csv and JSON schedule file imports
-            if controller.current is None or controller.current.config is None:
-                ui.notify(
-                    "Configuration details are unavailable for this schedule.",
-                    type="warning",
-                )
-                return
-            
-            course = get_course_details(controller.current.schedule, course_id)
-
-            if course is None:
-                ui.notify("Course details not found", type="negative")
-                return
-
-            # hekps to make modailty more user friendly
-            # takes it from in_person to in person for example
-            modality_names = {
-                "in_person": "In Person",
-                "online": "Online",
-                "hybrid": "Hybrid",
-            }
-            modality = modality_names.get(
-                str(course.modality),
-                str(course.modality),
-            )
-
-            # helps make conflicts more user friendly so its not [__, __] or []
-            # instead it becomes ____, ____
-            if course.conflicts:
-                conflicts = ", ".join(str(conflict) for conflict in course.conflicts)
-            else:
-                conflicts = "None"
-
-            # creates dialog box to be displayed
-            with ui.dialog() as dialog:
-                with ui.card():
-                    ui.label("Course Details").classes("text-xl font-bold")
-
-                    ui.label(f"Course ID: {course.course_id}")
-                    ui.label(f"Section: {course.section_id}")
-                    ui.label(f"Credits: {course.credits}")
-                    ui.label(f"Capacity: {course.capacity}")
-                    ui.label(f"Modality: {modality}")
-                    ui.label(f"Conflicts: {conflicts}")
-
-                    ui.button("Close", on_click=dialog.close)
-
-            dialog.open()
-
-        # method to get faculty elements from the config and display them in a dialog box
-        def inspect_faculty(faculty_name):
-            # handles csv and JSON schedule file imports
-            if controller.current is None or controller.current.config is None:
-                ui.notify(
-                    "Configuration details are unavailable for this schedule.",
-                    type="warning",
-                )
-                return
-
-            faculty = get_faculty_details(controller.current.config, faculty_name)
-
-            if faculty is None:
-                ui.notify("Faculty details not found", type="negative")
-                return
-
-            # creates dialog box to be displayed
-            with ui.dialog() as dialog:
-                with ui.card():
-                    ui.label("Faculty Details").classes("text-xl font-bold")
-
-                    ui.label(f"Name: {faculty.name}")
-                    ui.label(f"Minimum Credits: {faculty.minimum_credits}")
-                    ui.label(f"Maximum Credits: {faculty.maximum_credits}")
-                    ui.label(f"Maximum Days: {faculty.maximum_days}")
-                    ui.label(f"Unique Course Limit: {faculty.unique_course_limit}")
-
-                    ui.button("Close", on_click=dialog.close)
-
-            dialog.open()
-
-        # method to get room elements from the config and display them in a dialog box
-        def inspect_room(room_name):
-            room = get_room_details(controller.current.config, room_name)
-
-            if room is None:
-                ui.notify("Room details not found", type="negative")
-                return
-            
-            # helps make room features more user friendly so its not [__, __] or []
-            # instead it becomes ____, ____
-            if room.features:
-                features = ", ".join(str(feature) for feature in room.features)
-            else:
-                features = "None"
-
-            # creates dialog box to be displayed
-            with ui.dialog() as dialog:
-                with ui.card():
-                    ui.label("Room Details").classes("text-xl font-bold")
-
-                    ui.label(f"Name: {room.name}")
-                    ui.label(f"Capacity: {room.capacity}")
-                    ui.label(f"Features: {features}")
-
-                    ui.button("Close", on_click=dialog.close)
-
-            dialog.open()
-
-        # method to get lab elements from the config and display them in a dialog box
-        def inspect_lab(lab_name):
-            lab = get_lab_details(controller.current.config, lab_name)
-
-            if lab is None:
-                ui.notify("Lab details not found", type="negative")
-                return
-            
-            # helps make room features more user friendly so its not [__, __] or []
-            # instead it becomes ____, ____
-            if lab.features:
-                features = ", ".join(str(feature) for feature in lab.features)
-            else:
-                features = "None"
-
-            # creates dialog box to be displayed
-            with ui.dialog() as dialog:
-                with ui.card():
-                    ui.label("Lab Details").classes("text-xl font-bold")
-
-                    ui.label(f"Name: {lab.name}")
-                    ui.label(f"Capacity: {lab.capacity}")
-                    ui.label(f"Features: {features}")
-
-                    ui.button("Close", on_click=dialog.close)
-
-            dialog.open()
-
-        # method to determine whether the resource is a room or lab and calls the respective function
-        def inspect_resource(row):
-            # handles csv and JSON schedule file imports
-            if controller.current is None or controller.current.config is None:
-                ui.notify(
-                    "Configuration details are unavailable for this schedule.",
-                    type="warning",
-                )
-                return
-            
-            resource = row["resource"]
-
-            if not resource:
-                ui.notify("This course has no room or lab assignment.", type="info")
-                return
-
-            # Lab meetings have a lab resource.
-            # The resource itself doesn't tell us whether it is a lab, so we check the configuration.
-            if get_lab_details(controller.current.config, resource) is not None:
-                inspect_lab(resource)
-            else:
-                inspect_room(resource)
-
-        # method to create the dialog box to display the time assignment for a course
-        def inspect_time(row):
-            with ui.dialog() as dialog:
-                with ui.card():
-                    ui.label("Time Assignment").classes("text-xl font-bold")
-
-                    ui.label(f"Course: {row['course']}")
-                    ui.label(f"Faculty: {row['faculty']}")
-                    ui.label(f"Day: {format_day(row['day'])}")
-                    ui.label(f"Start: {row['start']}")
-                    ui.label(f"End: {row['end']}")
-
-                    ui.button("Close", on_click=dialog.close)
-
-            dialog.open()
-
-        # helper to format the day from the schedule to a more user friendly format
-        # ex. MON --> Monday
-        def format_day(day):
-            days = {
-                "MON": "Monday",
-                "TUE": "Tuesday",
-                "WED": "Wednesday",
-                "THU": "Thursday",
-                "FRI": "Friday",
-            }
-            return days.get(day, day)
-
-        # helper to format the time from the schedule to a more user friendly format
-        # ex. 13:30 --> 1:30 PM
-        def format_time(time):
-            hour, minute = map(int, time.split(":"))
-
-            suffix = "AM" if hour < 12 else "PM"
-            display_hour = hour % 12
-
-            if display_hour == 0:
-                display_hour = 12
-
-            return f"{display_hour}:{minute:02d} {suffix}"
+            with ui.tab_panel(table_tab):
+                table_view = schedule_table_view()
             
 
         # ---------------------------------------------------------
@@ -695,14 +281,10 @@ def schedule_viewer() -> None:
         # ---------------------------------------------------------
 
         def update_table():
-            # ALWAYS start with the original schedule.
-            # This prevents filters and sorting from stacking.
+            # Always start with the unfiltered schedule.
             updated_schedule = schedule.copy()
 
-            # -----------------------------
-            # Apply filter
-            # -----------------------------
-
+            # Apply the shared filter.
             filter_type = filter_select.value
             filter_value = filter_value_select.value
 
@@ -724,65 +306,9 @@ def schedule_viewer() -> None:
                     filter_value,
                 )
 
-            # -----------------------------
-            # Apply sort
-            # -----------------------------
-
-            sort_type = sort_select.value
-
-            descending = order_select.value == "Descending"
-
-            if sort_type == "Day":
-                # Default chronological schedule:
-                # Day -> Start Time
-                updated_schedule = sort_schedule(
-                    updated_schedule,
-                    descending=descending,
-                )
-
-            elif sort_type == "Start Time":
-                updated_schedule = sort_schedule(
-                    updated_schedule,
-                    "start",
-                    descending=descending,
-                )
-
-            elif sort_type == "Course":
-                updated_schedule = sort_schedule(
-                    updated_schedule,
-                    "course",
-                    descending=descending,
-                )
-
-            elif sort_type == "Faculty":
-                updated_schedule = sort_schedule(
-                    updated_schedule,
-                    "faculty",
-                    descending=descending,
-                )
-
-            elif sort_type == "Room / Lab":
-                updated_schedule = sort_schedule(
-                    updated_schedule,
-                    "resource",
-                    descending=descending,
-                )
-
-            # -----------------------------
-            # Update table
-            # -----------------------------
-
-            display_schedule = []
-
-            # this adds time formatting for the displayed value only so it is more user friendly
-            for row in updated_schedule:
-                display_row = row.copy()
-                display_row["start"] = format_time(row["start"])
-                display_row["end"] = format_time(row["end"])
-                display_schedule.append(display_row)
-
-            table.rows = display_schedule
-            table.update()
+            # Send the filtered rows to the table.
+            # The table handles its own sorting and time formatting.
+            table_view.update(updated_schedule)
 
         # ---------------------------------------------------------
         # Show the selected schedule
@@ -913,16 +439,6 @@ def schedule_viewer() -> None:
 
         # updates when a different schedule is selected
         schedule_select.on_value_change(on_schedule_selected)
-
-        # updates when a new sort is selected
-        sort_select.on_value_change(
-            lambda _: update_table()
-        )
-
-        # updates when a new order is selected
-        order_select.on_value_change(
-            lambda _: update_table()
-        )
 
         # updates when a new filter type is selected
         filter_select.on_value_change(
