@@ -218,6 +218,21 @@ def schedule_viewer() -> None:
                 "width: 200px;"
             )
 
+            day_filter_select = ui.select(
+                {
+                    None: "All Days",
+                    "MON": "Monday",
+                    "TUE": "Tuesday",
+                    "WED": "Wednesday",
+                    "THU": "Thursday",
+                    "FRI": "Friday",
+                },
+                value=None,
+                label="Day",
+            ).props("outlined").classes("schedule-dropdown").style(
+                "width: 180px;"
+            )
+
 
         # ---------------------------------------------------------
         # Calendar and Table tabs
@@ -305,6 +320,14 @@ def schedule_viewer() -> None:
                     updated_schedule,
                     filter_value,
                 )
+
+            selected_day = day_filter_select.value
+
+            if selected_day:
+                updated_schedule = [
+                    row for row in updated_schedule
+                    if row.get("day") == selected_day
+                ]
 
             # Send the filtered rows to the table.
             # The table handles its own sorting and time formatting.
@@ -450,6 +473,11 @@ def schedule_viewer() -> None:
 
         # updates when a new filter value is selected
         filter_value_select.on_value_change(
+            lambda _: update_table()
+        )
+
+        # updates when a new day filter is selected
+        day_filter_select.on_value_change(
             lambda _: update_table()
         )
 
