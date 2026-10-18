@@ -169,6 +169,22 @@ def schedule_viewer() -> None:
                 on_click=lambda: open_export_dialog(),
             ).props("outline")
 
+            # helper to reset filter values to default
+            def reset_filters():
+                filter_select.set_value("None")
+                filter_value_select.set_value(None)
+                day_filter_select.set_value(None)
+
+                update_filter_values()
+                update_table()
+
+            # Button to reset all filters to their default values
+            reset_filters_button = ui.button(
+                "Reset Filters",
+                icon="filter_alt_off",
+                on_click=reset_filters,
+            ).props("outline")
+
             ui.space()
 
             # button to iterate left through the schedules
@@ -202,6 +218,7 @@ def schedule_viewer() -> None:
 
         with ui.row().classes("w-full items-center gap-4 mb-6 flex-nowrap"):
 
+            # drop down to select the type of filter to apply to the schedule table
             filter_select = ui.select(
                 ["None", "Course", "Faculty", "Room / Lab"],
                 value="None",
@@ -210,6 +227,7 @@ def schedule_viewer() -> None:
                 "width: 180px;"
             )
 
+            # drop down to select the value of the filter to apply to the schedule table
             filter_value_select = ui.select(
                 [],
                 value=None,
@@ -218,6 +236,7 @@ def schedule_viewer() -> None:
                 "width: 200px;"
             )
 
+            # drop down to select the day of the week to filter the schedule table
             day_filter_select = ui.select(
                 {
                     None: "All Days",
@@ -232,7 +251,6 @@ def schedule_viewer() -> None:
             ).props("outlined").classes("schedule-dropdown").style(
                 "width: 180px;"
             )
-
 
         # ---------------------------------------------------------
         # Calendar and Table tabs
@@ -479,6 +497,11 @@ def schedule_viewer() -> None:
         # updates when a new day filter is selected
         day_filter_select.on_value_change(
             lambda _: update_table()
+        )
+
+        # resets all filters to their default values when the reset button is clicked
+        reset_filters_button.on_click(
+            lambda _: reset_filters()
         )
 
         # ---------------------------------------------------------
