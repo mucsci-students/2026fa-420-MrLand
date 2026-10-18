@@ -17,6 +17,7 @@ from src.controllers.schedule_filters_controller import (
     filter_by_course,
 )
 from src.views.schedule_table_view import schedule_table_view
+from src.views.schedule_calendar_view import schedule_calendar_view
 
 # set the background and accent colors for the schedule viewer
 BACKGROUND = "#101820"
@@ -261,8 +262,7 @@ def schedule_viewer() -> None:
 
         with ui.tab_panels(view_tabs, value=calendar_tab).classes("w-full"):
             with ui.tab_panel(calendar_tab):
-                # place holder text
-                ui.label("Calendar view will go here.")
+                calendar_view = schedule_calendar_view()
 
             with ui.tab_panel(table_tab):
                 table_view = schedule_table_view()
@@ -350,6 +350,7 @@ def schedule_viewer() -> None:
             # Send the filtered rows to the table.
             # The table handles its own sorting and time formatting.
             table_view.update(updated_schedule)
+            calendar_view.update(updated_schedule)
 
         # ---------------------------------------------------------
         # Show the selected schedule
