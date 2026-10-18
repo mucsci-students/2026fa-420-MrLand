@@ -67,6 +67,7 @@ class ScheduleTableView:
             """
         )
 
+        # Creates buttons for the user to sort the table by different columns and order
         with ui.row().classes("w-full items-center gap-4"):
             self.sort_select = ui.select(
                 ["Day", "Start Time", "Course", "Faculty", "Room / Lab"],
