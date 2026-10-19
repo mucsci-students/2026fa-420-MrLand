@@ -367,6 +367,7 @@ class ScheduleCalendarView:
         selected = {"row": row, "start": start, "end": end, "cluster": cluster}
         active_section = {"value": "Overview"}
 
+        # create and format pop-up dialog
         with ui.dialog() as dialog:
             with ui.card().classes("w-[min(900px,95vw)] max-w-none bg-[#101820] text-[#d8e7e8]"):
                 heading = ui.label().classes("text-xl font-bold")
@@ -379,19 +380,8 @@ class ScheduleCalendarView:
                 with ui.row().classes("w-full justify-end"):
                     ui.button("Close", on_click=dialog.close).props("outline")
 
-        def course_details() -> object | None:
-            """Return course configuration details for the selected meeting."""
-            current = controller.current
-            if current is None or current.schedule is None:
-                return None
-
-            course_id = selected["row"].get("course")
-            if not course_id or str(course_id).strip() in ("", "—"):
-                return None
-            return get_course_details(current.schedule, course_id)
-
+        # Return available course/faculty/resource details for the selected meeting.
         def configuration_details() -> tuple[object | None, object | None, str | None]:
-            """Return available faculty/resource details for the selected meeting."""
             current = controller.current
             if current is None or current.config is None:
                 return None, None, None
@@ -399,13 +389,23 @@ class ScheduleCalendarView:
             config = current.config
             faculty_name = selected["row"].get("faculty")
             resource_name = selected["row"].get("resource")
+            course_id = selected["row"].get("course")
 
+            # gets the course details if the course ID is empty or a placeholder
+            course = (
+                get_course_details(current.schedule, course_id)
+                if not course_id or str(course_id).strip() in ("", "—")
+                else None
+            )
+
+            # gets the faculty details if the faculty name is not empty or a placeholder
             faculty = (
                 get_faculty_details(config, faculty_name)
                 if faculty_name and str(faculty_name).strip() not in ("", "—")
                 else None
             )
 
+            # gets the resource details if the resource name is not empty or a placeholder
             resource = None
             resource_type = None
             if resource_name and str(resource_name).strip() not in ("", "—"):
@@ -419,10 +419,10 @@ class ScheduleCalendarView:
                         resource = room
                         resource_type = "Room"
 
-            return faculty, resource, resource_type
-
+            return course, faculty, resource, resource_type
+        
+        # Refresh the right-side content without creating another dialog.
         def show_section(section: str) -> None:
-            """Refresh the right-side content without creating another dialog."""
             active_section["value"] = section
             rebuild_navigation()
             content.clear()
@@ -431,8 +431,7 @@ class ScheduleCalendarView:
             current_start = selected["start"]
             current_end = selected["end"]
             current_cluster = selected["cluster"]
-            faculty, resource, resource_type = configuration_details()
-            course = course_details()
+            course, faculty, resource, resource_type = configuration_details()
 
             if section == "Overview":
                 with content:
@@ -532,13 +531,8 @@ class ScheduleCalendarView:
                     )
                     ui.label(f"Features: {features}")
 
-        def select_meeting(
-            new_row: dict,
-            new_start: int,
-            new_end: int,
-            new_cluster: list[tuple[dict, int, int]],
-        ) -> None:
-            """Change the selected meeting inside the existing dialog."""
+        # Change the selected meeting inside the existing dialog.
+        def select_meeting(new_row: dict, new_start: int, new_end: int, new_cluster: list[tuple[dict, int, int]]) -> None:
             selected["row"] = new_row
             selected["start"] = new_start
             selected["end"] = new_end
@@ -547,11 +541,10 @@ class ScheduleCalendarView:
             rebuild_navigation()
             show_section("Overview")
 
+        # Show only navigation options that have details for this meeting.
         def rebuild_navigation() -> None:
-            """Show only navigation options that have details for this meeting."""
             navigation.clear()
-            faculty, resource, _ = configuration_details()
-            course = course_details()
+            course, faculty, resource, _ = configuration_details()
             heading.set_text(self._display_value(selected["row"].get("course")))
 
             sections = ["Overview", "Time Assignment"]
@@ -572,6 +565,7 @@ class ScheduleCalendarView:
                         + ("bg-[#21414a] text-[#75e6da]" if section == active_section["value"] else "text-[#d8e7e8]")
                     )
 
+        # run the initial setup for the dialog
         rebuild_navigation()
         show_section("Overview")
         dialog.open()
@@ -636,7 +630,6 @@ class ScheduleCalendarView:
             return "—"
         return str(value)
 
-
+# Create and return a calendar view instance.
 def schedule_calendar_view() -> ScheduleCalendarView:
-    """Create and return a calendar view instance."""
     return ScheduleCalendarView()
