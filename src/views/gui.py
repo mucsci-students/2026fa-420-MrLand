@@ -206,6 +206,13 @@ def build_app() -> None:
         )
         next_theme = Theme.DARK if current == Theme.LIGHT.value else Theme.LIGHT
         await ui.run_javascript(theme.script(next_theme))
+        toggle_button.set_text(f"{next_theme.value} mode")
+
+    async def sync_theme_label() -> None:
+        current = await ui.run_javascript(
+            "document.documentElement.dataset.theme"
+        )
+        toggle_button.set_text(f"{Theme(current).value} mode")
 
     with ui.header().props("data-theme-region=header").classes(
         "border-b border-[#29404b] bg-[#101820] px-6 py-4"
@@ -215,11 +222,12 @@ def build_app() -> None:
                 ui.icon("calendar_month", size="32px").classes("text-[#75e6da]")
                 with ui.column().classes("gap-0"):
                     ui.label("Scheduler").classes("text-lg font-semibold text-white")
-            ui.button(
-                "Toggle theme", icon="contrast", on_click=toggle_theme
+            toggle_button = ui.button(
+                "dark mode", icon="contrast", on_click=toggle_theme
             ).props("unelevated aria-label=Toggle color theme").classes(
                 "bg-[#75e6da] text-[#101820]"
             )
+            ui.context.client.on_connect(sync_theme_label)
 
     with ui.column().props("data-theme-region=content").classes(
         "mx-auto w-full max-w-7xl gap-0 px-6 py-8"
