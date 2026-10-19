@@ -169,6 +169,7 @@ class ScheduleCalendarView:
                 )
             return
 
+        # set the first and last hour of the calendar based on the earliest start time and latest end time of the valid rows
         first_hour = max(0, floor(min(start for _, start, _ in valid_rows) / 60))
         last_hour = min(24, ceil(max(end for _, _, end in valid_rows) / 60))
         if last_hour <= first_hour:
@@ -179,6 +180,7 @@ class ScheduleCalendarView:
         calendar_height = range_end - range_start
         hour_count = last_hour - first_hour
 
+        # Creates the calendar grid with day headings, time labels, and event blocks for each course
         with self.calendar_content:
             with ui.element("div").classes("schedule-calendar-scroll"):
                 with ui.element("div").classes("schedule-calendar-grid"):
@@ -369,12 +371,24 @@ class ScheduleCalendarView:
             )
 
             ui.separator()
+            # Exclude the selected meeting from the overlap list
+            overlapping_meetings = [
+                (other_row, other_start, other_end)
+                for other_row, other_start, other_end in cluster
+                if not (
+                    other_row is row
+                    and other_start == start
+                    and other_end == end
+                )
+            ]
+
             ui.label(
-                f"Meetings in this overlap group ({len(cluster)})"
+                f"Other meetings in this overlap group "
+                f"({len(overlapping_meetings)})"
             ).classes("font-bold")
 
             # List all meetings in the overlap group with their details
-            for other_row, other_start, other_end in cluster:
+            for other_row, other_start, other_end in overlapping_meetings:
                 other_course = self._display_value(
                     other_row.get("course")
                 )
@@ -383,13 +397,18 @@ class ScheduleCalendarView:
                     f"{other_course} — "
                     f"{self._format_time(other_start)}–"
                     f"{self._format_time(other_end)}",
-                    on_click=lambda r=other_row, s=other_start, e=other_end:
-                        self._show_details(r, s, e, cluster),
+                    on_click=self._switch_details(dialog, other_row, other_start, other_end, cluster),
                 ).props("outline").classes("w-full")
 
             ui.button("Close", on_click=dialog.close)
 
         dialog.open()
+    
+    # Small helper to close previous inspection pop-up before opening a new one when clicking 
+    # on a different meeting in the overlap group.
+    def _switch_details(self, dialog, row: dict, start: int, end: int, cluster: list[tuple[dict, int, int]]) -> None:
+        dialog.close()
+        self._show_details(row, start, end, cluster)
 
     # Return a background and border color for a course.
     def _course_color(self, course: str) -> tuple[str, str]:
