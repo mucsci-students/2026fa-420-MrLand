@@ -22,7 +22,11 @@ def build_app() -> None:
         <script>
             const savedTheme = localStorage.getItem('mrland-theme');
             document.documentElement.dataset.theme =
-                savedTheme === 'light' ? 'light' : 'dark';
+                savedTheme === 'light' || savedTheme === 'dark'
+                    ? savedTheme
+                    : window.matchMedia('(prefers-color-scheme: light)').matches
+                        ? 'light'
+                        : 'dark';
         </script>
         <style>
             :root {
@@ -206,13 +210,13 @@ def build_app() -> None:
         )
         next_theme = Theme.DARK if current == Theme.LIGHT.value else Theme.LIGHT
         await ui.run_javascript(theme.script(next_theme))
-        toggle_button.set_text(f"{next_theme.value} mode")
+        toggle_button.set_text(f"{next_theme.value.title()} Mode")
 
     async def sync_theme_label() -> None:
         current = await ui.run_javascript(
             "document.documentElement.dataset.theme"
         )
-        toggle_button.set_text(f"{Theme(current).value} mode")
+        toggle_button.set_text(f"{Theme(current).value.title()} Mode")
 
     with ui.header().props("data-theme-region=header").classes(
         "border-b border-[#29404b] bg-[#101820] px-6 py-4"
@@ -223,7 +227,7 @@ def build_app() -> None:
                 with ui.column().classes("gap-0"):
                     ui.label("Scheduler").classes("text-lg font-semibold text-white")
             toggle_button = ui.button(
-                "dark mode", icon="contrast", on_click=toggle_theme
+                "Dark Mode", icon="contrast", on_click=toggle_theme
             ).props("unelevated aria-label=Toggle color theme").classes(
                 "bg-[#75e6da] text-[#101820]"
             )
