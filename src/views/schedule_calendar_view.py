@@ -381,10 +381,10 @@ class ScheduleCalendarView:
                     ui.button("Close", on_click=dialog.close).props("outline")
 
         # Return available course/faculty/resource details for the selected meeting.
-        def configuration_details() -> tuple[object | None, object | None, str | None]:
+        def configuration_details() -> tuple[object | None, object | None, object | None, str | None]:
             current = controller.current
             if current is None or current.config is None:
-                return None, None, None
+                return None, None, None, None
 
             config = current.config
             faculty_name = selected["row"].get("faculty")
@@ -394,7 +394,7 @@ class ScheduleCalendarView:
             # gets the course details if the course ID is empty or a placeholder
             course = (
                 get_course_details(current.schedule, course_id)
-                if not course_id or str(course_id).strip() in ("", "—")
+                if course_id and str(course_id).strip() not in ("", "—")
                 else None
             )
 
