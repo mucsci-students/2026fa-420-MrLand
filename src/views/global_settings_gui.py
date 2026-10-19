@@ -15,6 +15,7 @@ def global_settings_gui(
     combined_config: CombinedConfig,
     on_change: ConfigurationChangeHandler | None = None,
 ) -> None:
+    """Build controls for the configuration's generation limit and optimizer flags."""
     ui.label("Global settings").classes("text-xl font-semibold text-white")
     ui.label("Configure schedule generation behavior.").classes(
         "text-sm text-[#9fb2b8]"
@@ -31,6 +32,7 @@ def global_settings_gui(
     ).props("use-chips clearable").classes("w-full max-w-2xl")
     current_settings = ui.label().classes("text-sm text-[#9fb2b8]")
 
+    # Keep the summary synchronized with the current configuration values.
     def refresh_summary() -> None:
         active_flags = ", ".join(
             flag.value for flag in combined_config.optimizer_flags
@@ -40,6 +42,7 @@ def global_settings_gui(
             f"optimizer flags {active_flags}"
         )
 
+    # Validate the form and apply the new settings to the current draft.
     def save_settings() -> None:
         value = generation_limit.value
         if value is None or not float(value).is_integer():
@@ -61,6 +64,7 @@ def global_settings_gui(
         refresh_summary()
         ui.notify("Global settings saved to the current draft.", type="positive")
 
+    # Restore the controller's default settings in both data and form controls.
     def reset_to_defaults() -> None:
         if not run_configuration_change(
             on_change, lambda: controller.reset_settings(combined_config)

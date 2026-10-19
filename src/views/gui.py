@@ -16,7 +16,9 @@ ACCENT = "#75e6da"
 
 
 def build_app() -> None:
+    """Configure the shared theme styles and assemble the application pages."""
     ui.colors(primary=ACCENT, dark=BACKGROUND)
+    # Choose the saved theme first, falling back to the browser's system preference.
     ui.add_head_html(
         """
         <script>
@@ -29,6 +31,7 @@ def build_app() -> None:
                         : 'dark';
         </script>
         <style>
+            /* Shared dark-theme tokens and base component styling. */
             :root {
                 --app-background: #101820;
                 --app-foreground: #d8e7e8;
@@ -41,6 +44,7 @@ def build_app() -> None:
                 --surface-raised: #17232b;
                 --surface-hover: #1c3039;
             }
+            /* Light mode overrides the shared color tokens. */
             :root[data-theme="light"] {
                 --app-background: #f1f5f9;
                 --app-foreground: #26384d;
@@ -58,6 +62,7 @@ def build_app() -> None:
                 background: var(--app-background);
                 color: var(--app-foreground);
             }
+            /* Shared styling for tabs, fields, and configuration panels. */
             .q-tab { min-height: 56px; color: var(--app-foreground) !important; text-transform: none; }
             .q-tab__label { color: var(--app-foreground) !important; font-weight: 600; }
             .q-tab--active, .q-tab--active .q-tab__label { color: var(--accent-color) !important; }
@@ -74,6 +79,7 @@ def build_app() -> None:
             .mandatory-days .q-menu .q-checkbox__svg { color: var(--app-background) !important; }
             .q-field--outlined .q-field__control:before { border-color: var(--border-strong); }
             .q-field--outlined.q-field--focused .q-field__control:after { border-color: var(--accent-color); }
+            /* Light-mode corrections for components that carry Quasar dark classes. */
             html[data-theme="light"] body,
             html[data-theme="light"] .q-layout,
             html[data-theme="light"] .q-page {
@@ -209,6 +215,7 @@ def build_app() -> None:
         """
     )
 
+    # Apply each theme to the document, header, and page content as one operation.
     theme = ThemeComposite(
         ThemeLeaf(
             lambda mode: (
@@ -229,6 +236,8 @@ def build_app() -> None:
             )
         ),
     )
+
+    # Read the current browser theme, apply its opposite, and update the button label.
     async def toggle_theme() -> None:
         current = await ui.run_javascript(
             "document.documentElement.dataset.theme"
@@ -237,12 +246,14 @@ def build_app() -> None:
         await ui.run_javascript(theme.script(next_theme))
         toggle_button.set_text(f"{next_theme.value.title()} Mode")
 
+    # Keep the button label aligned with the saved or system-selected theme on connect.
     async def sync_theme_label() -> None:
         current = await ui.run_javascript(
             "document.documentElement.dataset.theme"
         )
         toggle_button.set_text(f"{Theme(current).value.title()} Mode")
 
+    # Shared application header and theme control.
     with ui.header().props("data-theme-region=header").classes(
         "border-b border-[#29404b] bg-[#101820] px-6 py-4"
     ):
@@ -258,6 +269,7 @@ def build_app() -> None:
             )
             ui.context.client.on_connect(sync_theme_label)
 
+    # Main tabbed area containing configuration, generation, and schedule views.
     with ui.column().props("data-theme-region=content").classes(
         "mx-auto w-full max-w-7xl gap-0 px-6 py-8"
     ):
@@ -276,6 +288,7 @@ def build_app() -> None:
                 schedule_viewer()
 
 def main() -> None:
+    """Launch the NiceGUI application on the configured local port."""
     ui.run(
         root=build_app,
         title="MrLand Scheduler",
