@@ -179,6 +179,31 @@ def build_app() -> None:
                 html[data-theme="light"] .q-btn--outline {
                     color: var(--accent-color) !important;
                 }
+                html[data-theme="light"] .q-checkbox__bg {
+                    background-color: transparent !important;
+                    border-color: var(--border-strong) !important;
+                }
+                html[data-theme="light"] .q-checkbox__inner--truthy .q-checkbox__bg {
+                    background-color: #234f78 !important;
+                    border-color: #234f78 !important;
+                    opacity: 1 !important;
+                }
+                html[data-theme="light"] .q-checkbox__inner--truthy {
+                    color: #234f78 !important;
+                }
+                html[data-theme="light"] .q-checkbox__inner--truthy .q-checkbox__svg {
+                    color: #ffffff !important;
+                }
+                html[data-theme="light"] .q-menu .q-item,
+                html[data-theme="light"] .q-menu .q-item__label {
+                    color: var(--app-foreground) !important;
+                }
+                html[data-theme="light"] .q-menu .q-item:hover {
+                    background-color: var(--surface-hover) !important;
+                }
+                html[data-theme="light"] .q-menu .q-item--active {
+                    background-color: var(--surface-accent) !important;
+                }
             }
         </style>
         """
