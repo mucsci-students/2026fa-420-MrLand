@@ -21,12 +21,12 @@ from src.views.time_blocks_gui import time_blocks_gui
 
 controller = ConfigurationController()
 
-# Name - config name
-# saved - True when screen view matches file on the disk
-def configuration_editor():
+def configuration_editor() -> None:
+    """Build the editor workspace and coordinate configuration lifecycle actions."""
+    # Keep the selected draft and save state shared by the editor callbacks.
     state = {"config": None, "name": None, "saved": False, "status_badge": None}
 
-    # Updates saved flag 
+    # Update the saved indicator after a draft change or successful save.
     def set_saved_status(saved: bool) -> None:
         state["saved"] = saved
         badge = state["status_badge"]
@@ -34,6 +34,7 @@ def configuration_editor():
             badge.set_text("Draft saved" if saved else "Draft - not saved")
             badge.props(f"color={'green' if saved else 'orange'}")
 
+    # Apply edits through model validation and restore rejected changes.
     def apply_config_change(mutation) -> bool:
         try:
             accepted, problems = controller.apply_change(mutation)
@@ -53,6 +54,7 @@ def configuration_editor():
             show_problems("Draft validation", problems)
         return True
 
+    # Render the current configuration and its category-specific editors.
     @ui.refreshable
     def editor_body() -> None:
         config = state["config"]
@@ -154,6 +156,7 @@ def configuration_editor():
         for panel in panels.values():
             panel.set_visibility(False)
 
+        # Display the selected category panel or announce unavailable actions.
         def show_page(action: str) -> None:
             if action not in panels:
                 coming_soon(action)
@@ -161,9 +164,7 @@ def configuration_editor():
             for page_name, panel in panels.items():
                 panel.set_visibility(page_name == action)
 
-    # button handler:
-    # Saves the open config under state["name"]
-    # Shows errors if any and does not save, otherwise updates badge and saves changes
+    # Persist the active draft and report validation or storage errors.
     def save_current_config() -> None:
         if state["config"] is None:
             ui.notify("No configuration is open to save.", type="negative")
@@ -191,6 +192,7 @@ def configuration_editor():
 
 
 
+        # Workspace actions for loading, creating, saving, and validating configs.
         with ui.row().classes("w-full flex-wrap gap-3"):
             ui.button(
                 "Load configuration",
@@ -213,7 +215,7 @@ def configuration_editor():
                 on_click=lambda: validate_current_config(),
             ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
 
-        # dropdown menu of saved configs
+        # Hidden selector is populated when the user chooses to load a config.
         load_select = ui.select(
             options=controller.list_names(),
             label="Select Configuration",
@@ -223,6 +225,7 @@ def configuration_editor():
 
         editor_body()
 
+    # Confirm before replacing an open draft with a new configuration.
     with ui.dialog() as discard_dialog, ui.card().classes("border border-[#29404b] bg-[#182630]"):
         ui.label("Start a new configuration?").classes("text-lg font-semibold text-white")
         ui.label(
@@ -234,6 +237,7 @@ def configuration_editor():
                 "unelevated color=negative"
             )
 
+    # Collect and validate the name for a newly created configuration.
     with ui.dialog() as create_dialog, ui.card().classes("border border-[#29404b] bg-[#182630]"):
         ui.label("Create new configuration").classes("text-lg font-semibold text-white")
         name_input = ui.input(
@@ -246,21 +250,25 @@ def configuration_editor():
                 "bg-[#75e6da] text-[#101820]"
             )
 
+    # Open the create flow, asking before discarding an existing draft.
     def start_create() -> None:
         if state["config"] is not None:
             discard_dialog.open()
         else:
             open_create_dialog()
 
+    # Reset the name input and open the new-configuration dialog.
     def open_create_dialog() -> None:
         discard_dialog.close()
         name_input.value = ""
         name_input.error = None
         create_dialog.open()
 
+    # Refresh choices in the load selector from persisted configuration names.
     def refresh_load_options() -> None:
         load_select.set_options(controller.list_names(), value=None)
 
+    # Toggle the load selector and display its current options immediately.
     def toggle_load_select() -> None:
         if load_select.visible:
             load_select.set_visibility(False)
@@ -269,6 +277,7 @@ def configuration_editor():
         load_select.set_visibility(True)
         load_select.run_method("showPopup")  # opens the list right away
 
+    # Load a selected configuration, hiding the selector after success.
     def on_select_change(name: str | None) -> None:
         if not name:
             return
@@ -279,6 +288,7 @@ def configuration_editor():
             load_select.set_visibility(False)
             load_select.value = None
 
+    # Validate the requested name, create a draft, and refresh the editor.
     def confirm_create() -> None:
         try:
             name = validate_config_name(name_input.value or "")
@@ -298,6 +308,7 @@ def configuration_editor():
         editor_body.refresh()
         ui.notify(f"Configuration '{name}' created. Add items, then save.", type="positive")
 
+    # Read a saved configuration into the editor and update its saved status.
     def confirm_load(name: str | None) -> None:
         config_name = (name or "").strip()
         if not config_name:
@@ -321,6 +332,7 @@ def configuration_editor():
         editor_body.refresh()
         ui.notify(f"Loaded '{config_name}'.", type="positive")
 
+    # Dialog surface used to display validation results and rejected edits.
     with ui.dialog() as validate_dialog, ui.card().classes(
         "min-w-[28rem] max-w-2xl border border-[#29404b] bg-[#182630]"
     ):
@@ -329,6 +341,7 @@ def configuration_editor():
         with ui.row().classes("mt-4 w-full justify-end"):
             ui.button("Close", on_click=validate_dialog.close).props("flat")
 
+    # Group configuration problems by area and explain any rollback behavior.
     def show_problems(title: str, problems, *, restored: bool = False) -> None:
         validate_title.set_text(title)
         validate_results.clear()
@@ -358,6 +371,7 @@ def configuration_editor():
                         )
         validate_dialog.open()
 
+    # Validate the active draft and display its current problems.
     def validate_current_config() -> None:
         if state["config"] is None:
             ui.notify("Create or load a configuration first.", type="warning")

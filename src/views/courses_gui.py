@@ -13,6 +13,7 @@ MODALITIES = ("in_person", "online", "hybrid")
 
 
 def _csv_values(value, label):
+    """Parse a comma-separated field and reject empty or duplicate entries."""
     if not value or not value.strip():
         return []
     values = [item.strip() for item in value.split(",")]
@@ -24,6 +25,7 @@ def _csv_values(value, label):
 
 
 def _faculty_candidates(derive_from_preferences: bool, faculty_text: str | None):
+    """Return explicit faculty candidates, or None when deriving them is enabled."""
     if derive_from_preferences and not (faculty_text or "").strip():
         return None
     return _csv_values(faculty_text, "Faculty candidates")
@@ -33,6 +35,7 @@ def courses_gui(
     course_members: list,
     on_change: ConfigurationChangeHandler | None = None,
 ) -> None:
+    """Build the course editor, including its add, edit, and delete controls."""
     ui.label("Courses").classes("text-xl font-semibold text-white")
     ui.label("Add a course section and its scheduling requirements.").classes(
         "text-sm text-[#9fb2b8]"
@@ -45,6 +48,7 @@ def courses_gui(
             "unelevated"
         ).classes("bg-[#75e6da] text-[#101820]")
 
+    # Form fields and callbacks for creating or editing a course.
     with ui.column().classes("w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4") as form_container:
         form_container.set_visibility(False)
         form_heading = ui.label("Add New Course").classes(
@@ -94,14 +98,17 @@ def courses_gui(
             value=True,
         ).classes("text-[#d8e7e8]")
 
+        # Hide and disable resource fields for online courses.
         def set_resource_fields_enabled(enabled: bool) -> None:
             for field in resource_fields:
                 field.set_enabled(enabled)
 
+        # Keep resource controls aligned with the selected delivery modality.
         def apply_modality(selected_modality: str) -> None:
             resource_section.set_visibility(selected_modality != "online")
             set_resource_fields_enabled(selected_modality != "online")
 
+        # Apply the resource-field state when the modality selection changes.
         def modality_changed(event) -> None:
             apply_modality(event.value)
 
@@ -109,12 +116,14 @@ def courses_gui(
 
         editing_course = {"course": None}
 
+        # Ensure numeric form fields contain positive whole numbers.
         def integer_value(field, label):
             value = field.value
             if value is None or not float(value).is_integer() or value <= 0:
                 raise ValueError(f"{label} must be a positive integer.")
             return int(value)
 
+        # Validate and collect course data, excluding resources for online courses.
         def form_values():
             selected_modality = modality.value
             if selected_modality not in MODALITIES:
@@ -158,6 +167,7 @@ def courses_gui(
                 selected_faculty,
             )
 
+        # Reset the controls to defaults and open a new-course form.
         def show_form() -> None:
             editing_course["course"] = None
             form_heading.set_text("Add New Course")
@@ -180,6 +190,7 @@ def courses_gui(
             update_button.set_visibility(False)
             cancel_button.set_visibility(True)
 
+        # Clear the controls and close the form after an action or cancellation.
         def reset_form() -> None:
             editing_course["course"] = None
             form_heading.set_text("Add New Course")
@@ -202,6 +213,7 @@ def courses_gui(
             update_button.set_visibility(False)
             cancel_button.set_visibility(False)
 
+        # Add the validated form values to the current configuration.
         def add_course() -> None:
             try:
                 if not run_configuration_change(
@@ -216,6 +228,7 @@ def courses_gui(
             refresh_courses()
             ui.notify("Course added.", type="positive")
 
+        # Save edits to the course currently being modified.
         def update_course() -> None:
             try:
                 if not run_configuration_change(
@@ -232,6 +245,7 @@ def courses_gui(
             refresh_courses()
             ui.notify("Course updated.", type="positive")
 
+        # Populate the form with a selected course's current values.
         def begin_edit(course) -> None:
             editing_course["course"] = course
             form_heading.set_text("Modifying Course")
@@ -258,6 +272,7 @@ def courses_gui(
             update_button.set_visibility(True)
             cancel_button.set_visibility(True)
 
+        # Delete the selected course after the user confirms the action.
         def delete_course(course, dialog) -> None:
             try:
                 if not run_configuration_change(
@@ -289,6 +304,7 @@ def courses_gui(
             ).classes("border-[#45616b] text-[#d8e7e8]")
             cancel_button.set_visibility(False)
 
+    # Rebuild the course summaries and their edit/delete controls.
     def refresh_courses() -> None:
         course_list.clear()
         with course_list:
