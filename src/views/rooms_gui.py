@@ -11,6 +11,7 @@ controller = RoomController()
 
 
 def _availability_text(times) -> str:
+    """Format a room's weekly availability for its summary row."""
     if times is None:
         return "Unrestricted"
     if not times:
@@ -25,6 +26,7 @@ def rooms_gui(
     rooms: list,
     on_change: ConfigurationChangeHandler | None = None,
 ) -> None:
+    """Build the room editor, including its add, edit, and delete controls."""
     ui.label("Rooms").classes("text-xl font-semibold text-white")
     ui.label("Add a room and its scheduling constraints.").classes(
         "text-sm text-[#9fb2b8]"
@@ -37,6 +39,7 @@ def rooms_gui(
             "unelevated"
         ).classes("bg-[#75e6da] text-[#101820]")
 
+    # Form fields and callbacks for creating or editing a room.
     with ui.column().classes("w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4") as form_container:
         form_container.set_visibility(False)
         form_heading = ui.label("Add New Room").classes("text-lg font-semibold text-white")
@@ -59,6 +62,7 @@ def rooms_gui(
                     placeholder="09:00-12:00, 13:00-17:00",
                 ).classes("w-full")
 
+        # Toggle day inputs when the room has restricted availability.
         def set_availability_enabled(event) -> None:
             for field in availability_fields.values():
                 field.set_enabled(not event.value)
@@ -69,6 +73,7 @@ def rooms_gui(
 
         editing_room = {"room": None}
 
+        # Validate and collect the current form values for the controller.
         def form_values():
             capacity_value = capacity.value
             if capacity_value is None or not float(capacity_value).is_integer():
@@ -92,6 +97,7 @@ def rooms_gui(
             ]
             return name.value or "", int(capacity_value), parsed_features, availability
 
+        # Prepare the form for a new room and show its create controls.
         def show_form() -> None:
             editing_room["room"] = None
             form_heading.set_text("Add New Room")
@@ -108,6 +114,7 @@ def rooms_gui(
             update_button.set_visibility(False)
             cancel_button.set_visibility(True)
 
+        # Clear the form and return it to its closed, create-ready state.
         def reset_form() -> None:
             editing_room["room"] = None
             form_heading.set_text("Add New Room")
@@ -123,6 +130,7 @@ def rooms_gui(
             update_button.set_visibility(False)
             cancel_button.set_visibility(False)
 
+        # Apply a new room to the current configuration.
         def add_room() -> None:
             try:
                 if not run_configuration_change(
@@ -136,6 +144,7 @@ def rooms_gui(
             refresh_rooms()
             ui.notify("Room added.", type="positive")
 
+        # Save edits to the room currently being modified.
         def update_room() -> None:
             try:
                 if not run_configuration_change(
@@ -152,6 +161,7 @@ def rooms_gui(
             refresh_rooms()
             ui.notify("Room updated.", type="positive")
 
+        # Populate the form with a selected room's current values.
         def begin_edit(room) -> None:
             editing_room["room"] = room
             form_heading.set_text("Modifying Room")
@@ -169,6 +179,7 @@ def rooms_gui(
             update_button.set_visibility(True)
             cancel_button.set_visibility(True)
 
+        # Delete the selected room after the user confirms the action.
         def delete_room(room, dialog) -> None:
             try:
                 if not run_configuration_change(
@@ -199,6 +210,7 @@ def rooms_gui(
             ).classes("border-[#45616b] text-[#d8e7e8]")
             cancel_button.set_visibility(False)
 
+    # Rebuild the room summaries and their edit/delete controls.
     def refresh_rooms() -> None:
         room_list.clear()
         with room_list:

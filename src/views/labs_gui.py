@@ -13,6 +13,7 @@ DAYS = ("MON", "TUE", "WED", "THU", "FRI")
 
 
 def _availability_text(times) -> str:
+    """Format a lab's weekly availability for its summary row."""
     if times is None:
         return "Unrestricted"
     if not times:
@@ -27,6 +28,7 @@ def labs_gui(
     labs: list,
     on_change: ConfigurationChangeHandler | None = None,
 ) -> None:
+    """Build the lab editor, including its add, edit, and delete controls."""
     ui.label("Labs").classes("text-xl font-semibold text-white")
     ui.label("Add a lab, its capacity, features, and availability.").classes(
         "text-sm text-[#9fb2b8]"
@@ -39,6 +41,7 @@ def labs_gui(
             "unelevated"
         ).classes("bg-[#75e6da] text-[#101820]")
 
+    # Form fields and callbacks for creating or editing a lab.
     with ui.column().classes("w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4") as form_container:
         form_container.set_visibility(False)
         form_heading = ui.label("Add New Lab").classes("text-lg font-semibold text-white")
@@ -61,10 +64,12 @@ def labs_gui(
                     placeholder="09:00-12:00, 13:00-17:00",
                 ).classes("w-full")
 
+        # Enable or disable the per-day inputs based on the availability option.
         def set_availability_enabled(enabled: bool) -> None:
             for field in availability_fields.values():
                 field.set_enabled(enabled)
 
+        # Update the day inputs when unrestricted availability is toggled.
         def availability_changed(event) -> None:
             set_availability_enabled(not event.value)
 
@@ -73,6 +78,7 @@ def labs_gui(
 
         editing_lab = {"lab": None}
 
+        # Validate and collect the current form values for the controller.
         def form_values():
             capacity_value = capacity.value
             if capacity_value is None or not float(capacity_value).is_integer():
@@ -96,6 +102,7 @@ def labs_gui(
             ]
             return name.value or "", int(capacity_value), feature_values, times
 
+        # Prepare the form for a new lab and show its create controls.
         def show_form() -> None:
             editing_lab["lab"] = None
             form_heading.set_text("Add New Lab")
@@ -111,6 +118,7 @@ def labs_gui(
             update_button.set_visibility(False)
             cancel_button.set_visibility(True)
 
+        # Clear the form and return it to its closed, create-ready state.
         def reset_form() -> None:
             editing_lab["lab"] = None
             form_heading.set_text("Add New Lab")
@@ -126,6 +134,7 @@ def labs_gui(
             update_button.set_visibility(False)
             cancel_button.set_visibility(False)
 
+        # Apply a new lab to the current configuration.
         def add_lab() -> None:
             try:
                 if not run_configuration_change(
@@ -139,6 +148,7 @@ def labs_gui(
             refresh_labs()
             ui.notify("Lab added.", type="positive")
 
+        # Save edits to the lab currently being modified.
         def update_lab() -> None:
             try:
                 if not run_configuration_change(
@@ -155,6 +165,7 @@ def labs_gui(
             refresh_labs()
             ui.notify("Lab updated.", type="positive")
 
+        # Populate the form with a selected lab's current values.
         def begin_edit(lab) -> None:
             editing_lab["lab"] = lab
             form_heading.set_text("Modifying Lab")
@@ -173,6 +184,7 @@ def labs_gui(
             update_button.set_visibility(True)
             cancel_button.set_visibility(True)
 
+        # Delete the selected lab after the user confirms the action.
         def delete_lab(lab, dialog) -> None:
             try:
                 if not run_configuration_change(
@@ -203,6 +215,7 @@ def labs_gui(
             ).classes("border-[#45616b] text-[#d8e7e8]")
             cancel_button.set_visibility(False)
 
+    # Rebuild the lab summaries and their edit/delete controls.
     def refresh_labs() -> None:
         lab_list.clear()
         with lab_list:

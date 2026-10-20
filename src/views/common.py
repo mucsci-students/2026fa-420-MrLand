@@ -14,6 +14,7 @@ def run_configuration_change(
     on_change: ConfigurationChangeHandler | None,
     mutation: Callable[[], object],
 ) -> bool:
+    """Route edits through the editor's validation callback when one is provided."""
     if on_change is None:
         mutation()
         return True
@@ -21,6 +22,7 @@ def run_configuration_change(
 
 
 def section_header(eyebrow: str, title: str, description: str) -> None:
+    """Render a shared section heading with a label, title, and description."""
     with ui.column().classes("gap-1"):
         ui.label(eyebrow.upper()).classes(
             "text-xs font-bold tracking-[0.2em] text-[#75e6da]"
@@ -30,6 +32,7 @@ def section_header(eyebrow: str, title: str, description: str) -> None:
 
 
 def status_card(title: str, value: str, detail: str, icon: str) -> None:
+    """Render a compact card summarizing a value and its supporting detail."""
     with ui.card().classes("min-w-[180px] flex-1 border border-[#29404b] bg-[#182630] p-4"):
         with ui.row().classes("w-full items-center justify-between"):
             ui.label(title).classes("text-xs uppercase tracking-wider text-[#9fb2b8]")
@@ -39,4 +42,5 @@ def status_card(title: str, value: str, detail: str, icon: str) -> None:
 
 
 def coming_soon(action: str) -> None:
+    """Notify the user that the selected editor action is not yet available."""
     ui.notify(f"{action} coming soon")

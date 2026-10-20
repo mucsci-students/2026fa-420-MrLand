@@ -16,6 +16,7 @@ def time_blocks_gui(
     times: dict,
     on_change: ConfigurationChangeHandler | None = None,
 ) -> None:
+    """Build the time-block editor with create, edit, and delete actions."""
     ui.label("Time blocks").classes("text-xl font-semibold text-white")
     ui.label("Define the available scheduling window for each weekday.").classes(
         "text-sm text-[#9fb2b8]"
@@ -30,6 +31,7 @@ def time_blocks_gui(
             "unelevated"
         ).classes("bg-[#75e6da] text-[#101820]")
 
+    # Form fields and callbacks for creating or editing a time block.
     with ui.column().classes("w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4") as form_container:
         form_container.set_visibility(False)
         form_heading = ui.label("Add New Time Block").classes("text-lg font-semibold text-white")
@@ -44,12 +46,14 @@ def time_blocks_gui(
 
         editing_block = {"day": None, "block": None}
 
+        # Validate and collect the current form values for the controller.
         def form_values():
             spacing_value = spacing.value
             if spacing_value is None or not float(spacing_value).is_integer():
                 raise ValueError("Spacing must be a whole number of minutes.")
             return day.value, start.value or "", int(spacing_value), end.value or ""
 
+        # Prepare the form for adding a new time block.
         def show_form() -> None:
             editing_block["day"] = None
             editing_block["block"] = None
@@ -63,6 +67,7 @@ def time_blocks_gui(
             update_button.set_visibility(False)
             cancel_button.set_visibility(True)
 
+        # Clear the form and close it after an action or cancellation.
         def reset_form() -> None:
             editing_block["day"] = None
             editing_block["block"] = None
@@ -76,6 +81,7 @@ def time_blocks_gui(
             update_button.set_visibility(False)
             cancel_button.set_visibility(False)
 
+        # Add the form's time block to the selected weekday.
         def add_block() -> None:
             try:
                 if not run_configuration_change(
@@ -90,6 +96,7 @@ def time_blocks_gui(
             refresh_blocks()
             ui.notify("Time block added.", type="positive")
 
+        # Save changes to the time block currently being edited.
         def update_block() -> None:
             try:
                 if not run_configuration_change(
@@ -109,6 +116,7 @@ def time_blocks_gui(
             refresh_blocks()
             ui.notify("Time block updated.", type="positive")
 
+        # Populate the form with the selected weekday and time block.
         def begin_edit(block_day, block) -> None:
             editing_block["day"] = block_day
             editing_block["block"] = block
@@ -122,6 +130,7 @@ def time_blocks_gui(
             update_button.set_visibility(True)
             cancel_button.set_visibility(True)
 
+        # Delete the selected time block after confirmation.
         def delete_block(block_day, block, dialog) -> None:
             try:
                 if not run_configuration_change(
@@ -153,6 +162,7 @@ def time_blocks_gui(
             ).classes("border-[#45616b] text-[#d8e7e8]")
             cancel_button.set_visibility(False)
 
+    # Rebuild the weekday time-block summaries and their action controls.
     def refresh_blocks() -> None:
         block_list.clear()
         with block_list:

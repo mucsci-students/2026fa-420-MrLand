@@ -42,73 +42,73 @@ def schedule_viewer() -> None:
         f"""
         <style>
             body {{
-                background: {BACKGROUND} !important;
+                background: var(--app-background) !important;
             }}
 
             .q-page {{
-                background: {BACKGROUND} !important;
+                background: var(--app-background) !important;
             }}
 
             /* Dropdowns */
             .schedule-dropdown .q-field__control:before {{
-                border-color: #45616b !important;
+                border-color: var(--border-strong) !important;
             }}
 
             .schedule-dropdown .q-field__control:hover:before {{
-                border-color: #75e6da !important;
+                border-color: var(--accent-color) !important;
             }}
 
             .schedule-dropdown .q-field--focused .q-field__control:after {{
-                border-color: #75e6da !important;
+                border-color: var(--accent-color) !important;
             }}
 
             .schedule-dropdown .q-field__native,
             .schedule-dropdown .q-field__input,
             .schedule-dropdown .q-field__label,
             .schedule-dropdown .q-select__dropdown-icon {{
-                color: #d8e7e8 !important;
+                color: var(--app-foreground) !important;
             }}
 
             /* Table */
             .q-table__container,
             .q-table__middle,
             .q-table {{
-                background: {BACKGROUND} !important;
+                background: var(--app-background) !important;
             }}
 
             .q-table thead tr {{
-                background: #17252d !important;
+                background: var(--surface-raised) !important;
             }}
 
             .q-table tbody tr {{
-                background: {BACKGROUND} !important;
+                background: var(--app-background) !important;
             }}
 
             .q-table tbody tr:hover {{
-                background: #1c3039 !important;
+                background: var(--surface-hover) !important;
             }}
 
             .q-table th,
             .q-table td {{
-                color: #d8e7e8 !important;
+                color: var(--app-foreground) !important;
             }}
 
             /* Table pagination */
             .q-table__bottom {{
-                background: {BACKGROUND} !important;
-                color: #d8e7e8 !important;
-                border-top: 1px solid #29404b !important;
+                background: var(--app-background) !important;
+                color: var(--app-foreground) !important;
+                border-top: 1px solid var(--border-color) !important;
             }}
 
             .q-table__bottom .q-field__native,
             .q-table__bottom .q-field__input,
             .q-table__bottom .q-field__label,
             .q-table__bottom .q-select__dropdown-icon {{
-                color: #d8e7e8 !important;
+                color: var(--app-foreground) !important;
             }}
 
             .q-table__bottom .q-btn {{
-                color: #d8e7e8 !important;
+                color: var(--app-foreground) !important;
             }}
         </style>
         """
@@ -123,7 +123,7 @@ def schedule_viewer() -> None:
     syncing = False
 
     with ui.column().classes("w-full min-h-screen px-6 py-8").style(
-        f"background-color: {BACKGROUND};"
+        "background-color: var(--app-background);"
     ):
 
         # ---------------------------------------------------------
@@ -132,7 +132,7 @@ def schedule_viewer() -> None:
 
         with ui.row().classes("w-full items-center gap-3 mb-6"):
             ui.icon("calendar_view_week", size="30px").style(
-                f"color: {ACCENT};"
+                "color: var(--accent-color);"
             )
 
             ui.label("Schedule Viewer").classes(

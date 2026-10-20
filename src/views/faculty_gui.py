@@ -13,6 +13,7 @@ DAYS = ("MON", "TUE", "WED", "THU", "FRI")
 
 
 def _parse_preferences(value, label):
+    """Parse comma-separated name=score preferences and validate each score."""
     preferences = {}
     for entry in (value or "").split(","):
         entry = entry.strip()
@@ -32,6 +33,7 @@ def _parse_preferences(value, label):
 
 
 def _availability_text(times) -> str:
+    """Format a faculty member's weekly availability for their summary row."""
     if not times:
         return "No availability"
     return "; ".join(
@@ -44,6 +46,7 @@ def faculty_gui(
     faculty_members: list,
     on_change: ConfigurationChangeHandler | None = None,
 ) -> None:
+    """Build the faculty editor, including its add, edit, and delete controls."""
     ui.label("Faculty").classes("text-xl font-semibold text-white")
     ui.label("Add a faculty member and teaching constraints.").classes(
         "text-sm text-[#9fb2b8]"
@@ -56,6 +59,7 @@ def faculty_gui(
             "unelevated"
         ).classes("bg-[#75e6da] text-[#101820]")
 
+    # Form fields and callbacks for creating or editing a faculty member.
     with ui.column().classes("w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4") as form_container:
         form_container.set_visibility(False)
         form_heading = ui.label("Add New Faculty Member").classes("text-lg font-semibold text-white")
@@ -101,6 +105,7 @@ def faculty_gui(
 
         editing_member = {"member": None}
 
+        # Validate whole-number form fields against their allowed bounds.
         def integer_value(field, label, minimum, maximum=None):
             value = field.value
             if value is None or not float(value).is_integer():
@@ -112,6 +117,7 @@ def faculty_gui(
                 raise ValueError(f"{label} must be between {minimum} and {maximum}.")
             return value
 
+        # Validate and collect faculty details, preferences, and availability.
         def form_values():
             times = {
                 day: [value.strip() for value in field.value.split(",") if value.strip()]
@@ -131,6 +137,7 @@ def faculty_gui(
                 set(mandatory_days.value or []),
             )
 
+        # Reset the controls to defaults and open a new-faculty form.
         def show_form() -> None:
             editing_member["member"] = None
             form_heading.set_text("Add New Faculty Member")
@@ -150,6 +157,7 @@ def faculty_gui(
             update_button.set_visibility(False)
             cancel_button.set_visibility(True)
 
+        # Clear the controls and close the form after an action or cancellation.
         def reset_form() -> None:
             editing_member["member"] = None
             form_heading.set_text("Add New Faculty Member")
@@ -169,6 +177,7 @@ def faculty_gui(
             update_button.set_visibility(False)
             cancel_button.set_visibility(False)
 
+        # Add the validated faculty details to the current configuration.
         def add_member() -> None:
             try:
                 if not run_configuration_change(
@@ -183,6 +192,7 @@ def faculty_gui(
             refresh_faculty()
             ui.notify("Faculty member added.", type="positive")
 
+        # Save edits to the faculty member currently being modified.
         def update_member() -> None:
             try:
                 if not run_configuration_change(
@@ -199,6 +209,7 @@ def faculty_gui(
             refresh_faculty()
             ui.notify("Faculty member updated.", type="positive")
 
+        # Populate the form with a selected faculty member's current values.
         def begin_edit(member) -> None:
             editing_member["member"] = member
             form_heading.set_text("Modifying Faculty Member")
@@ -227,6 +238,7 @@ def faculty_gui(
             update_button.set_visibility(True)
             cancel_button.set_visibility(True)
 
+        # Delete the selected faculty member after confirmation.
         def delete_member(member, dialog) -> None:
             try:
                 if not run_configuration_change(
@@ -258,6 +270,7 @@ def faculty_gui(
             ).classes("border-[#45616b] text-[#d8e7e8]")
             cancel_button.set_visibility(False)
 
+    # Rebuild the faculty summaries and their edit/delete controls.
     def refresh_faculty() -> None:
         faculty_list.clear()
         with faculty_list:
