@@ -7,21 +7,31 @@ LLM can call.
 
 from __future__ import annotations
 
+import json
 import os
 from collections.abc import Callable
-from typing import Any
+from typing import Any, Literal
 
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 from scheduler.config import (
+    ClassPattern,
     CombinedConfig,
     CourseConfig,
     FacultyConfig,
     LabConfig,
     RoomConfig,
+    TimeBlock,
 )
+from scheduler.scheduler import Scheduler
 
-from src.models.configuration_model import create_draft_config, validate_config
+from src.models.configuration_model import (
+    ConfigService,
+    create_draft_config,
+    validate_config,
+)
+from src.models.schedule_files import records_from_result
+from src.models.schedule_result import ScheduleResult
 
 try:
     from langchain.agents import create_agent
@@ -45,8 +55,26 @@ def empty_scheduler_config() -> CombinedConfig:
 class SchedulerAgentState:
     """Thin bridge between the AI and the scheduler configuration object."""
 
-    def __init__(self, config: CombinedConfig | None = None):
-        self.config = config or empty_scheduler_config()
+    def __init__(
+        self,
+        config: CombinedConfig | None = None,
+        save_configuration: Callable[[str], None] | None = None,
+    ):
+        self.config = config if config is not None else empty_scheduler_config()
+        self.has_active_configuration = config is not None
+        self._save_configuration = save_configuration
+
+    @staticmethod
+    def configuration_required_message() -> str:
+        return (
+            "Please create or load a configuration in the Configuration Editor "
+            "before working with scheduler configuration."
+        )
+
+    def get_active_configuration_status(self) -> str:
+        if not self.has_active_configuration:
+            return self.configuration_required_message()
+        return "A scheduler configuration is active."
 
     def _list_items(self, items: list[Any], *, label: str) -> str:
         if not items:
@@ -180,6 +208,154 @@ class SchedulerAgentState:
             f"Faculty: {len(self.config.config.faculty)}"
         )
 
+    def inspect_configuration(self, area: str = "all") -> str:
+        payload = self.config.model_dump(mode="json")
+        areas = {
+            "rooms": payload["config"]["rooms"],
+            "labs": payload["config"]["labs"],
+            "courses": payload["config"]["courses"],
+            "faculty": payload["config"]["faculty"],
+            "class_patterns": payload["time_slot_config"]["classes"],
+            "time_blocks": payload["time_slot_config"]["times"],
+            "global_settings": {
+                "limit": payload["limit"],
+                "optimizer_flags": payload["optimizer_flags"],
+                "max_time_gap": payload["time_slot_config"]["max_time_gap"],
+                "min_time_overlap": payload["time_slot_config"]["min_time_overlap"],
+            },
+        }
+        if area == "all":
+            result = payload
+        elif area in areas:
+            result = areas[area]
+        else:
+            return f"Unknown configuration area '{area}'."
+        return json.dumps(result, indent=2, default=str)
+
+    def create_configuration_item(
+        self,
+        *,
+        area: str,
+        item: dict[str, Any],
+        item_key: str | None = None,
+    ) -> str:
+        try:
+            if area in {"rooms", "labs", "courses", "faculty", "class_patterns"}:
+                collection = self._item_collection(area)
+                parsed = self._parse_item(area, item)
+                key = self._item_identity(area, parsed)
+                if area != "class_patterns" and any(
+                    self._item_identity(area, current) == key for current in collection
+                ):
+                    return f"A {area.rstrip('s')} item with key '{key}' already exists."
+                collection.append(parsed)
+            elif area == "time_blocks":
+                if not item_key:
+                    return "A weekday item_key is required for time_blocks."
+                day = item_key.upper()
+                if day in self.config.time_slot_config.times:
+                    return f"Time blocks for {day} already exist."
+                blocks = item.get("blocks")
+                if not isinstance(blocks, list):
+                    return "time_blocks item must include a 'blocks' list."
+                self.config.time_slot_config.times[day] = [
+                    TimeBlock.model_validate(block) for block in blocks
+                ]
+            else:
+                return f"Items cannot be created in configuration area '{area}'."
+        except (ValidationError, TypeError, ValueError) as error:
+            return f"Could not create {area} item: {error}"
+        return f"Created {area} item '{item_key or key}'."
+
+    def update_configuration_item(
+        self,
+        *,
+        area: str,
+        item_key: str | None,
+        item: dict[str, Any],
+    ) -> str:
+        if not item_key:
+            return "An item_key is required to update a configuration item."
+        try:
+            if area == "time_blocks":
+                day = item_key.upper()
+                if day not in self.config.time_slot_config.times:
+                    return f"No time blocks found for {day}."
+                blocks = item.get("blocks")
+                if not isinstance(blocks, list):
+                    return "time_blocks item must include a 'blocks' list."
+                self.config.time_slot_config.times[day] = [
+                    TimeBlock.model_validate(block) for block in blocks
+                ]
+            elif area in {"rooms", "labs", "courses", "faculty", "class_patterns"}:
+                collection = self._item_collection(area)
+                index = self._find_item_index(area, collection, item_key)
+                if isinstance(index, str):
+                    return index
+                existing = collection[index]
+                values = existing.model_dump(mode="json")
+                values.update(item)
+                collection[index] = self._parse_item(area, values)
+                if area != "class_patterns":
+                    new_key = self._item_identity(area, collection[index])
+                    if any(
+                        position != index
+                        and self._item_identity(area, current) == new_key
+                        for position, current in enumerate(collection)
+                    ):
+                        collection[index] = existing
+                        return f"A {area.rstrip('s')} item with key '{new_key}' already exists."
+            else:
+                return f"Items cannot be updated in configuration area '{area}'."
+        except (ValidationError, TypeError, ValueError) as error:
+            return f"Could not update {area} item '{item_key}': {error}"
+        return f"Updated {area} item '{item_key}'."
+
+    def delete_configuration_item(self, *, area: str, item_key: str) -> str:
+        if area == "time_blocks":
+            day = item_key.upper()
+            if day not in self.config.time_slot_config.times:
+                return f"No time blocks found for {day}."
+            del self.config.time_slot_config.times[day]
+        elif area in {"rooms", "labs", "courses", "faculty", "class_patterns"}:
+            collection = self._item_collection(area)
+            index = self._find_item_index(area, collection, item_key)
+            if isinstance(index, str):
+                return index
+            del collection[index]
+        else:
+            return f"Items cannot be deleted from configuration area '{area}'."
+        return f"Deleted {area} item '{item_key}'."
+
+    def update_configuration_settings(
+        self,
+        *,
+        limit: int | None = None,
+        optimizer_flags: list[str] | None = None,
+        max_time_gap: int | None = None,
+        min_time_overlap: int | None = None,
+    ) -> str:
+        changed: list[str] = []
+        if limit is not None:
+            object.__setattr__(self.config, "limit", limit)
+            changed.append("limit")
+        if optimizer_flags is not None:
+            object.__setattr__(self.config, "optimizer_flags", optimizer_flags)
+            changed.append("optimizer_flags")
+        if max_time_gap is not None:
+            object.__setattr__(
+                self.config.time_slot_config, "max_time_gap", max_time_gap
+            )
+            changed.append("max_time_gap")
+        if min_time_overlap is not None:
+            object.__setattr__(
+                self.config.time_slot_config, "min_time_overlap", min_time_overlap
+            )
+            changed.append("min_time_overlap")
+        if not changed:
+            return "No settings were provided to update."
+        return f"Updated global settings: {', '.join(changed)}."
+
     def validate_current_config(self) -> str:
         problems = validate_config(self.config)
         if not problems:
@@ -189,6 +365,127 @@ class SchedulerAgentState:
             item = problem.item or "overall configuration"
             lines.append(f"- {problem.area}: {item} -> {problem.message}")
         return "\n".join(lines)
+
+    def save_current_config(self, config_name: str) -> str:
+        problems = validate_config(self.config)
+        if problems:
+            return self.validate_current_config()
+        try:
+            if self._save_configuration is not None:
+                self._save_configuration(config_name)
+            else:
+                ConfigService().save(self.config, config_name)
+        except (OSError, ValueError) as error:
+            return f"Could not save configuration '{config_name}': {error}"
+        return f"Configuration saved as '{config_name}.json'."
+
+    def generate_schedules(self) -> str:
+        problems = validate_config(self.config)
+        if problems:
+            return "Cannot generate schedules until the configuration is valid.\n" + (
+                self.validate_current_config()
+            )
+        scheduler = Scheduler(self.config)
+        schedules = []
+        for schedule in scheduler.get_models():
+            schedules.append(schedule)
+            if len(schedules) >= self.config.limit:
+                break
+        if not schedules:
+            return json.dumps(
+                {
+                    "generated": 0,
+                    "message": "No valid schedules could be generated.",
+                    "diagnosis": str(scheduler.diagnose()),
+                },
+                indent=2,
+            )
+        results = [
+            records_from_result(
+                ScheduleResult(
+                    config_name="active configuration",
+                    schedule=schedule,
+                    config=self.config,
+                )
+            )
+            for schedule in schedules
+        ]
+        audits = [scheduler.audit_schedule(schedule) for schedule in schedules]
+        return json.dumps(
+            {
+                "generated": len(schedules),
+                "valid": sum(audit.is_valid for audit in audits),
+                "schedules": results,
+            },
+            indent=2,
+        )
+
+    def _item_collection(self, area: str) -> list[Any]:
+        if area in {"rooms", "labs", "courses", "faculty"}:
+            return getattr(self.config.config, area)
+        if area == "class_patterns":
+            return self.config.time_slot_config.classes
+        raise ValueError(f"Unknown configuration area '{area}'.")
+
+    @staticmethod
+    def _parse_item(area: str, item: dict[str, Any]) -> Any:
+        model = {
+            "rooms": RoomConfig,
+            "labs": LabConfig,
+            "courses": CourseConfig,
+            "faculty": FacultyConfig,
+            "class_patterns": ClassPattern,
+        }.get(area)
+        if model is None:
+            raise ValueError(f"Unknown configuration area '{area}'.")
+        return model.model_validate(item)
+
+    @staticmethod
+    def _item_identity(area: str, item: Any) -> str:
+        if area == "courses":
+            return f"{item.course_id}::{item.section_id or 'default'}"
+        if area == "class_patterns":
+            return str(item.credits)
+        return item.name
+
+    def _find_item_index(
+        self, area: str, collection: list[Any], item_key: str
+    ) -> int | str:
+        if area == "class_patterns":
+            try:
+                index = int(item_key)
+            except ValueError:
+                return "Class-pattern item_key must be its zero-based index."
+            if not 0 <= index < len(collection):
+                return f"No class pattern found at index {index}."
+            return index
+        if area == "courses":
+            if "::" in item_key:
+                course_id, section = item_key.split("::", 1)
+                matches = [
+                    index
+                    for index, course in enumerate(collection)
+                    if course.course_id == course_id
+                    and (course.section_id or "default") == section
+                ]
+            else:
+                matches = [
+                    index
+                    for index, course in enumerate(collection)
+                    if course.course_id == item_key
+                ]
+            if len(matches) > 1:
+                keys = [
+                    self._item_identity(area, collection[index]) for index in matches
+                ]
+                return f"'{item_key}' is ambiguous. Use one of: {', '.join(keys)}."
+            if not matches:
+                return f"No course found with key '{item_key}'."
+            return matches[0]
+        for index, item in enumerate(collection):
+            if self._item_identity(area, item) == item_key:
+                return index
+        return f"No {area.rstrip('s')} item found with key '{item_key}'."
 
 
 class AddRoomArgs(BaseModel):
@@ -247,15 +544,78 @@ class AddCourseArgs(BaseModel):
     )
 
 
+class InspectConfigurationArgs(BaseModel):
+    area: Literal[
+        "all",
+        "rooms",
+        "labs",
+        "courses",
+        "faculty",
+        "class_patterns",
+        "time_blocks",
+        "global_settings",
+    ] = Field(default="all", description="Configuration area to inspect")
+
+
+class ConfigurationItemArgs(BaseModel):
+    area: Literal[
+        "rooms", "labs", "courses", "faculty", "class_patterns", "time_blocks"
+    ] = Field(description="Configuration area containing the item")
+    item_key: str | None = Field(
+        default=None,
+        description=(
+            "Existing item key for update/delete; weekday for time_blocks; "
+            "course keys can use COURSE_ID::SECTION_ID"
+        ),
+    )
+    item: dict[str, Any] = Field(
+        description="Item fields as a JSON object; time_blocks uses {'blocks': [...]}."
+    )
+
+
+class DeleteConfigurationItemArgs(BaseModel):
+    area: Literal[
+        "rooms", "labs", "courses", "faculty", "class_patterns", "time_blocks"
+    ] = Field(description="Configuration area containing the item")
+    item_key: str = Field(
+        description=(
+            "Item name, course ID or COURSE_ID::SECTION_ID, zero-based pattern "
+            "index, or weekday for time_blocks"
+        )
+    )
+
+
+class ConfigurationSettingsArgs(BaseModel):
+    limit: int | None = Field(default=None, description="Maximum schedules to generate")
+    optimizer_flags: list[str] | None = Field(
+        default=None, description="Scheduler optimization flags"
+    )
+    max_time_gap: int | None = Field(
+        default=None, description="Maximum adjacent-meeting gap in minutes"
+    )
+    min_time_overlap: int | None = Field(
+        default=None, description="Minimum overlap between class patterns in minutes"
+    )
+
+
+class SaveConfigurationArgs(BaseModel):
+    config_name: str = Field(description="Name for the saved JSON configuration")
+
+
 def get_tool_list(
     state: SchedulerAgentState,
     apply_change: Callable[[Callable[[], str]], tuple[bool, list[Any]]] | None = None,
+    save_configuration: Callable[[str], None] | None = None,
 ) -> list[StructuredTool]:
-    def mutation_tool(operation: Callable[..., str]) -> Callable[..., str]:
-        if apply_change is None:
-            return operation
+    if save_configuration is not None:
+        state._save_configuration = save_configuration
 
+    def mutation_tool(operation: Callable[..., str]) -> Callable[..., str]:
         def guarded_operation(**arguments: Any) -> str:
+            if not state.has_active_configuration:
+                return state.configuration_required_message()
+            if apply_change is None:
+                return operation(**arguments)
             result: list[str] = []
             accepted, problems = apply_change(
                 lambda: result.append(operation(**arguments))
@@ -268,11 +628,21 @@ def get_tool_list(
                 return f"Change rejected by scheduler validation:\n{details}"
             message = result[0]
             if problems:
-                message += (
-                    "\nThe draft still has validation issues; see the editor "
-                    "for details."
+                details = "\n".join(
+                    f"- {problem.area}: {problem.item or 'overall'}: "
+                    f"{problem.message}"
+                    for problem in problems
                 )
+                message += f"\nThe draft still has validation issues:\n{details}"
             return message
+
+        return guarded_operation
+
+    def configuration_tool(operation: Callable[..., str]) -> Callable[..., str]:
+        def guarded_operation(**arguments: Any) -> str:
+            if not state.has_active_configuration:
+                return state.configuration_required_message()
+            return operation(**arguments)
 
         return guarded_operation
 
@@ -303,38 +673,86 @@ def get_tool_list(
         ),
         StructuredTool.from_function(
             name="get_rooms",
-            func=state.get_rooms,
+            func=configuration_tool(state.get_rooms),
             description="List all rooms in the scheduler configuration.",
             args_schema={},
         ),
         StructuredTool.from_function(
             name="get_labs",
-            func=state.get_labs,
+            func=configuration_tool(state.get_labs),
             description="List all labs in the scheduler configuration.",
             args_schema={},
         ),
         StructuredTool.from_function(
             name="get_faculty",
-            func=state.get_faculty,
+            func=configuration_tool(state.get_faculty),
             description="List all faculty members in the scheduler configuration.",
             args_schema={},
         ),
         StructuredTool.from_function(
             name="get_courses",
-            func=state.get_courses,
+            func=configuration_tool(state.get_courses),
             description="List all courses in the scheduler configuration.",
             args_schema={},
         ),
         StructuredTool.from_function(
             name="get_config_summary",
-            func=state.get_config_summary,
+            func=configuration_tool(state.get_config_summary),
             description="Summarize counts for rooms, labs, courses, and faculty.",
             args_schema={},
         ),
         StructuredTool.from_function(
             name="validate_current_config",
-            func=state.validate_current_config,
+            func=configuration_tool(state.validate_current_config),
             description="Validate the current configuration against the scheduler rules.",
+            args_schema={},
+        ),
+        StructuredTool.from_function(
+            name="inspect_configuration",
+            func=configuration_tool(state.inspect_configuration),
+            description="Inspect the full configuration or one configuration area.",
+            args_schema=InspectConfigurationArgs,
+        ),
+        StructuredTool.from_function(
+            name="create_configuration_item",
+            func=mutation_tool(state.create_configuration_item),
+            description="Create a room, lab, course, faculty member, class pattern, or weekday time-block set.",
+            args_schema=ConfigurationItemArgs,
+        ),
+        StructuredTool.from_function(
+            name="update_configuration_item",
+            func=mutation_tool(state.update_configuration_item),
+            description="Update an existing configuration item using its key and changed fields.",
+            args_schema=ConfigurationItemArgs,
+        ),
+        StructuredTool.from_function(
+            name="delete_configuration_item",
+            func=mutation_tool(state.delete_configuration_item),
+            description="Delete an item from a supported configuration area.",
+            args_schema=DeleteConfigurationItemArgs,
+        ),
+        StructuredTool.from_function(
+            name="update_configuration_settings",
+            func=mutation_tool(state.update_configuration_settings),
+            description="Update global schedule-generation settings.",
+            args_schema=ConfigurationSettingsArgs,
+        ),
+        StructuredTool.from_function(
+            name="save_configuration",
+            func=configuration_tool(state.save_current_config),
+            description="Validate and save the active configuration through the application save workflow as JSON.",
+            args_schema=SaveConfigurationArgs,
+        ),
+        StructuredTool.from_function(
+            name="generate_schedules",
+            func=configuration_tool(state.generate_schedules),
+            description="Generate schedules from the active configuration after validating it.",
+            args_schema={},
+        ),
+        StructuredTool.from_function(
+            name="get_active_configuration_status",
+            func=state.get_active_configuration_status,
+            description="Check whether a configuration is active before working with it.",
             args_schema={},
         ),
     ]
@@ -345,6 +763,7 @@ def build_scheduler_agent(
     config: CombinedConfig | None = None,
     model: Any | None = None,
     apply_change: Callable[[Callable[[], str]], tuple[bool, list[Any]]] | None = None,
+    save_configuration: Callable[[str], None] | None = None,
 ) -> Any:
     """Create a LangChain agent configured for the scheduler domain."""
     state = SchedulerAgentState(config=config)
@@ -363,16 +782,35 @@ def build_scheduler_agent(
             api_key=api_key,
         )
 
+    configuration_context = (
+        "An active configuration is available."
+        if config is not None
+        else (
+            "There is no active configuration. Continue helping with general "
+            "scheduler questions, but if the user asks to inspect, create, "
+            "change, validate, save, or generate from a configuration, tell "
+            "them to create or load one in the Configuration Editor first. "
+            "Do not imply you can work with a configuration until one is active."
+        )
+    )
     return create_agent(
         model=model,
-        tools=get_tool_list(state, apply_change=apply_change),
+        tools=get_tool_list(
+            state,
+            apply_change=apply_change,
+            save_configuration=save_configuration,
+        ),
         system_prompt=(
             "You are the assistant for the MrLand course scheduler. Use the "
             "provided tools to inspect or edit the active configuration. Never "
             "claim an edit succeeded unless its tool reports success. Ask a "
             "clarifying question when required values are missing; do not invent "
-            "availability, assignments, or scheduling constraints. The GUI "
-            "validates edits and the user must save changes explicitly."
+            "availability, assignments, or scheduling constraints. Inspect the "
+            "relevant configuration area before editing it. Validate edits and "
+            "report validation problems. Save only when the user explicitly asks "
+            "you to save, and only claim success if the save tool succeeds. "
+            "Generate schedules only from a valid active configuration. "
+            + configuration_context
         ),
     )
 
@@ -383,10 +821,12 @@ def invoke_scheduler_agent(
     query: str,
     history: list[Any] | None = None,
     apply_change: Callable[[Callable[[], str]], tuple[bool, list[Any]]] | None = None,
+    save_configuration: Callable[[str], None] | None = None,
 ) -> dict[str, Any]:
     agent = build_scheduler_agent(
         config=config,
         apply_change=apply_change,
+        save_configuration=save_configuration,
     )
     result = agent.invoke({"messages": [*(history or []), HumanMessage(content=query)]})
     return result

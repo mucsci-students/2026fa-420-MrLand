@@ -2,7 +2,10 @@
 
 Used by: GUI."""
 
+import copy
 from collections.abc import Callable
+from pathlib import Path
+from dataclasses import dataclass
 from typing import TypeVar
 
 from scheduler.config import CombinedConfig
@@ -19,12 +22,30 @@ from src.models.configuration_model import (
 T = TypeVar("T")
 
 
+@dataclass(frozen=True)
+class ConfigurationMemento:
+    configuration: CombinedConfig
+    has_valid_configuration: bool
+
+
 class ConfigurationController:
 
     def __init__(self) -> None:
         self.config_service = ConfigService()
         self.configuration: CombinedConfig | None = None
         self._has_valid_configuration = False
+
+    def create_memento(self) -> ConfigurationMemento:
+        if self.configuration is None:
+            raise ValueError("No configuration has been created or loaded.")
+        return ConfigurationMemento(
+            copy.deepcopy(self.configuration),
+            self._has_valid_configuration,
+        )
+
+    def restore_memento(self, memento: ConfigurationMemento) -> None:
+        self.configuration = copy.deepcopy(memento.configuration)
+        self._has_valid_configuration = memento.has_valid_configuration
 
     def new_configuration(self) -> CombinedConfig:
         # model_construct skips validation: an empty config can't pass the
@@ -43,6 +64,23 @@ class ConfigurationController:
         if problems:
             raise ConfigValidationError(problems)
         self.config_service.save(self.configuration, config_name)
+
+    def export_configuration(self, file_name: str) -> tuple[bytes, str, str]:
+        """Return validated configuration JSON and download metadata."""
+        if self.configuration is None:
+            raise ValueError("No configuration has been created.")
+        problems = self.validate_configuration()
+        if problems:
+            raise ConfigValidationError(problems)
+
+        file_name = Path(file_name.strip()).name
+        if not file_name or file_name.startswith("."):
+            raise ValueError("Please enter a valid file name.")
+        if Path(file_name).suffix.lower() != ".json":
+            file_name = f"{file_name}.json"
+
+        content = self.configuration.model_dump_json(indent=4).encode("utf-8")
+        return content, file_name, "application/json"
 
     # Loads a saved configuration and makes it the open one. A loaded file has
     # already passed validation, so _has_valid_configuration is set to True,

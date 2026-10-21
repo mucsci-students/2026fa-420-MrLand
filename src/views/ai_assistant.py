@@ -15,21 +15,58 @@ from src.ai.scheduler_agent import invoke_scheduler_agent
 from src.controllers.configuration_controller import ConfigurationController
 
 
+def _create_duck_launcher(
+    on_click: Callable[[], None], *, with_hat: bool
+) -> tuple[Any, Any]:
+    """Create a duck-emoji launcher, optionally adding a hat above it."""
+    with ui.button(on_click=on_click).props("unelevated").classes(
+        "bg-[#75e6da]"
+    ) as launcher:
+        ui.label("🦆").classes("text-3xl leading-none")
+        hat = ui.label("🎩").style(
+            "position: absolute; top: -7px; left: 50%; "
+            "transform: translateX(-50%); font-size: 20px; line-height: 1;"
+        )
+        if not with_hat:
+            hat.set_visibility(False)
+    launcher.style(
+        "position: fixed; right: 20px; bottom: 20px; z-index: 10000; "
+        "width: 64px; height: 64px; border-radius: 50%; "
+        "display: flex; align-items: center; justify-content: center;"
+    )
+    return launcher, hat
+
+
+def give_hat(on_click: Callable[[], None]) -> Any:
+    """Create the unlocked, top-hat launcher for the scheduler assistant."""
+    launcher, _ = _create_duck_launcher(on_click, with_hat=True)
+    return launcher
+
+
+def give_duck(on_click: Callable[[], None]) -> Any:
+    """Create the default duck launcher for the scheduler assistant."""
+    launcher, _ = _create_duck_launcher(on_click, with_hat=False)
+    return launcher
+
+
 def scheduler_ai_assistant(
     controller: ConfigurationController,
     refresh_configuration: Callable[[], None],
-) -> None:
+) -> Callable[[], None]:
     state: dict[str, Any] = {
         "config": None,
         "history": [],
         "messages": [],
     }
+    assistant_launcher: Any = None
+    assistant_unlocked = False
 
     @ui.refreshable
     def transcript() -> None:
         if not state["messages"]:
             ui.label(
-                "Ask about or make changes to the active scheduler configuration."
+                "Ask scheduler questions. Load a configuration in the "
+                "Configuration Editor before asking the assistant to work with it."
             ).classes("text-sm text-[#9fb2b8]")
             return
         for role, text in state["messages"]:
@@ -45,18 +82,24 @@ def scheduler_ai_assistant(
                     "whitespace-pre-wrap break-words text-sm text-[#d8e7e8]"
                 )
 
+    async def scroll_transcript_to_latest() -> None:
+        await ui.run_javascript(
+            """
+            const transcript = document.getElementById('scheduler-ai-transcript');
+            if (transcript) {
+                requestAnimationFrame(() => {
+                    transcript.scrollTop = transcript.scrollHeight;
+                });
+            }
+            """
+        )
+
     async def send_prompt() -> None:
         query = (message_input.value or "").strip()
         if not query:
             return
 
         config = controller.configuration
-        if config is None:
-            ui.notify(
-                "Create or load a configuration in the Configuration Editor first.",
-                type="warning",
-            )
-            return
         if state["config"] is not config:
             state["config"] = config
             state["history"] = []
@@ -75,14 +118,17 @@ def scheduler_ai_assistant(
         send_button.disable()
         message_input.disable()
         transcript.refresh()
+        await scroll_transcript_to_latest()
         accepted_mutations = []
 
-        def apply_ai_change(mutation):
-            before = config.model_dump(mode="json")
-            accepted, problems = controller.apply_change(mutation)
-            if accepted and config.model_dump(mode="json") != before:
-                accepted_mutations.append(True)
-            return accepted, problems
+        apply_ai_change = None
+        if config is not None:
+            def apply_ai_change(mutation):
+                before = config.model_dump(mode="json")
+                accepted, problems = controller.apply_change(mutation)
+                if accepted and config.model_dump(mode="json") != before:
+                    accepted_mutations.append(True)
+                return accepted, problems
 
         try:
             result = await asyncio.to_thread(
@@ -91,6 +137,9 @@ def scheduler_ai_assistant(
                 query=query,
                 history=state["history"],
                 apply_change=apply_ai_change,
+                save_configuration=(
+                    controller.save_configuration if config is not None else None
+                ),
             )
             state["history"] = result["messages"]
             response = next(
@@ -111,14 +160,24 @@ def scheduler_ai_assistant(
             send_button.enable()
             message_input.enable()
             transcript.refresh()
+            await scroll_transcript_to_latest()
 
     def open_assistant() -> None:
         assistant_panel.set_visibility(True)
-        assistant_launcher.set_visibility(False)
+        if assistant_launcher is not None:
+            assistant_launcher.set_visibility(False)
 
     def close_assistant() -> None:
         assistant_panel.set_visibility(False)
-        assistant_launcher.set_visibility(True)
+        if assistant_launcher is not None:
+            assistant_launcher.set_visibility(True)
+
+    def unlock_assistant() -> None:
+        nonlocal assistant_unlocked
+        if assistant_unlocked:
+            return
+        assistant_unlocked = True
+        assistant_hat.set_visibility(True)
 
     with ui.card().classes(
         "border border-[#29404b] bg-[#182630] p-3"
@@ -135,7 +194,7 @@ def scheduler_ai_assistant(
                 "flat round"
             ).classes("text-[#75e6da]")
 
-        with ui.column().classes(
+        with ui.column().props("id=scheduler-ai-transcript").classes(
             "mb-3 max-h-80 w-full gap-2 overflow-y-auto rounded border "
             "border-[#29404b] p-3"
         ):
@@ -158,12 +217,7 @@ def scheduler_ai_assistant(
             )
 
     assistant_panel.set_visibility(False)
-    assistant_launcher = (
-        ui.button("🦆", on_click=open_assistant)
-        .props("unelevated")
-        .classes("bg-[#75e6da] text-3xl")
+    assistant_launcher, assistant_hat = _create_duck_launcher(
+        open_assistant, with_hat=False
     )
-    assistant_launcher.style(
-        "position: fixed; right: 20px; bottom: 20px; z-index: 10000; "
-        "width: 64px; height: 64px; border-radius: 50%;"
-    )
+    return unlock_assistant
