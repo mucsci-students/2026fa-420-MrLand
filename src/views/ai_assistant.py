@@ -65,7 +65,8 @@ def scheduler_ai_assistant(
     def transcript() -> None:
         if not state["messages"]:
             ui.label(
-                "Ask about or make changes to the active scheduler configuration."
+                "Ask scheduler questions. Load a configuration in the "
+                "Configuration Editor before asking the assistant to work with it."
             ).classes("text-sm text-[#9fb2b8]")
             return
         for role, text in state["messages"]:
@@ -81,18 +82,24 @@ def scheduler_ai_assistant(
                     "whitespace-pre-wrap break-words text-sm text-[#d8e7e8]"
                 )
 
+    async def scroll_transcript_to_latest() -> None:
+        await ui.run_javascript(
+            """
+            const transcript = document.getElementById('scheduler-ai-transcript');
+            if (transcript) {
+                requestAnimationFrame(() => {
+                    transcript.scrollTop = transcript.scrollHeight;
+                });
+            }
+            """
+        )
+
     async def send_prompt() -> None:
         query = (message_input.value or "").strip()
         if not query:
             return
 
         config = controller.configuration
-        if config is None:
-            ui.notify(
-                "Create or load a configuration in the Configuration Editor first.",
-                type="warning",
-            )
-            return
         if state["config"] is not config:
             state["config"] = config
             state["history"] = []
@@ -109,14 +116,17 @@ def scheduler_ai_assistant(
         send_button.disable()
         message_input.disable()
         transcript.refresh()
+        await scroll_transcript_to_latest()
         accepted_mutations = []
 
-        def apply_ai_change(mutation):
-            before = config.model_dump(mode="json")
-            accepted, problems = controller.apply_change(mutation)
-            if accepted and config.model_dump(mode="json") != before:
-                accepted_mutations.append(True)
-            return accepted, problems
+        apply_ai_change = None
+        if config is not None:
+            def apply_ai_change(mutation):
+                before = config.model_dump(mode="json")
+                accepted, problems = controller.apply_change(mutation)
+                if accepted and config.model_dump(mode="json") != before:
+                    accepted_mutations.append(True)
+                return accepted, problems
 
         try:
             result = await asyncio.to_thread(
@@ -126,6 +136,9 @@ def scheduler_ai_assistant(
                 history=state["history"],
                 api_key=api_key,
                 apply_change=apply_ai_change,
+                save_configuration=(
+                    controller.save_configuration if config is not None else None
+                ),
             )
             state["history"] = result["messages"]
             response = next(
@@ -146,6 +159,7 @@ def scheduler_ai_assistant(
             send_button.enable()
             message_input.enable()
             transcript.refresh()
+            await scroll_transcript_to_latest()
 
     def open_assistant() -> None:
         assistant_panel.set_visibility(True)
@@ -179,7 +193,7 @@ def scheduler_ai_assistant(
                 "flat round"
             ).classes("text-[#75e6da]")
 
-        with ui.column().classes(
+        with ui.column().props("id=scheduler-ai-transcript").classes(
             "mb-3 max-h-80 w-full gap-2 overflow-y-auto rounded border "
             "border-[#29404b] p-3"
         ):
