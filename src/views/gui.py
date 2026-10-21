@@ -3,6 +3,7 @@
 Used by: GUI."""
 
 import os
+from collections.abc import Callable
 
 from nicegui import ui
 
@@ -280,16 +281,21 @@ def build_app() -> None:
             ui.tab("generator", label="Schedule Generator", icon="auto_awesome")
             ui.tab("viewer", label="Schedule Viewer", icon="calendar_view_week")
 
-        editor_refresh = None
+        editor_refresh: Callable[[], None]
+        unlock_assistant: Callable[[], None] = lambda: None
+
+        def request_assistant_unlock() -> None:
+            unlock_assistant()
+
         with ui.tab_panels(tabs, value="configuration").classes("w-full bg-transparent pt-8"):
             with ui.tab_panel("configuration"):
-                editor_refresh = configuration_editor()
+                editor_refresh = configuration_editor(request_assistant_unlock)
             with ui.tab_panel("generator"):
                 schedule_generator()
             with ui.tab_panel("viewer"):
                 schedule_viewer()
 
-        scheduler_ai_assistant(controller, editor_refresh)
+    unlock_assistant = scheduler_ai_assistant(controller, editor_refresh)
 
 
 def main() -> None:
