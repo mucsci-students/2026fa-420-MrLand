@@ -176,7 +176,9 @@ class ScheduleCalendarView:
         with self.fullscreen_dialog:
             with ui.card().classes(
                 "w-full h-full gap-2"
-            ).style("background: #101820; color: #d8e7e8;"):
+            ).style("background: #101820; color: #d8e7e8;"
+                    "display: flex; flex-direction: column;"
+                    ):
                 with ui.row().classes(
                     "w-full items-center justify-end gap-2"
                 ):
@@ -194,7 +196,7 @@ class ScheduleCalendarView:
 
                 self.popup_calendar_content = ui.column().classes(
                     "w-full gap-0"
-                ).style("flex: 1; min-height: 0; overflow: auto;")
+                ).style("flex: 1; min-height: 0; overflow-x: auto; overflow-y: auto;")
     # ---------------------------------------------------------
     # Fullscreen Calendar Methods
     # ---------------------------------------------------------
@@ -281,13 +283,14 @@ class ScheduleCalendarView:
         # add fullscreen styles to the calendar grid and scroll container if the calendar is in fullscreen mode
         if popup:
             grid_style = (
-                f"height: calc(100dvh - 76px); min-width: 0; "
+                f"grid-template-columns: 76px repeat("
+                f"{len(visible_days)}, minmax(150px, 1fr));"
                 f"grid-template-columns: 76px repeat("
                 f"{len(visible_days)}, minmax(0, 1fr)); "
                 f"grid-template-rows: 44px repeat("
                 f"{hour_count}, minmax(0, 1fr));"
             )
-            scroll_style = "height: calc(100dvh - 76px); overflow: hidden;"
+            scroll_style = "width: 100%; overflow: auto;"
         else:
             grid_style = (
                 f"grid-template-columns: 76px repeat("
