@@ -471,6 +471,26 @@ def test_controller_new_configuration_returns_draft(controller):
     assert config.config.courses == []
 
 
+def test_controller_memento_restores_an_independent_configuration(
+    controller, valid_config
+):
+    controller.configuration = valid_config
+    controller._has_valid_configuration = True
+    memento = controller.create_memento()
+
+    valid_config.limit = 25
+    controller._has_valid_configuration = False
+    controller.restore_memento(memento)
+
+    assert controller.configuration.limit == 10
+    assert controller.configuration is not valid_config
+    assert controller._has_valid_configuration is True
+
+    controller.configuration.limit = 30
+    controller.restore_memento(memento)
+    assert controller.configuration.limit == 10
+
+
 def test_controller_save_without_config_raises(controller):
     with pytest.raises(ValueError):
         controller.save_configuration("demo")

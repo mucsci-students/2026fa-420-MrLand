@@ -4,11 +4,18 @@ Used by: GUI."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from nicegui import ui
 
-from src.controllers.configuration_controller import ConfigurationController
+from src.controllers.configuration_controller import (
+    ConfigurationController,
+    ConfigurationMemento,
+)
 from src.models.configuration_repository import ConfigLoadError
+from src.controllers.configuration_controller import ConfigurationController
 from src.models.configuration_model import ConfigValidationError, validate_config_name
+from src.models.configuration_repository import ConfigLoadError
 from src.views.class_patterns_gui import class_patterns_gui
 from src.views.common import coming_soon, section_header
 from src.views.courses_gui import courses_gui
@@ -20,13 +27,27 @@ from src.views.time_blocks_gui import time_blocks_gui
 
 
 controller = ConfigurationController()
+PANEL_COMBINATION = ("Rooms", "Time blocks", "Faculty", "Faculty")
 
-# Name - config name
-# saved - True when screen view matches file on the disk
-def configuration_editor() -> None:
-    state = {"config": None, "name": None, "saved": False, "status_badge": None}
 
-    # Updates saved flag 
+def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
+    """Build the editor workspace and coordinate configuration lifecycle actions."""
+    # Keep the selected draft and save state shared by the editor callbacks.
+    state = {
+        "config": None,
+        "name": None,
+        "saved": False,
+        "status_badge": None,
+        "undo_button": None,
+        "redo_button": None,
+    }
+    undo_history: list[ConfigurationMemento] = []
+    redo_history: list[ConfigurationMemento] = []
+        "combination_progress": 0,
+        "combination_unlocked": False,
+    }
+
+    # Update the saved indicator after a draft change or successful save.
     def set_saved_status(saved: bool) -> None:
         state["saved"] = saved
         badge = state["status_badge"]
@@ -34,8 +55,51 @@ def configuration_editor() -> None:
             badge.set_text("Draft saved" if saved else "Draft - not saved")
             badge.props(f"color={'green' if saved else 'orange'}")
 
+    def update_history_buttons() -> None:
+        undo_button = state["undo_button"]
+        if undo_button is not None:
+            undo_enabled = bool(undo_history) and state["config"] is not None
+            undo_button.set_enabled(undo_enabled)
+            if undo_enabled:
+                undo_button.classes(
+                    add="border-[#45616b] text-[#d8e7e8]",
+                    remove="border-gray-700 text-gray-500 bg-gray-800",
+                )
+            else:
+                undo_button.classes(
+                    add="border-gray-700 text-gray-500 bg-gray-800",
+                    remove="border-[#45616b] text-[#d8e7e8]",
+                )
+                undo_button.style("opacity: 0.3 !important; filter: grayscale(1);")
+            if undo_enabled:
+                undo_button.style(remove="opacity: 0.3 !important; filter: grayscale(1);")
+        redo_button = state["redo_button"]
+        if redo_button is not None:
+            redo_enabled = bool(redo_history) and state["config"] is not None
+            redo_button.set_enabled(redo_enabled)
+            if redo_enabled:
+                redo_button.classes(
+                    add="border-[#45616b] text-[#d8e7e8]",
+                    remove="border-gray-700 text-gray-500 bg-gray-800",
+                )
+            else:
+                redo_button.classes(
+                    add="border-gray-700 text-gray-500 bg-gray-800",
+                    remove="border-[#45616b] text-[#d8e7e8]",
+                )
+                redo_button.style("opacity: 0.3 !important; filter: grayscale(1);")
+            if redo_enabled:
+                redo_button.style(remove="opacity: 0.3 !important; filter: grayscale(1);")
+
+    def clear_history() -> None:
+        undo_history.clear()
+        redo_history.clear()
+        update_history_buttons()
+
+    # Apply edits through model validation and restore rejected changes.
     def apply_config_change(mutation) -> bool:
         try:
+            previous_state = controller.create_memento()
             accepted, problems = controller.apply_change(mutation)
         except Exception as exc:
             state["config"] = controller.configuration
@@ -48,11 +112,47 @@ def configuration_editor() -> None:
             editor_body.refresh()
             show_problems("Change rejected", problems, restored=True)
             return False
+        undo_history.append(previous_state)
+        redo_history.clear()
+        update_history_buttons()
         set_saved_status(False)
         if problems:
             show_problems("Draft validation", problems)
         return True
 
+    def undo_last_change() -> None:
+        if not undo_history or state["config"] is None:
+            return
+        try:
+            current_state = controller.create_memento()
+            controller.restore_memento(undo_history[-1])
+        except Exception as exc:
+            ui.notify(f"Unable to undo change: {exc}", type="negative")
+            return
+        undo_history.pop()
+        redo_history.append(current_state)
+        state["config"] = controller.configuration
+        set_saved_status(False)
+        update_history_buttons()
+        editor_body.refresh()
+
+    def redo_last_change() -> None:
+        if not redo_history or state["config"] is None:
+            return
+        try:
+            current_state = controller.create_memento()
+            controller.restore_memento(redo_history[-1])
+        except Exception as exc:
+            ui.notify(f"Unable to redo change: {exc}", type="negative")
+            return
+        redo_history.pop()
+        undo_history.append(current_state)
+        state["config"] = controller.configuration
+        set_saved_status(False)
+        update_history_buttons()
+        editor_body.refresh()
+
+    # Render the current configuration and its category-specific editors.
     @ui.refreshable
     def editor_body() -> None:
         config = state["config"]
@@ -90,7 +190,22 @@ def configuration_editor() -> None:
                     ).classes("break-words text-sm text-[#d8e7e8]")
 
         with ui.card().classes("w-full border border-[#29404b] bg-[#182630] p-6"):
-            ui.label("Configuration pages").classes("text-lg font-semibold text-white")
+            with ui.row().classes("w-full items-center justify-between gap-3"):
+                ui.label("Configuration pages").classes(
+                    "text-lg font-semibold text-white"
+                )
+                with ui.row().classes("items-center gap-2"):
+                    state["undo_button"] = ui.button(
+                        "Undo",
+                        icon="undo",
+                        on_click=undo_last_change,
+                    ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
+                    state["redo_button"] = ui.button(
+                        "Redo",
+                        icon="redo",
+                        on_click=redo_last_change,
+                    ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
+                    update_history_buttons()
             ui.label("Select an item to add/modify/delete objects to/from configuration.").classes(
                 "text-sm text-[#9fb2b8]"
             )
@@ -154,6 +269,7 @@ def configuration_editor() -> None:
         for panel in panels.values():
             panel.set_visibility(False)
 
+        # Display the selected category panel or announce unavailable actions.
         def show_page(action: str) -> None:
             if action not in panels:
                 coming_soon(action)
@@ -161,9 +277,18 @@ def configuration_editor() -> None:
             for page_name, panel in panels.items():
                 panel.set_visibility(page_name == action)
 
-    # button handler:
-    # Saves the open config under state["name"]
-    # Shows errors if any and does not save, otherwise updates badge and saves changes
+            if state["combination_unlocked"]:
+                return
+            if action == PANEL_COMBINATION[state["combination_progress"]]:
+                state["combination_progress"] += 1
+            else:
+                state["combination_progress"] = int(action == PANEL_COMBINATION[0])
+
+            if state["combination_progress"] == len(PANEL_COMBINATION):
+                state["combination_unlocked"] = True
+                on_unlock()
+
+    # Persist the active draft and report validation or storage errors.
     def save_current_config() -> None:
         if state["config"] is None:
             ui.notify("No configuration is open to save.", type="negative")
@@ -191,6 +316,7 @@ def configuration_editor() -> None:
 
 
 
+        # Workspace actions for loading, creating, saving, and validating configs.
         with ui.row().classes("w-full flex-wrap gap-3"):
             ui.button(
                 "Load configuration",
@@ -213,7 +339,7 @@ def configuration_editor() -> None:
                 on_click=lambda: validate_current_config(),
             ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
 
-        # dropdown menu of saved configs
+        # Hidden selector is populated when the user chooses to load a config.
         load_select = ui.select(
             options=controller.list_names(),
             label="Select Configuration",
@@ -223,6 +349,7 @@ def configuration_editor() -> None:
 
         editor_body()
 
+    # Confirm before replacing an open draft with a new configuration.
     with ui.dialog() as discard_dialog, ui.card().classes("border border-[#29404b] bg-[#182630]"):
         ui.label("Start a new configuration?").classes("text-lg font-semibold text-white")
         ui.label(
@@ -234,6 +361,7 @@ def configuration_editor() -> None:
                 "unelevated color=negative"
             )
 
+    # Collect and validate the name for a newly created configuration.
     with ui.dialog() as create_dialog, ui.card().classes("border border-[#29404b] bg-[#182630]"):
         ui.label("Create new configuration").classes("text-lg font-semibold text-white")
         name_input = ui.input(
@@ -246,21 +374,25 @@ def configuration_editor() -> None:
                 "bg-[#75e6da] text-[#101820]"
             )
 
+    # Open the create flow, asking before discarding an existing draft.
     def start_create() -> None:
         if state["config"] is not None:
             discard_dialog.open()
         else:
             open_create_dialog()
 
+    # Reset the name input and open the new-configuration dialog.
     def open_create_dialog() -> None:
         discard_dialog.close()
         name_input.value = ""
         name_input.error = None
         create_dialog.open()
 
+    # Refresh choices in the load selector from persisted configuration names.
     def refresh_load_options() -> None:
         load_select.set_options(controller.list_names(), value=None)
 
+    # Toggle the load selector and display its current options immediately.
     def toggle_load_select() -> None:
         if load_select.visible:
             load_select.set_visibility(False)
@@ -269,6 +401,7 @@ def configuration_editor() -> None:
         load_select.set_visibility(True)
         load_select.run_method("showPopup")  # opens the list right away
 
+    # Load a selected configuration, hiding the selector after success.
     def on_select_change(name: str | None) -> None:
         if not name:
             return
@@ -279,6 +412,7 @@ def configuration_editor() -> None:
             load_select.set_visibility(False)
             load_select.value = None
 
+    # Validate the requested name, create a draft, and refresh the editor.
     def confirm_create() -> None:
         try:
             name = validate_config_name(name_input.value or "")
@@ -293,11 +427,13 @@ def configuration_editor() -> None:
 
         state["config"] = config
         state["name"] = name
+        clear_history()
         set_saved_status(False)
         create_dialog.close()
         editor_body.refresh()
         ui.notify(f"Configuration '{name}' created. Add items, then save.", type="positive")
 
+    # Read a saved configuration into the editor and update its saved status.
     def confirm_load(name: str | None) -> None:
         config_name = (name or "").strip()
         if not config_name:
@@ -317,10 +453,12 @@ def configuration_editor() -> None:
 
         state["config"] = loaded_config
         state["name"] = config_name
+        clear_history()
         set_saved_status(True)
         editor_body.refresh()
         ui.notify(f"Loaded '{config_name}'.", type="positive")
 
+    # Dialog surface used to display validation results and rejected edits.
     with ui.dialog() as validate_dialog, ui.card().classes(
         "min-w-[28rem] max-w-2xl border border-[#29404b] bg-[#182630]"
     ):
@@ -329,6 +467,7 @@ def configuration_editor() -> None:
         with ui.row().classes("mt-4 w-full justify-end"):
             ui.button("Close", on_click=validate_dialog.close).props("flat")
 
+    # Group configuration problems by area and explain any rollback behavior.
     def show_problems(title: str, problems, *, restored: bool = False) -> None:
         validate_title.set_text(title)
         validate_results.clear()
@@ -358,6 +497,7 @@ def configuration_editor() -> None:
                         )
         validate_dialog.open()
 
+    # Validate the active draft and display its current problems.
     def validate_current_config() -> None:
         if state["config"] is None:
             ui.notify("Create or load a configuration first.", type="warning")
@@ -368,3 +508,10 @@ def configuration_editor() -> None:
             ui.notify(f"Unable to validate configuration: {exc}", type="negative")
             return
         show_problems("Validate configuration", problems)
+
+    def refresh_after_ai_change() -> None:
+        state["config"] = controller.configuration
+        set_saved_status(False)
+        editor_body.refresh()
+
+    return refresh_after_ai_change

@@ -17,6 +17,7 @@ def class_patterns_gui(
     patterns: list,
     on_change: ConfigurationChangeHandler | None = None,
 ) -> None:
+    """Build the class-pattern editor, including nested meeting management."""
     ui.label("Class patterns").classes("text-xl font-semibold text-white")
     ui.label("Define meeting patterns for each course credit value.").classes(
         "text-sm text-[#9fb2b8]"
@@ -31,6 +32,7 @@ def class_patterns_gui(
             "unelevated"
         ).classes("bg-[#75e6da] text-[#101820]")
 
+    # Pattern fields and a draft editor for the pattern's individual meetings.
     with ui.column().classes("w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4") as form_container:
         form_container.set_visibility(False)
         form_heading = ui.label("Add New Class Pattern").classes("text-lg font-semibold text-white")
@@ -64,12 +66,14 @@ def class_patterns_gui(
                 ui.label("Meeting details").classes("text-sm font-semibold text-white")
             draft_list = ui.column().classes("w-full gap-1")
 
+        # Ensure numeric fields contain positive whole numbers.
         def integer_value(field, label):
             value = field.value
             if value is None or not float(value).is_integer() or value <= 0:
                 raise ValueError(f"{label} must be a positive integer.")
             return int(value)
 
+        # Show whether the meeting controls are adding or editing a draft.
         def update_meeting_status() -> None:
             if editing_meeting["index"] is None:
                 meetings_header_status.set_text("Adding a new meeting to this pattern.")
@@ -79,6 +83,7 @@ def class_patterns_gui(
             meetings_header_status.set_text(f"Editing meeting #{meeting_number} in this pattern.")
             meetings_header_status.set_visibility(True)
 
+        # Clear the meeting controls and leave meeting-edit mode.
         def reset_meeting_form() -> None:
             editing_meeting["index"] = None
             meeting_day.value = "MON"
@@ -90,6 +95,7 @@ def class_patterns_gui(
             cancel_meeting_edit_button.set_visibility(False)
             update_meeting_status()
 
+        # Render the current meeting drafts with edit and remove actions.
         def refresh_drafts() -> None:
             draft_list.clear()
             with draft_list:
@@ -119,12 +125,14 @@ def class_patterns_gui(
                                 on_click=lambda selected=index: remove_draft(selected),
                             ).props("flat round dense").tooltip("Remove meeting")
 
+        # Remove a meeting draft and reset its form if it was being edited.
         def remove_draft(index: int) -> None:
             if editing_meeting["index"] == index:
                 reset_meeting_form()
             meeting_drafts.pop(index)
             refresh_drafts()
 
+        # Load a meeting draft into the meeting controls.
         def begin_edit_meeting(index: int) -> None:
             if index < 0 or index >= len(meeting_drafts):
                 return
@@ -139,6 +147,7 @@ def class_patterns_gui(
             cancel_meeting_edit_button.set_visibility(True)
             update_meeting_status()
 
+        # Validate the meeting controls and add or replace a draft meeting.
         def add_meeting_draft() -> None:
             try:
                 draft = {
@@ -169,6 +178,7 @@ def class_patterns_gui(
             cancel_meeting_edit_button.set_visibility(False)
         refresh_drafts()
 
+        # Collect the current pattern fields and its meeting drafts.
         def pattern_values():
             return (
                 integer_value(credits, "Credits"),
@@ -177,6 +187,7 @@ def class_patterns_gui(
                 start_time.value or None,
             )
 
+        # Reset the pattern and meeting controls for a new pattern.
         def show_form() -> None:
             editing_pattern["pattern"] = None
             form_heading.set_text("Add New Class Pattern")
@@ -191,6 +202,7 @@ def class_patterns_gui(
             update_button.set_visibility(False)
             cancel_button.set_visibility(True)
 
+        # Clear the pattern and meeting drafts, then close the form.
         def reset_form() -> None:
             editing_pattern["pattern"] = None
             form_heading.set_text("Add New Class Pattern")
@@ -205,6 +217,7 @@ def class_patterns_gui(
             cancel_button.set_visibility(False)
             refresh_drafts()
 
+        # Add the validated pattern and its meetings to the configuration.
         def add_pattern() -> None:
             try:
                 if not run_configuration_change(
@@ -219,6 +232,7 @@ def class_patterns_gui(
             refresh_patterns()
             ui.notify("Class pattern added.", type="positive")
 
+        # Save changes to the pattern currently being modified.
         def update_pattern() -> None:
             try:
                 if not run_configuration_change(
@@ -235,6 +249,7 @@ def class_patterns_gui(
             refresh_patterns()
             ui.notify("Class pattern updated.", type="positive")
 
+        # Load a pattern and its meetings into the editor.
         def begin_edit(pattern) -> None:
             editing_pattern["pattern"] = pattern
             form_heading.set_text("Modifying Class Pattern")
@@ -257,6 +272,7 @@ def class_patterns_gui(
             cancel_button.set_visibility(True)
             refresh_drafts()
 
+        # Delete the selected pattern after confirmation.
         def delete_pattern(pattern, dialog) -> None:
             try:
                 if not run_configuration_change(
@@ -288,6 +304,7 @@ def class_patterns_gui(
             ).classes("border-[#45616b] text-[#d8e7e8]")
             cancel_button.set_visibility(False)
 
+    # Rebuild pattern summaries and their edit/delete controls.
     def refresh_patterns() -> None:
         pattern_list.clear()
         with pattern_list:

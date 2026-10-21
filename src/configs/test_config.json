@@ -69,6 +69,18 @@
                 "room_preferences": {},
                 "lab_preferences": {},
                 "mandatory_days": []
+            },
+            {
+                "name": "Dr. James",
+                "maximum_credits": 12,
+                "maximum_days": 5,
+                "minimum_credits": 0,
+                "unique_course_limit": 3,
+                "times": {},
+                "course_preferences": {},
+                "room_preferences": {},
+                "lab_preferences": {},
+                "mandatory_days": []
             }
         ]
     },
