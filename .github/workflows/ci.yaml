@@ -4,13 +4,19 @@ on:
   push:
   pull_request:
 
-jobs:
-  ci:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+# Cancel superseded runs when someone pushes again to the same branch/PR
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
+permissions:
+  contents: read
+
+jobs:
+  # Lint, format, and type checks: OS-independent, so run once
+  quality:
+    name: Lint, format & type check
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
 
@@ -19,5 +25,92 @@ jobs:
           python-version: '3.12'
 
       - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
 
-      - run: echo OK
+      - name: Sync dependencies from lockfile
+        run: uv sync --locked
+
+      - name: Ruff lint
+        run: uv run ruff check .
+
+      - name: Ruff format check
+        run: uv run ruff format --check .
+
+      - name: Type check (ty)
+        run: uv run ty check
+
+  # Tests on all three OSes; coverage gate enforced on each,
+  # report uploaded to Codecov once (from Ubuntu)
+  test:
+    name: Tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies from lockfile
+        run: uv sync --locked
+
+      # Model scope and the 80% line-coverage floor are configured in
+      # pyproject.toml, so this fails the job if Model coverage < 80%.
+      - name: Run test suite with Model coverage
+        run: uv run pytest --cov --cov-report=xml --cov-report=term-missing
+
+      - name: Upload coverage to Codecov
+        if: ${{ matrix.os == 'ubuntu-latest' && !cancelled() }}
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          flags: model
+          fail_ci_if_error: true
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Sync dependencies from lockfile
+        run: uv sync --locked
+
+      # NiceGUI ships its own frontend, so there is no separate frontend build.
+      - name: Build sdist and wheel
+        run: uv build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  # Single status check to require in branch protection
+  ci-pass:
+    name: CI passed
+    if: always()
+    needs: [quality, test, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if any required job failed
+        if: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}
+        run: exit 1
+      - run: echo "All checks passed"

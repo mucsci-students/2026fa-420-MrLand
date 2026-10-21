@@ -26,4 +26,19 @@ packages = ["src"]
 [dependency-groups]
 dev = [
     "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.17.1",
+    "ty>=0.0.90",
 ]
+
+[tool.coverage.run]
+source = ["src/models"]
+branch = false
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+skip_empty = true
+
+[tool.ruff]
+line-length = 100
