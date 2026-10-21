@@ -295,7 +295,7 @@ def build_app() -> None:
             with ui.tab_panel("viewer"):
                 schedule_viewer()
 
-        unlock_assistant = scheduler_ai_assistant(controller, editor_refresh)
+    unlock_assistant = scheduler_ai_assistant(controller, editor_refresh)
 
 
 def main() -> None:

@@ -15,33 +15,38 @@ from src.ai.scheduler_agent import invoke_scheduler_agent
 from src.controllers.configuration_controller import ConfigurationController
 
 
-def _create_duck_launcher(on_click: Callable[[], None], *, with_hat: bool) -> Any:
+def _create_duck_launcher(
+    on_click: Callable[[], None], *, with_hat: bool
+) -> tuple[Any, Any]:
     """Create a duck-emoji launcher, optionally adding a hat above it."""
     with ui.button(on_click=on_click).props("unelevated").classes(
         "bg-[#75e6da]"
     ) as launcher:
         ui.label("🦆").classes("text-3xl leading-none")
-        if with_hat:
-            ui.label("🎩").style(
-                "position: absolute; top: -7px; left: 50%; "
-                "transform: translateX(-50%); font-size: 20px; line-height: 1;"
-            )
+        hat = ui.label("🎩").style(
+            "position: absolute; top: -7px; left: 50%; "
+            "transform: translateX(-50%); font-size: 20px; line-height: 1;"
+        )
+        if not with_hat:
+            hat.set_visibility(False)
     launcher.style(
         "position: fixed; right: 20px; bottom: 20px; z-index: 10000; "
         "width: 64px; height: 64px; border-radius: 50%; "
         "display: flex; align-items: center; justify-content: center;"
     )
-    return launcher
+    return launcher, hat
 
 
 def give_hat(on_click: Callable[[], None]) -> Any:
     """Create the unlocked, top-hat launcher for the scheduler assistant."""
-    return _create_duck_launcher(on_click, with_hat=True)
+    launcher, _ = _create_duck_launcher(on_click, with_hat=True)
+    return launcher
 
 
 def give_duck(on_click: Callable[[], None]) -> Any:
     """Create the default duck launcher for the scheduler assistant."""
-    return _create_duck_launcher(on_click, with_hat=False)
+    launcher, _ = _create_duck_launcher(on_click, with_hat=False)
+    return launcher
 
 
 def scheduler_ai_assistant(
@@ -153,13 +158,11 @@ def scheduler_ai_assistant(
             assistant_launcher.set_visibility(True)
 
     def unlock_assistant() -> None:
-        nonlocal assistant_launcher, assistant_unlocked
+        nonlocal assistant_unlocked
         if assistant_unlocked:
             return
         assistant_unlocked = True
-        if assistant_launcher is not None:
-            assistant_launcher.set_visibility(False)
-        assistant_launcher = give_hat(open_assistant)
+        assistant_hat.set_visibility(True)
 
     with ui.card().classes(
         "border border-[#29404b] bg-[#182630] p-3"
@@ -219,5 +222,7 @@ def scheduler_ai_assistant(
             )
 
     assistant_panel.set_visibility(False)
-    assistant_launcher = give_duck(open_assistant)
+    assistant_launcher, assistant_hat = _create_duck_launcher(
+        open_assistant, with_hat=False
+    )
     return unlock_assistant
