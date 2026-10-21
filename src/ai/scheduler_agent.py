@@ -11,6 +11,7 @@ import os
 from collections.abc import Callable
 from typing import Any
 
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from scheduler.config import (
     CombinedConfig,
@@ -32,6 +33,8 @@ except ImportError as exc:  # pragma: no cover - dependency resolution is handle
         "LangChain AI dependencies are not installed. Run `uv sync` after adding "
         "the AI packages to pyproject.toml."
     ) from exc
+
+load_dotenv()
 
 
 def empty_scheduler_config() -> CombinedConfig:
@@ -341,16 +344,15 @@ def build_scheduler_agent(
     *,
     config: CombinedConfig | None = None,
     model: Any | None = None,
-    api_key: str | None = None,
     apply_change: Callable[[Callable[[], str]], tuple[bool, list[Any]]] | None = None,
 ) -> Any:
     """Create a LangChain agent configured for the scheduler domain."""
     state = SchedulerAgentState(config=config)
     if model is None:
-        resolved_api_key = api_key or os.environ.get("OPENAI_API_KEY")
-        if not resolved_api_key:
+        api_key = os.environ.get("OPENAI_API_KEY")
+        if not api_key:
             raise ValueError(
-                "Set OPENAI_API_KEY or provide an API key in the AI assistant."
+                "OPENAI_API_KEY is not set. Add it to the .env file in the project root."
             )
         model = ChatOpenAI(
             model="gpt-6-luna",
@@ -358,8 +360,9 @@ def build_scheduler_agent(
             reasoning={"effort": "medium"},
             timeout=60,
             max_retries=2,
-            api_key=resolved_api_key,
+            api_key=api_key,
         )
+
     return create_agent(
         model=model,
         tools=get_tool_list(state, apply_change=apply_change),
@@ -379,12 +382,10 @@ def invoke_scheduler_agent(
     config: CombinedConfig,
     query: str,
     history: list[Any] | None = None,
-    api_key: str | None = None,
     apply_change: Callable[[Callable[[], str]], tuple[bool, list[Any]]] | None = None,
 ) -> dict[str, Any]:
     agent = build_scheduler_agent(
         config=config,
-        api_key=api_key,
         apply_change=apply_change,
     )
     result = agent.invoke({"messages": [*(history or []), HumanMessage(content=query)]})
@@ -392,11 +393,6 @@ def invoke_scheduler_agent(
 
 
 def run_cli() -> None:
-    api_key = os.environ.get("OPENAI_API_KEY")
-    if not api_key:
-        import getpass
-
-        api_key = getpass.getpass("Enter API key for OpenAI: ")
     config = empty_scheduler_config()
     history: list[Any] = []
     while True:
@@ -411,7 +407,6 @@ def run_cli() -> None:
             config=config,
             query=query,
             history=history,
-            api_key=api_key,
         )
         history = result["messages"]
         response = next(
