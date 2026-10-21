@@ -15,15 +15,46 @@ from src.ai.scheduler_agent import invoke_scheduler_agent
 from src.controllers.configuration_controller import ConfigurationController
 
 
+def _create_duck_launcher(on_click: Callable[[], None], *, with_hat: bool) -> Any:
+    """Create a duck-emoji launcher, optionally adding a hat above it."""
+    with ui.button(on_click=on_click).props("unelevated").classes(
+        "bg-[#75e6da]"
+    ) as launcher:
+        ui.label("🦆").classes("text-3xl leading-none")
+        if with_hat:
+            ui.label("🎩").style(
+                "position: absolute; top: -7px; left: 50%; "
+                "transform: translateX(-50%); font-size: 20px; line-height: 1;"
+            )
+    launcher.style(
+        "position: fixed; right: 20px; bottom: 20px; z-index: 10000; "
+        "width: 64px; height: 64px; border-radius: 50%; "
+        "display: flex; align-items: center; justify-content: center;"
+    )
+    return launcher
+
+
+def give_hat(on_click: Callable[[], None]) -> Any:
+    """Create the unlocked, top-hat launcher for the scheduler assistant."""
+    return _create_duck_launcher(on_click, with_hat=True)
+
+
+def give_duck(on_click: Callable[[], None]) -> Any:
+    """Create the default duck launcher for the scheduler assistant."""
+    return _create_duck_launcher(on_click, with_hat=False)
+
+
 def scheduler_ai_assistant(
     controller: ConfigurationController,
     refresh_configuration: Callable[[], None],
-) -> None:
+) -> Callable[[], None]:
     state: dict[str, Any] = {
         "config": None,
         "history": [],
         "messages": [],
     }
+    assistant_launcher: Any = None
+    assistant_unlocked = False
 
     @ui.refreshable
     def transcript() -> None:
@@ -113,11 +144,22 @@ def scheduler_ai_assistant(
 
     def open_assistant() -> None:
         assistant_panel.set_visibility(True)
-        assistant_launcher.set_visibility(False)
+        if assistant_launcher is not None:
+            assistant_launcher.set_visibility(False)
 
     def close_assistant() -> None:
         assistant_panel.set_visibility(False)
-        assistant_launcher.set_visibility(True)
+        if assistant_launcher is not None:
+            assistant_launcher.set_visibility(True)
+
+    def unlock_assistant() -> None:
+        nonlocal assistant_launcher, assistant_unlocked
+        if assistant_unlocked:
+            return
+        assistant_unlocked = True
+        if assistant_launcher is not None:
+            assistant_launcher.set_visibility(False)
+        assistant_launcher = give_hat(open_assistant)
 
     with ui.card().classes(
         "border border-[#29404b] bg-[#182630] p-3"
@@ -177,12 +219,5 @@ def scheduler_ai_assistant(
             )
 
     assistant_panel.set_visibility(False)
-    assistant_launcher = (
-        ui.button("🦆", on_click=open_assistant)
-        .props("unelevated")
-        .classes("bg-[#75e6da] text-3xl")
-    )
-    assistant_launcher.style(
-        "position: fixed; right: 20px; bottom: 20px; z-index: 10000; "
-        "width: 64px; height: 64px; border-radius: 50%;"
-    )
+    assistant_launcher = give_duck(open_assistant)
+    return unlock_assistant

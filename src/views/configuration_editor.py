@@ -4,6 +4,8 @@ Used by: GUI."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from nicegui import ui
 
 from src.controllers.configuration_controller import ConfigurationController
@@ -20,11 +22,20 @@ from src.views.time_blocks_gui import time_blocks_gui
 
 
 controller = ConfigurationController()
+PANEL_COMBINATION = ("Rooms", "Time blocks", "Faculty", "Faculty")
 
-def configuration_editor() -> None:
+
+def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
     """Build the editor workspace and coordinate configuration lifecycle actions."""
     # Keep the selected draft and save state shared by the editor callbacks.
-    state = {"config": None, "name": None, "saved": False, "status_badge": None}
+    state = {
+        "config": None,
+        "name": None,
+        "saved": False,
+        "status_badge": None,
+        "combination_progress": 0,
+        "combination_unlocked": False,
+    }
 
     # Update the saved indicator after a draft change or successful save.
     def set_saved_status(saved: bool) -> None:
@@ -163,6 +174,17 @@ def configuration_editor() -> None:
                 return
             for page_name, panel in panels.items():
                 panel.set_visibility(page_name == action)
+
+            if state["combination_unlocked"]:
+                return
+            if action == PANEL_COMBINATION[state["combination_progress"]]:
+                state["combination_progress"] += 1
+            else:
+                state["combination_progress"] = int(action == PANEL_COMBINATION[0])
+
+            if state["combination_progress"] == len(PANEL_COMBINATION):
+                state["combination_unlocked"] = True
+                on_unlock()
 
     # Persist the active draft and report validation or storage errors.
     def save_current_config() -> None:
