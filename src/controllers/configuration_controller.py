@@ -2,8 +2,10 @@
 
 Used by: GUI."""
 
+import copy
 from collections.abc import Callable
 from pathlib import Path
+from dataclasses import dataclass
 from typing import TypeVar
 
 from scheduler.config import CombinedConfig
@@ -20,12 +22,30 @@ from src.models.configuration_model import (
 T = TypeVar("T")
 
 
+@dataclass(frozen=True)
+class ConfigurationMemento:
+    configuration: CombinedConfig
+    has_valid_configuration: bool
+
+
 class ConfigurationController:
 
     def __init__(self) -> None:
         self.config_service = ConfigService()
         self.configuration: CombinedConfig | None = None
         self._has_valid_configuration = False
+
+    def create_memento(self) -> ConfigurationMemento:
+        if self.configuration is None:
+            raise ValueError("No configuration has been created or loaded.")
+        return ConfigurationMemento(
+            copy.deepcopy(self.configuration),
+            self._has_valid_configuration,
+        )
+
+    def restore_memento(self, memento: ConfigurationMemento) -> None:
+        self.configuration = copy.deepcopy(memento.configuration)
+        self._has_valid_configuration = memento.has_valid_configuration
 
     def new_configuration(self) -> CombinedConfig:
         # model_construct skips validation: an empty config can't pass the
