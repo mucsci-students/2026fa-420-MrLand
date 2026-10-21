@@ -7,8 +7,8 @@ from __future__ import annotations
 from nicegui import ui
 
 from src.controllers.configuration_controller import ConfigurationController
-from src.models.configuration_repository import ConfigLoadError
 from src.models.configuration_model import ConfigValidationError, validate_config_name
+from src.models.configuration_repository import ConfigLoadError
 from src.views.class_patterns_gui import class_patterns_gui
 from src.views.common import coming_soon, section_header
 from src.views.courses_gui import courses_gui
@@ -382,3 +382,10 @@ def configuration_editor() -> None:
             ui.notify(f"Unable to validate configuration: {exc}", type="negative")
             return
         show_problems("Validate configuration", problems)
+
+    def refresh_after_ai_change() -> None:
+        state["config"] = controller.configuration
+        set_saved_status(False)
+        editor_body.refresh()
+
+    return refresh_after_ai_change
