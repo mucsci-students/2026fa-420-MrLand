@@ -498,6 +498,28 @@ def test_controller_save_valid_config_writes_file(
     assert (temp_config_dir / "demo.json").is_file()
 
 
+def test_controller_export_configuration_returns_browser_download_data(
+    controller, temp_config_dir, valid_config
+):
+    controller.configuration = valid_config
+
+    content, file_name, media_type = controller.export_configuration("..\\demo")
+
+    assert file_name == "demo.json"
+    assert media_type == "application/json"
+    assert json.loads(content) == valid_config.model_dump(mode="json")
+    assert list(temp_config_dir.iterdir()) == []
+
+
+def test_controller_export_configuration_requires_open_valid_config(controller):
+    with pytest.raises(ValueError, match="No configuration"):
+        controller.export_configuration("demo.json")
+
+    controller.new_configuration()
+    with pytest.raises(config_model.ConfigValidationError):
+        controller.export_configuration("demo.json")
+
+
 def test_controller_save_load_round_trip(controller, temp_config_dir, valid_config):
     controller.configuration = valid_config
     controller.save_configuration("demo")
