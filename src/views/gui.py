@@ -6,7 +6,8 @@ import os
 
 from nicegui import ui
 
-from src.views.configuration_editor import configuration_editor
+from src.views.ai_assistant import scheduler_ai_assistant
+from src.views.configuration_editor import configuration_editor, controller
 from src.views.schedule_generator import schedule_generator
 from src.views.schedule_viewer import schedule_viewer
 from src.views.theme import Theme, ThemeComposite, ThemeLeaf
@@ -279,13 +280,17 @@ def build_app() -> None:
             ui.tab("generator", label="Schedule Generator", icon="auto_awesome")
             ui.tab("viewer", label="Schedule Viewer", icon="calendar_view_week")
 
+        editor_refresh = None
         with ui.tab_panels(tabs, value="configuration").classes("w-full bg-transparent pt-8"):
             with ui.tab_panel("configuration"):
-                configuration_editor()
+                editor_refresh = configuration_editor()
             with ui.tab_panel("generator"):
                 schedule_generator()
             with ui.tab_panel("viewer"):
                 schedule_viewer()
+
+        scheduler_ai_assistant(controller, editor_refresh)
+
 
 def main() -> None:
     """Launch the NiceGUI application on the configured local port."""
