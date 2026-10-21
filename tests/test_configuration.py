@@ -200,6 +200,24 @@ def test_save_config_failure_keeps_original_and_cleans_temp(
     assert [p.name for p in temp_config_dir.iterdir()] == ["demo.json"]
 
 
+def test_save_config_serialization_failure_keeps_original_and_cleans_temp(
+    temp_config_dir, valid_config, monkeypatch
+):
+    config_repo.save_config(valid_config, "demo")
+    original_text = (temp_config_dir / "demo.json").read_text(encoding="utf-8")
+
+    def fail_serialization(self, **kwargs):
+        raise RuntimeError("serialization failed")
+
+    monkeypatch.setattr(CombinedConfig, "model_dump_json", fail_serialization)
+
+    with pytest.raises(RuntimeError, match="serialization failed"):
+        config_repo.save_config(valid_config, "demo")
+
+    assert (temp_config_dir / "demo.json").read_text(encoding="utf-8") == original_text
+    assert [p.name for p in temp_config_dir.iterdir()] == ["demo.json"]
+
+
 def test_save_config_rejects_invalid_name_without_writing(temp_config_dir, valid_config):
     with pytest.raises(ValueError):
         config_repo.save_config(valid_config, "../escape")
@@ -516,6 +534,42 @@ def test_controller_save_valid_config_writes_file(
     controller.save_configuration("demo")
 
     assert (temp_config_dir / "demo.json").is_file()
+
+
+def test_controller_invalid_save_does_not_overwrite_existing_config(
+    controller, temp_config_dir, valid_config
+):
+    controller.configuration = valid_config
+    controller.save_configuration("demo")
+    original = config_repo.load_config("demo").model_dump()
+
+    break_config(valid_config)
+    with pytest.raises(config_model.ConfigValidationError):
+        controller.save_configuration("demo")
+
+    assert config_repo.load_config("demo").model_dump() == original
+
+
+def test_controller_export_configuration_returns_browser_download_data(
+    controller, temp_config_dir, valid_config
+):
+    controller.configuration = valid_config
+
+    content, file_name, media_type = controller.export_configuration("..\\demo")
+
+    assert file_name == "demo.json"
+    assert media_type == "application/json"
+    assert json.loads(content) == valid_config.model_dump(mode="json")
+    assert list(temp_config_dir.iterdir()) == []
+
+
+def test_controller_export_configuration_requires_open_valid_config(controller):
+    with pytest.raises(ValueError, match="No configuration"):
+        controller.export_configuration("demo.json")
+
+    controller.new_configuration()
+    with pytest.raises(config_model.ConfigValidationError):
+        controller.export_configuration("demo.json")
 
 
 def test_controller_save_load_round_trip(controller, temp_config_dir, valid_config):

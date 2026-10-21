@@ -277,6 +277,7 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
             for page_name, panel in panels.items():
                 panel.set_visibility(page_name == action)
 
+    # Download the active draft through the browser.
             if state["combination_unlocked"]:
                 return
             if action == PANEL_COMBINATION[state["combination_progress"]]:
@@ -296,16 +297,32 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
         if not state["name"]:
             ui.notify("Give the configuration a name before saving.", type="negative")
             return
+        file_name = (save_name.value or "").strip()
+        if not file_name:
+            save_status.set_text("Enter a file name.")
+            return
+        if "/" in file_name or "\\" in file_name:
+            save_status.set_text("Enter a file name without a folder path.")
+            return
         try:
-            controller.save_configuration(state["name"])
+            content, file_name, media_type = controller.export_configuration(file_name)
         except ConfigValidationError as exc:
             show_problems("Can't save yet", exc.problems)
+            return
+        except ValueError as exc:
+            save_status.set_text(str(exc))
             return
         except Exception as exc:  # pragma: no cover - UI guard
             ui.notify(f"Unable to save configuration: {exc}", type="negative")
             return
+
+        ui.download(content, filename=file_name, media_type=media_type)
         set_saved_status(True)
-        ui.notify(f"Saved '{state['name']}'.", type="positive")
+        save_dialog.close()
+        ui.notify(
+            f"Downloading '{file_name}'. Choose the save location in your browser.",
+            type="positive",
+        )
 
     with ui.column().classes("w-full gap-6"):
         section_header(
@@ -314,7 +331,36 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
             "Edit the Schedule Configuration File",
         )
 
+        with ui.dialog() as save_dialog:
+            with ui.card().classes(
+                "border border-[#29404b] bg-[#182630] w-[480px] gap-3"
+            ):
+                ui.label("Save Configuration").classes(
+                    "text-lg font-semibold text-white"
+                )
+                ui.label(
+                    "A copy will be downloaded by your browser. Choose its save location there."
+                ).classes("text-sm text-[#9fb2b8]")
+                save_name = ui.input("File Name").props("outlined dark").classes("w-full")
+                save_status = ui.label("").classes("text-sm text-red-400")
+                with ui.row().classes("w-full justify-end gap-2"):
+                    ui.button("Cancel", on_click=save_dialog.close).props("flat")
+                    ui.button(
+                        "Save",
+                        icon="download",
+                        on_click=save_current_config,
+                    ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
 
+        def open_save_dialog() -> None:
+            if state["config"] is None:
+                ui.notify("No configuration is open to save.", type="negative")
+                return
+            if not state["name"]:
+                ui.notify("Give the configuration a name before saving.", type="negative")
+                return
+            save_name.value = f"{state['name']}.json"
+            save_status.set_text("")
+            save_dialog.open()
 
         # Workspace actions for loading, creating, saving, and validating configs.
         with ui.row().classes("w-full flex-wrap gap-3"):
@@ -331,7 +377,7 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
             ui.button(
                 "Save configuration",
                 icon="save",
-                on_click=save_current_config,
+                on_click=open_save_dialog,
             ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
             ui.button(
                 "Validate configuration",

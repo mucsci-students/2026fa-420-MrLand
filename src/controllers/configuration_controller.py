@@ -4,6 +4,7 @@ Used by: GUI."""
 
 import copy
 from collections.abc import Callable
+from pathlib import Path
 from dataclasses import dataclass
 from typing import TypeVar
 
@@ -63,6 +64,23 @@ class ConfigurationController:
         if problems:
             raise ConfigValidationError(problems)
         self.config_service.save(self.configuration, config_name)
+
+    def export_configuration(self, file_name: str) -> tuple[bytes, str, str]:
+        """Return validated configuration JSON and download metadata."""
+        if self.configuration is None:
+            raise ValueError("No configuration has been created.")
+        problems = self.validate_configuration()
+        if problems:
+            raise ConfigValidationError(problems)
+
+        file_name = Path(file_name.strip()).name
+        if not file_name or file_name.startswith("."):
+            raise ValueError("Please enter a valid file name.")
+        if Path(file_name).suffix.lower() != ".json":
+            file_name = f"{file_name}.json"
+
+        content = self.configuration.model_dump_json(indent=4).encode("utf-8")
+        return content, file_name, "application/json"
 
     # Loads a saved configuration and makes it the open one. A loaded file has
     # already passed validation, so _has_valid_configuration is set to True,
