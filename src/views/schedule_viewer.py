@@ -350,7 +350,7 @@ def schedule_viewer() -> None:
             # Send the filtered rows to the table.
             # The table handles its own sorting and time formatting.
             table_view.update(updated_schedule)
-            calendar_view.update(updated_schedule)
+            calendar_view.update(updated_schedule, selected_day)
 
         # ---------------------------------------------------------
         # Show the selected schedule

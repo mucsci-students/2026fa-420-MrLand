@@ -44,6 +44,8 @@ class ScheduleCalendarView:
     def __init__(self) -> None:
         # initialize the schedule object
         self.filtered_schedule: list[dict] = []
+        # initialize the selected day variable from the day filter
+        self.selected_day: str | None = None
 
         # Adds custom CSS for styling the Calendar
         ui.add_head_html(
@@ -138,9 +140,10 @@ class ScheduleCalendarView:
     # Update Calendar
     # ---------------------------------------------------------
 
-    def update(self, filtered_schedule: list[dict]) -> None:
-        """Replace the calendar contents with the parent's filtered rows."""
+    # Replace the calendar contents with the parent's filtered rows.
+    def update(self, filtered_schedule: list[dict], selected_day: str | None = None) -> None:
         self.filtered_schedule = [row.copy() for row in filtered_schedule]
+        self.selected_day = selected_day
         self._render()
 
     # ---------------------------------------------------------
@@ -155,6 +158,12 @@ class ScheduleCalendarView:
                     "schedule-calendar-empty w-full"
                 )
             return
+        
+        # find the days to display based on the selected day filter
+        visible_days = ([day for day in DAYS if day[0] == self.selected_day]
+            if self.selected_day
+            else DAYS
+        )
 
         valid_rows = []
         for row in self.filtered_schedule:
@@ -191,13 +200,16 @@ class ScheduleCalendarView:
         # Creates the calendar grid with day headings, time labels, and event blocks for each course
         with self.calendar_content:
             with ui.element("div").classes("schedule-calendar-scroll"):
-                with ui.element("div").classes("schedule-calendar-grid"):
+                with ui.element("div").classes("schedule-calendar-grid").style(
+                    # changes number of columns based on the number of visible days
+                    f"grid-template-columns: 76px repeat({len(visible_days)}, minmax(150px, 1fr));"
+                    ):
                     ui.element("div").classes("schedule-calendar-heading").style(
                         "grid-column: 1; grid-row: 1;"
                     ).props("aria-label='Time'")
 
                     # Creates the day headings for the calendar grid
-                    for column, (_, day_name) in enumerate(DAYS, start=2):
+                    for column, (_, day_name) in enumerate(visible_days, start=2):
                         ui.label(day_name).classes(
                             "schedule-calendar-heading"
                         ).style(f"grid-column: {column}; grid-row: 1;")
@@ -212,7 +224,7 @@ class ScheduleCalendarView:
                         )
 
                     # Creates the day columns and positions events within them
-                    for column, (day_code, _) in enumerate(DAYS, start=2):
+                    for column, (day_code, _) in enumerate(visible_days, start=2):
                         with ui.element("div").classes(
                             "schedule-calendar-day"
                         ).style(
