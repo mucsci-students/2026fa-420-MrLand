@@ -49,10 +49,38 @@ def configuration_editor() -> None:
     def update_history_buttons() -> None:
         undo_button = state["undo_button"]
         if undo_button is not None:
-            undo_button.set_enabled(bool(undo_history) and state["config"] is not None)
+            undo_enabled = bool(undo_history) and state["config"] is not None
+            undo_button.set_enabled(undo_enabled)
+            if undo_enabled:
+                undo_button.classes(
+                    add="border-[#45616b] text-[#d8e7e8]",
+                    remove="border-gray-700 text-gray-500 bg-gray-800",
+                )
+            else:
+                undo_button.classes(
+                    add="border-gray-700 text-gray-500 bg-gray-800",
+                    remove="border-[#45616b] text-[#d8e7e8]",
+                )
+                undo_button.style("opacity: 0.3 !important; filter: grayscale(1);")
+            if undo_enabled:
+                undo_button.style(remove="opacity: 0.3 !important; filter: grayscale(1);")
         redo_button = state["redo_button"]
         if redo_button is not None:
-            redo_button.set_enabled(bool(redo_history) and state["config"] is not None)
+            redo_enabled = bool(redo_history) and state["config"] is not None
+            redo_button.set_enabled(redo_enabled)
+            if redo_enabled:
+                redo_button.classes(
+                    add="border-[#45616b] text-[#d8e7e8]",
+                    remove="border-gray-700 text-gray-500 bg-gray-800",
+                )
+            else:
+                redo_button.classes(
+                    add="border-gray-700 text-gray-500 bg-gray-800",
+                    remove="border-[#45616b] text-[#d8e7e8]",
+                )
+                redo_button.style("opacity: 0.3 !important; filter: grayscale(1);")
+            if redo_enabled:
+                redo_button.style(remove="opacity: 0.3 !important; filter: grayscale(1);")
 
     def clear_history() -> None:
         undo_history.clear()
@@ -159,12 +187,12 @@ def configuration_editor() -> None:
                 )
                 with ui.row().classes("items-center gap-2"):
                     state["undo_button"] = ui.button(
-                        "Undo last change",
+                        "Undo",
                         icon="undo",
                         on_click=undo_last_change,
                     ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
                     state["redo_button"] = ui.button(
-                        "Redo last change",
+                        "Redo",
                         icon="redo",
                         on_click=redo_last_change,
                     ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
