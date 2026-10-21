@@ -46,11 +46,36 @@ class ScheduleCalendarView:
         self.filtered_schedule: list[dict] = []
         # initialize the selected day variable from the day filter
         self.selected_day: str | None = None
+        # add a variable to track whether the calendar is in full screen mode
+        self.fullscreen = False
+        self.export_callback = None
 
         # Adds custom CSS for styling the Calendar
         ui.add_head_html(
             f"""
             <style>
+                .schedule-calendar-fullscreen {{
+                    position: fixed !important;
+                    inset: 0 !important;
+                    z-index: 1000 !important;
+                    width: 100vw !important;
+                    height: 100dvh !important;
+                    max-height: 100dvh !important;
+                    overflow: auto !important;
+                    padding: 12px !important;
+                    box-sizing: border-box !important;
+                    background: #101820 !important;
+                }}
+
+                .schedule-calendar-fullscreen .schedule-calendar-scroll {{
+                    height: calc(100dvh - 90px);
+                    overflow: hidden;
+                }}
+
+                .schedule-calendar-fullscreen .schedule-calendar-grid {{
+                    min-width: 0;
+                    height: 100%;
+                }}
                 .schedule-calendar-scroll {{
                     width: 100%;
                     overflow-x: auto;
@@ -132,9 +157,61 @@ class ScheduleCalendarView:
         )
 
         # add calendar container and content area
+        # Normal calendar and toolbar
         self.container = ui.column().classes("w-full gap-2")
+
         with self.container:
+            with ui.row().classes("w-full items-center justify-end gap-2"):
+                ui.button(
+                    "Fullscreen",
+                    icon="fullscreen",
+                    on_click=self._open_fullscreen,
+                ).props("outline")
+
             self.calendar_content = ui.column().classes("w-full gap-0")
+
+        # Fullscreen pop-up
+        self.fullscreen_dialog = ui.dialog().props("maximized")
+
+        with self.fullscreen_dialog:
+            with ui.card().classes(
+                "w-full h-full gap-2"
+            ).style("background: #101820; color: #d8e7e8;"):
+                with ui.row().classes(
+                    "w-full items-center justify-end gap-2"
+                ):
+                    ui.button(
+                        "Export",
+                        icon="download",
+                        on_click=self._open_export,
+                    ).props("outline")
+
+                    ui.button(
+                        "Exit Fullscreen",
+                        icon="close",
+                        on_click=self.fullscreen_dialog.close,
+                    ).props("outline")
+
+                self.popup_calendar_content = ui.column().classes(
+                    "w-full gap-0"
+                ).style("flex: 1; min-height: 0; overflow: auto;")
+    # ---------------------------------------------------------
+    # Fullscreen Calendar Methods
+    # ---------------------------------------------------------
+
+    # Use the schedule viewer's existing export dialog
+    def set_export_callback(self, callback) -> None:
+        self.export_callback = callback
+
+
+    def _open_export(self) -> None:
+        if self.export_callback is not None:
+            self.export_callback()
+
+    # Expand the calendar to the viewport, or return to normal
+    def _open_fullscreen(self) -> None:
+        self._render()
+        self.fullscreen_dialog.open()
 
     # ---------------------------------------------------------
     # Update Calendar
@@ -150,10 +227,14 @@ class ScheduleCalendarView:
     # Create Calendar Layout
     # ---------------------------------------------------------
     def _render(self) -> None:
-        self.calendar_content.clear()
+        self._render_calendar(self.calendar_content, popup=False)
+        self._render_calendar(self.popup_calendar_content, popup=True)
+
+    def _render_calendar(self, target, popup: bool) -> None:
+        target.clear()
 
         if not self.filtered_schedule:
-            with self.calendar_content:
+            with target:
                 ui.label("No schedule entries match the current filters.").classes(
                     "schedule-calendar-empty w-full"
                 )
@@ -180,7 +261,7 @@ class ScheduleCalendarView:
             valid_rows.append((row, start, end))
 
         if not valid_rows:
-            with self.calendar_content:
+            with target:
                 ui.label("No entries with valid start and end times.").classes(
                     "schedule-calendar-empty w-full"
                 )
@@ -197,12 +278,29 @@ class ScheduleCalendarView:
         calendar_height = range_end - range_start
         hour_count = last_hour - first_hour
 
+        # add fullscreen styles to the calendar grid and scroll container if the calendar is in fullscreen mode
+        if popup:
+            grid_style = (
+                f"height: calc(100dvh - 76px); min-width: 0; "
+                f"grid-template-columns: 76px repeat("
+                f"{len(visible_days)}, minmax(0, 1fr)); "
+                f"grid-template-rows: 44px repeat("
+                f"{hour_count}, minmax(0, 1fr));"
+            )
+            scroll_style = "height: calc(100dvh - 76px); overflow: hidden;"
+        else:
+            grid_style = (
+                f"grid-template-columns: 76px repeat("
+                f"{len(visible_days)}, minmax(150px, 1fr));"
+            )
+            scroll_style = ""
+
         # Creates the calendar grid with day headings, time labels, and event blocks for each course
-        with self.calendar_content:
-            with ui.element("div").classes("schedule-calendar-scroll"):
+        with target:
+            with ui.element("div").classes("schedule-calendar-scroll").style(scroll_style):
                 with ui.element("div").classes("schedule-calendar-grid").style(
                     # changes number of columns based on the number of visible days
-                    f"grid-template-columns: 76px repeat({len(visible_days)}, minmax(150px, 1fr));"
+                    grid_style
                     ):
                     ui.element("div").classes("schedule-calendar-heading").style(
                         "grid-column: 1; grid-row: 1;"

@@ -267,7 +267,6 @@ def schedule_viewer() -> None:
             with ui.tab_panel(table_tab):
                 table_view = schedule_table_view()
             
-
         # ---------------------------------------------------------
         # Update filter values
         # ---------------------------------------------------------
@@ -446,6 +445,9 @@ def schedule_viewer() -> None:
             )
             export_status.text = ""
             export_dialog.open()
+
+        # Give the calendar fullscreen toolbar access to the existing export dialog.
+        calendar_view.set_export_callback(open_export_dialog)
 
         def on_export_format_changed(event):
             name = (export_name.value or "").strip()
