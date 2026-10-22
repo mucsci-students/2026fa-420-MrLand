@@ -43,9 +43,8 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
     }
     undo_history: list[ConfigurationMemento] = []
     redo_history: list[ConfigurationMemento] = []
-        "combination_progress": 0,
-        "combination_unlocked": False,
-    }
+    state["combination_progress"] = 0
+    state["combination_unlocked"] = False
 
     # Update the saved indicator after a draft change or successful save.
     def set_saved_status(saved: bool) -> None:
