@@ -38,7 +38,7 @@ This project is a schedule-planning application for creating and managing course
 - **Scheduler AI Assistant**
   - Use the floating chat box from any GUI screen to inspect or edit the active configuration in natural language
   - AI edits pass through the same configuration validation as manual edits and remain unsaved until saved in the editor
-  - Set `OPENAI_API_KEY` or enter a key in the assistant; model requests may incur API charges
+    - Requires `OPENAI_API_KEY` in a `.env` file (see AI assistant setup below); model requests may incur API charges
 
 - **Domain Management**
   - Add, modify, view, and delete faculty, courses, rooms, labs, class patterns, and time blocks
@@ -49,6 +49,11 @@ This project is a schedule-planning application for creating and managing course
 - **Whole-configuration validation**
   - Validate edits against the published [combined configuration JSON Schema](https://raw.githubusercontent.com/mucsci/scheduler/main/fern/docs/assets/combined-config.schema.json) and scheduler model rules
   - Preserve incomplete new drafts until valid; reject edits that would invalidate an already-valid configuration
+
+## AI assistant setup
+1. Run `uv sync` to install dependencies.
+2. Copy `.env.example` to a new file named `.env` in the project root.
+3. Replace `your-key-here` with your OpenAI API key found in the resources page on discord.
 
 ---
 

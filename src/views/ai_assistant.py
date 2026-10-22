@@ -105,9 +105,11 @@ def scheduler_ai_assistant(
             state["history"] = []
             state["messages"] = []
 
-        api_key = (api_key_input.value or "").strip() or None
-        if not api_key and not os.environ.get("OPENAI_API_KEY"):
-            ui.notify("Enter an OpenAI API key to use the assistant.", type="warning")
+        if not os.environ.get("OPENAI_API_KEY"):
+            ui.notify(
+                "No OpenAI API key found. Add OPENAI_API_KEY to the .env file.",
+                type="warning",
+            )
             return
 
         state["messages"].append(("user", query))
@@ -134,7 +136,6 @@ def scheduler_ai_assistant(
                 config=config,
                 query=query,
                 history=state["history"],
-                api_key=api_key,
                 apply_change=apply_ai_change,
                 save_configuration=(
                     controller.save_configuration if config is not None else None
@@ -199,26 +200,6 @@ def scheduler_ai_assistant(
         ):
             transcript()
 
-        if not os.environ.get("OPENAI_API_KEY"):
-            api_key_input = (
-                ui.input(
-                    "OpenAI API key",
-                    password=True,
-                    password_toggle_button=True,
-                )
-                .props("autocomplete=off dense")
-                .classes("mb-2 w-full")
-            )
-        else:
-            api_key_input = (
-                ui.input(
-                    "OpenAI API key (optional override)",
-                    password=True,
-                    password_toggle_button=True,
-                )
-                .props("autocomplete=off dense")
-                .classes("mb-2 w-full")
-            )
 
         with ui.row().classes("w-full items-center gap-2"):
             message_input = (

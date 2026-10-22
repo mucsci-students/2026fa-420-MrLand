@@ -13,6 +13,7 @@ dependencies = [
     { name = "langchain-openai" },
     { name = "nicegui" },
     { name = "pydantic" },
+    { name = "python-dotenv" },
 ]
 
 [package.dev-dependencies]
@@ -28,6 +29,7 @@ requires-dist = [
     { name = "langchain-openai", specifier = ">=0.3.0" },
     { name = "nicegui", specifier = ">=3.17.1" },
     { name = "pydantic" },
+    { name = "python-dotenv", specifier = ">=1.2.3" },
 ]
 
 [package.metadata.requires-dev]
