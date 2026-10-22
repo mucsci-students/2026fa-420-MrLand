@@ -60,7 +60,8 @@ def build_app() -> None:
                 --surface-raised: #ffffff;
                 --surface-hover: #e7eef5;
             }
-            body, .q-layout, .q-page {
+            body, .q-layout, .q-page-container, .q-page,
+            .q-tab-panels, .q-tab-panel {
                 background: var(--app-background);
                 color: var(--app-foreground);
             }
@@ -84,7 +85,10 @@ def build_app() -> None:
             /* Light-mode corrections for components that carry Quasar dark classes. */
             html[data-theme="light"] body,
             html[data-theme="light"] .q-layout,
-            html[data-theme="light"] .q-page {
+            html[data-theme="light"] .q-page-container,
+            html[data-theme="light"] .q-page,
+            html[data-theme="light"] .q-tab-panels,
+            html[data-theme="light"] .q-tab-panel {
                 background: var(--app-background) !important;
                 color: var(--app-foreground);
             }
