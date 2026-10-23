@@ -288,7 +288,7 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
                 state["combination_unlocked"] = True
                 on_unlock()
 
-    # Persist the active draft and report validation or storage errors.
+    # Download the active draft and report validation or browser errors.
     def download_configuration(file_name: str) -> str:
         content, file_name, media_type = controller.export_configuration(file_name)
         ui.download(content, filename=file_name, media_type=media_type)
@@ -419,7 +419,7 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
         ).classes("text-sm text-[#9fb2b8]")
         with ui.row().classes("mt-4 w-full justify-end gap-2"):
             ui.button("Cancel", on_click=unsaved_load_dialog.close).props("flat")
-            ui.button("Save", on_click=lambda: save_and_load()).props(
+            ui.button("Save Configuration", on_click=lambda: save_and_load()).props(
                 "unelevated"
             ).classes("bg-[#75e6da] text-[#101820]")
             ui.button(
