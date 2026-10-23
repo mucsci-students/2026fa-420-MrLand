@@ -36,73 +36,133 @@ class ConfigurationController:
         self._has_valid_configuration = False
 
     def create_memento(self) -> ConfigurationMemento:
+        '''
+        Captures the current config to restore if required later
+
+        Returns: memento holding a deep copy, so edits to the open config 
+        don't change the snapshot
+
+        Raises: ValueError on 'No Config Open'
+        '''
         if self.configuration is None:
             raise ValueError("No configuration has been created or loaded.")
+        
         return ConfigurationMemento(
             copy.deepcopy(self.configuration),
             self._has_valid_configuration,
         )
 
     def restore_memento(self, memento: ConfigurationMemento) -> None:
+        '''Replace the open config with the saved snapshot'''
+
         self.configuration = copy.deepcopy(memento.configuration)
         self._has_valid_configuration = memento.has_valid_configuration
 
     def new_configuration(self) -> CombinedConfig:
-        # model_construct skips validation: an empty config can't pass the
-        # library's rules yet. Validate/Save check it once it's filled in.
+        '''
+        Unsaved changes are not saved, Views should confirm with User
+
+        Returns: the new empty draft
+        '''
         self.configuration = create_draft_config()
         self._has_valid_configuration = False
+
         return self.configuration
 
-    # Saves the open configuration under config_name. It validates first and
-    # raises ConfigValidationError (with the list of problems) instead of
-    # writing an invalid file. Raises ValueError if nothing is open.
     def save_configuration(self, config_name: str) -> None:
+        '''
+        Saves the open configuration under config_name. It validates first and
+        raises ConfigValidationError (with the list of problems) instead of
+        writing an invalid file. Raises ValueError if nothing is open.
+        '''
         if self.configuration is None:
             raise ValueError("No configuration has been created.")
+        
         problems = self.validate_configuration()
+
         if problems:
             raise ConfigValidationError(problems)
+        
         self.config_service.save(self.configuration, config_name)
 
     def export_configuration(self, file_name: str) -> tuple[bytes, str, str]:
-        """Return validated configuration JSON and download metadata."""
+        """
+        Builds a downloadable JSON copy of the open Config
+        Return validated configuration JSON and download metadata.
+        """
+
         if self.configuration is None:
             raise ValueError("No configuration has been created.")
+        
         problems = self.validate_configuration()
+
         if problems:
             raise ConfigValidationError(problems)
 
         file_name = Path(file_name.strip()).name
+
         if not file_name or file_name.startswith("."):
             raise ValueError("Please enter a valid file name.")
+        
         if Path(file_name).suffix.lower() != ".json":
             file_name = f"{file_name}.json"
 
         content = self.configuration.model_dump_json(indent=4).encode("utf-8")
         return content, file_name, "application/json"
-
-    # Loads a saved configuration and makes it the open one. A loaded file has
-    # already passed validation, so _has_valid_configuration is set to True,
-    # which means later edits that make it invalid will be rolled back.
-    # Raises FileNotFoundError or ConfigLoadError if the file is missing or bad.
+    
     def load_configuration(self, config_name: str) -> CombinedConfig:
+
+        '''
+        Loads a saved configuration and makes it the open one. A loaded file has
+        already passed validation, so _has_valid_configuration is set to True,
+        which means later edits that make it invalid will be rolled back.
+
+        Raises:
+        FileNotFound - No saved config has that name
+        ConfigLoadError - the file exists but can't be parsed or fails validation.
+
+        Returns Loaded Config
+        '''
+
         self.configuration = self.config_service.load(config_name)
         self._has_valid_configuration = True
         return self.configuration
 
-    # Names of saved configs for user's load list
     def list_names(self) -> list[str]:
         return self.config_service.list_names()
 
     def validate_configuration(self) -> list[ValidationProblem]:
+        '''
+        Checks the open config against scheduler's rules to 
+        report problems.
+
+        Returns: 
+        List of problems
+        or empty for valid
+
+        Raises:
+        ValueError: No config is open 
+        '''
         if self.configuration is None:
             raise ValueError("No configuration has been created or loaded.")
+        
         return validate_config(self.configuration)
 
     def apply_change(
         self, mutation: Callable[[], T]
     ) -> tuple[bool, list[ValidationProblem]]:
+        '''
+        Run edit against open config under validation rules
+
+        Routing edits here keeps validation in one place
+        Rolls changes back if invalid
+
+        Returns:
+        Tuple (accepted, problems)
+
+        Raises: 
+        ValueError - No config is open
+        '''
         if self.configuration is None:
             raise ValueError("No configuration has been created or loaded.")
 
@@ -111,6 +171,8 @@ class ConfigurationController:
             mutation,
             has_valid_baseline=self._has_valid_configuration,
         )
+
         if not problems:
             self._has_valid_configuration = True
+
         return accepted, problems
