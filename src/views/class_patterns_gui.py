@@ -143,7 +143,7 @@ def class_patterns_gui(
             meeting_duration.value = meeting["duration"]
             meeting_lab.value = bool(meeting["lab"])
             meeting_delivery.value = meeting["delivery"]
-            add_meeting_button.set_text("Save meeting changes")
+            add_meeting_button.set_text("Apply meeting changes")
             cancel_meeting_edit_button.set_visibility(True)
             update_meeting_status()
 
@@ -296,7 +296,7 @@ def class_patterns_gui(
                 "unelevated"
             ).classes("bg-[#75e6da] text-[#101820]")
             update_button = ui.button(
-                "Save changes", icon="save", on_click=update_pattern
+                "Apply changes", icon="save", on_click=update_pattern
             ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
             update_button.set_visibility(False)
             cancel_button = ui.button("Cancel", on_click=reset_form).props(
