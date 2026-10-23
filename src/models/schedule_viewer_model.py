@@ -156,7 +156,7 @@ class ScheduleViewerModel:
 
     def default_export_file_name(self, entry: ScheduleEntry, file_format: str) -> str:
         """A loaded file keeps its name; a generated schedule gets the next free
-        <config>_schedule<n> name, matching the CLI export."""
+        <config>_schedule<n> name, matching older saved schedules."""
         if entry.file_name:
             return f"{Path(entry.file_name).stem}.{file_format}"
 

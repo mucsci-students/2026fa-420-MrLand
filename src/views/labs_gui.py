@@ -5,7 +5,7 @@ Used by: GUI."""
 from nicegui import ui
 
 from src.controllers.lab_controller import LabController
-from src.views.common import ConfigurationChangeHandler, run_configuration_change
+from src.views.common import ConfigurationChangeHandler, run_crud_mutation
 
 controller = LabController()
 
@@ -136,13 +136,9 @@ def labs_gui(
 
         # Apply a new lab to the current configuration.
         def add_lab() -> None:
-            try:
-                if not run_configuration_change(
-                    on_change, lambda: controller.add_lab(labs, *form_values())
-                ):
-                    return
-            except (TypeError, ValueError) as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change, lambda: controller.add_lab(labs, *form_values())
+            ):
                 return
             reset_form()
             refresh_labs()
@@ -150,16 +146,12 @@ def labs_gui(
 
         # Save edits to the lab currently being modified.
         def update_lab() -> None:
-            try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: controller.update_lab(
-                        labs, editing_lab["lab"], *form_values()
-                    ),
-                ):
-                    return
-            except (TypeError, ValueError) as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change,
+                lambda: controller.update_lab(
+                    labs, editing_lab["lab"], *form_values()
+                ),
+            ):
                 return
             reset_form()
             refresh_labs()
@@ -186,14 +178,11 @@ def labs_gui(
 
         # Delete the selected lab after the user confirms the action.
         def delete_lab(lab, dialog) -> None:
-            try:
-                if not run_configuration_change(
-                    on_change, lambda: controller.delete_lab(labs, lab)
-                ):
-                    dialog.close()
-                    return
-            except ValueError as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change,
+                lambda: controller.delete_lab(labs, lab),
+                handled_errors=(ValueError,),
+            ):
                 dialog.close()
                 return
             if editing_lab["lab"] is lab:

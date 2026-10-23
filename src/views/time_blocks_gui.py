@@ -5,7 +5,11 @@ Used by: GUI."""
 from nicegui import ui
 
 from src.controllers.time_block_controller import TimeBlockController
-from src.views.common import ConfigurationChangeHandler, run_configuration_change
+from src.views.common import (
+    ConfigurationChangeHandler,
+    parse_whole_number,
+    run_crud_mutation,
+)
 
 controller = TimeBlockController()
 
@@ -48,10 +52,10 @@ def time_blocks_gui(
 
         # Validate and collect the current form values for the controller.
         def form_values():
-            spacing_value = spacing.value
-            if spacing_value is None or not float(spacing_value).is_integer():
-                raise ValueError("Spacing must be a whole number of minutes.")
-            return day.value, start.value or "", int(spacing_value), end.value or ""
+            spacing_value = parse_whole_number(
+                spacing.value, "Spacing must be a whole number of minutes."
+            )
+            return day.value, start.value or "", spacing_value, end.value or ""
 
         # Prepare the form for adding a new time block.
         def show_form() -> None:
@@ -83,14 +87,10 @@ def time_blocks_gui(
 
         # Add the form's time block to the selected weekday.
         def add_block() -> None:
-            try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: controller.add_block(times, *form_values()),
-                ):
-                    return
-            except (TypeError, ValueError) as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change,
+                lambda: controller.add_block(times, *form_values()),
+            ):
                 return
             reset_form()
             refresh_blocks()
@@ -98,19 +98,15 @@ def time_blocks_gui(
 
         # Save changes to the time block currently being edited.
         def update_block() -> None:
-            try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: controller.update_block(
-                        times,
-                        editing_block["day"],
-                        editing_block["block"],
-                        *form_values(),
-                    ),
-                ):
-                    return
-            except (TypeError, ValueError) as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change,
+                lambda: controller.update_block(
+                    times,
+                    editing_block["day"],
+                    editing_block["block"],
+                    *form_values(),
+                ),
+            ):
                 return
             reset_form()
             refresh_blocks()
@@ -132,15 +128,11 @@ def time_blocks_gui(
 
         # Delete the selected time block after confirmation.
         def delete_block(block_day, block, dialog) -> None:
-            try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: controller.delete_block(times, block_day, block),
-                ):
-                    dialog.close()
-                    return
-            except ValueError as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change,
+                lambda: controller.delete_block(times, block_day, block),
+                handled_errors=(ValueError,),
+            ):
                 dialog.close()
                 return
             if editing_block["block"] is block:
