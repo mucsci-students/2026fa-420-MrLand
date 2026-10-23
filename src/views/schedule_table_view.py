@@ -13,11 +13,6 @@ from src.controllers.schedule_inspection_controller import (
 )
 
 
-# set the background and accent colors for the schedule viewer
-BACKGROUND = "#101820"
-ACCENT = "#75e6da"
-
-
 class ScheduleTableView:
     """Table view for a schedule.
 
@@ -37,31 +32,31 @@ class ScheduleTableView:
                 .q-table__container,
                 .q-table__middle,
                 .q-table {{
-                    background: {BACKGROUND} !important;
+                    background: var(--app-background) !important;
                 }}
 
                 .q-table thead tr {{
-                    background: #17252d !important;
+                    background: var(--surface-raised) !important;
                 }}
 
                 .q-table tbody tr {{
-                    background: {BACKGROUND} !important;
+                    background: var(--app-background) !important;
                 }}
 
                 .q-table tbody tr:hover {{
-                    background: #1c3039 !important;
+                    background: var(--surface-hover) !important;
                 }}
 
                 .q-table th,
                 .q-table td {{
-                    color: #d8e7e8 !important;
+                    color: var(--app-foreground) !important;
                 }}
 
                 /* Tab panel backgrounds */
                 .q-tab-panels,
                 .q-tab-panel {{
-                    background: {BACKGROUND} !important;
-                    color: #d8e7e8 !important;
+                    background: var(--app-background) !important;
+                    color: var(--app-foreground) !important;
                 }}
             </style>
             """
