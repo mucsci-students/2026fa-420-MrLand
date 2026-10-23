@@ -30,6 +30,22 @@ def test_scheduler_tools_edit_the_active_configuration_through_controller():
     assert "Room 101" in tools["get_rooms"].invoke({})
 
 
+def test_add_tools_preserve_case_sensitive_duplicate_checks():
+    config = ConfigurationController().new_configuration()
+    tools = _tools(SchedulerAgentState(config))
+
+    tools["add_room"].invoke({"name": "Room 101", "capacity": 30})
+    tools["add_room"].invoke({"name": "room 101", "capacity": 30})
+    tools["add_lab"].invoke({"name": "Lab 1", "capacity": 30})
+    tools["add_lab"].invoke({"name": "lab 1", "capacity": 30})
+    tools["add_faculty"].invoke({"name": "Dr. Smith"})
+    tools["add_faculty"].invoke({"name": "dr. smith"})
+
+    assert len(config.config.rooms) == 2
+    assert len(config.config.labs) == 2
+    assert len(config.config.faculty) == 2
+
+
 def test_scheduler_tool_reports_controller_rejection_without_mutating():
     config = ConfigurationController().new_configuration()
 
