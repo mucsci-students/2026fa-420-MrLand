@@ -23,15 +23,18 @@ from scheduler.config import (
     RoomConfig,
     TimeBlock,
 )
-from scheduler.scheduler import Scheduler
-
+from src.controllers.schedule_generator_controller import (
+    schedule_generator_controller,
+)
+from src.controllers.course_operations_controller import add_course_from_values
+from src.controllers.faculty_operations_controller import add_faculty_from_values
+from src.controllers.lab_operations_controller import add_lab_from_values
+from src.controllers.room_operations_controller import add_room_from_values
 from src.models.configuration_model import (
     ConfigService,
     create_draft_config,
     validate_config,
 )
-from src.models.schedule_files import records_from_result
-from src.models.schedule_result import ScheduleResult
 
 try:
     from langchain.agents import create_agent
@@ -59,10 +62,12 @@ class SchedulerAgentState:
         self,
         config: CombinedConfig | None = None,
         save_configuration: Callable[[str], None] | None = None,
+        schedule_generator: Any | None = None,
     ):
         self.config = config if config is not None else empty_scheduler_config()
         self.has_active_configuration = config is not None
         self._save_configuration = save_configuration
+        self._schedule_generator = schedule_generator or schedule_generator_controller
 
     @staticmethod
     def configuration_required_message() -> str:
@@ -88,16 +93,12 @@ class SchedulerAgentState:
         capacity: int = 0,
         features: list[str] | None = None,
     ) -> str:
-        if any(room.name == name for room in self.config.config.rooms):
-            return f"Room {name} already exists."
-        self.config.config.rooms.append(
-            RoomConfig(
-                name=name,
-                capacity=capacity,
-                features=features or [],
-                times=None,
+        try:
+            add_room_from_values(
+                self.config.config.rooms, name, capacity, features or [], None
             )
-        )
+        except (TypeError, ValueError) as error:
+            return f"Could not add room: {error}"
         return f"Room {name} added successfully."
 
     def add_lab(
@@ -107,16 +108,12 @@ class SchedulerAgentState:
         capacity: int = 0,
         features: list[str] | None = None,
     ) -> str:
-        if any(lab.name == name for lab in self.config.config.labs):
-            return f"Lab {name} already exists."
-        self.config.config.labs.append(
-            LabConfig(
-                name=name,
-                capacity=capacity,
-                features=features or [],
-                times=None,
+        try:
+            add_lab_from_values(
+                self.config.config.labs, name, capacity, features or [], None
             )
-        )
+        except (TypeError, ValueError) as error:
+            return f"Could not add lab: {error}"
         return f"Lab {name} added successfully."
 
     def add_faculty(
@@ -128,22 +125,22 @@ class SchedulerAgentState:
         minimum_credits: int = 0,
         unique_course_limit: int = 3,
     ) -> str:
-        if any(faculty.name == name for faculty in self.config.config.faculty):
-            return f"Faculty member {name} already exists."
-        self.config.config.faculty.append(
-            FacultyConfig(
-                name=name,
-                maximum_credits=maximum_credits,
-                maximum_days=maximum_days,
-                minimum_credits=minimum_credits,
-                unique_course_limit=unique_course_limit,
-                times={},
-                course_preferences={},
-                room_preferences={},
-                lab_preferences={},
-                mandatory_days=[],
+        try:
+            add_faculty_from_values(
+                self.config.config.faculty,
+                name,
+                maximum_credits,
+                minimum_credits,
+                unique_course_limit,
+                {},
+                maximum_days,
+                {},
+                {},
+                {},
+                [],
             )
-        )
+        except (TypeError, ValueError) as error:
+            return f"Could not add faculty member: {error}"
         return f"Faculty member {name} added successfully."
 
     def add_course(
@@ -162,30 +159,24 @@ class SchedulerAgentState:
         required_lab_features: list[str] | None = None,
         reserve_room_during_lab: bool = False,
     ) -> str:
-        if any(
-            course.course_id == course_id and course.section_id == section_id
-            for course in self.config.config.courses
-        ):
-            return (
-                f"Course {course_id} section {section_id or 'default'} already exists."
+        try:
+            add_course_from_values(
+                self.config.config.courses,
+                course_id,
+                section_id,
+                credits,
+                capacity,
+                modality,
+                room,
+                lab,
+                required_room_features,
+                required_lab_features,
+                reserve_room_during_lab,
+                conflicts,
+                faculty,
             )
-
-        self.config.config.courses.append(
-            CourseConfig(
-                course_id=course_id,
-                section_id=section_id,
-                credits=credits,
-                capacity=capacity,
-                room=room or [],
-                lab=lab or [],
-                conflicts=conflicts or [],
-                faculty=faculty or [],
-                modality=modality,
-                required_room_features=required_room_features or [],
-                required_lab_features=required_lab_features or [],
-                reserve_room_during_lab=reserve_room_during_lab,
-            )
-        )
+        except (TypeError, ValueError) as error:
+            return f"Could not add course: {error}"
         return f"Course {course_id} added successfully."
 
     def get_rooms(self) -> str:
@@ -385,39 +376,17 @@ class SchedulerAgentState:
             return "Cannot generate schedules until the configuration is valid.\n" + (
                 self.validate_current_config()
             )
-        scheduler = Scheduler(self.config)
-        schedules = []
-        for schedule in scheduler.get_models():
-            schedules.append(schedule)
-            if len(schedules) >= self.config.limit:
-                break
-        if not schedules:
-            return json.dumps(
-                {
-                    "generated": 0,
-                    "message": "No valid schedules could be generated.",
-                    "diagnosis": str(scheduler.diagnose()),
-                },
-                indent=2,
-            )
-        results = [
-            records_from_result(
-                ScheduleResult(
-                    config_name="active configuration",
-                    schedule=schedule,
-                    config=self.config,
-                )
-            )
-            for schedule in schedules
-        ]
-        audits = [scheduler.audit_schedule(schedule) for schedule in schedules]
-        return json.dumps(
-            {
-                "generated": len(schedules),
-                "valid": sum(audit.is_valid for audit in audits),
-                "schedules": results,
-            },
-            indent=2,
+        state, error = self._schedule_generator.generate_active_configuration(
+            self.config
+        )
+        if error:
+            return f"Schedule generation failed: {error}"
+
+        if state is None or state.generated == 0:
+            return "No valid schedules could be generated."
+        return (
+            f"Schedule generation complete. Generated {state.generated} schedule(s), "
+            f"{state.valid} valid. View generated schedules in the Schedule Viewer tab."
         )
 
     def _item_collection(self, area: str) -> list[Any]:
@@ -810,6 +779,8 @@ def build_scheduler_agent(
             "report validation problems. Save only when the user explicitly asks "
             "you to save, and only claim success if the save tool succeeds. "
             "Generate schedules only from a valid active configuration. "
+            "When schedules are generated, do not reproduce schedule rows; "
+            "report the count and direct the user to the Schedule Viewer tab. "
             + configuration_context
         ),
     )

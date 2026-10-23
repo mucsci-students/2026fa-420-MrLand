@@ -13,6 +13,10 @@ from openai import OpenAIError
 
 from src.ai.scheduler_agent import invoke_scheduler_agent
 from src.controllers.configuration_controller import ConfigurationController
+from src.controllers.schedule_generator_controller import (
+    schedule_generator_controller,
+)
+from src.views.schedule_generation_progress import ScheduleGenerationProgress
 
 
 def _create_duck_launcher(
@@ -114,12 +118,25 @@ def scheduler_ai_assistant(
 
         state["messages"].append(("user", query))
         state["messages"].append(("assistant", "Thinking…"))
+        generation_id = schedule_generator_controller.state_snapshot().generation_id
+        progress_display.reset()
         message_input.value = ""
         send_button.disable()
         message_input.disable()
         transcript.refresh()
         await scroll_transcript_to_latest()
         accepted_mutations = []
+
+        async def monitor_schedule_generation() -> None:
+            while True:
+                progress_state = schedule_generator_controller.state_snapshot()
+                if progress_state.generation_id > generation_id:
+                    progress_result = progress_display.update(progress_state)
+                    if progress_result in {"error", "empty", "complete"}:
+                        return
+                await asyncio.sleep(0.2)
+
+        progress_monitor = asyncio.create_task(monitor_schedule_generation())
 
         apply_ai_change = None
         if config is not None:
@@ -157,6 +174,11 @@ def scheduler_ai_assistant(
         except (LangChainException, OpenAIError, TypeError, ValueError) as exc:
             state["messages"][-1] = ("assistant", f"AI request failed: {exc}")
         finally:
+            progress_monitor.cancel()
+            try:
+                await progress_monitor
+            except asyncio.CancelledError:
+                pass
             send_button.enable()
             message_input.enable()
             transcript.refresh()
@@ -193,6 +215,8 @@ def scheduler_ai_assistant(
             ui.button(icon="close", on_click=close_assistant).props(
                 "flat round"
             ).classes("text-[#75e6da]")
+
+        progress_display = ScheduleGenerationProgress("w-full gap-2")
 
         with ui.column().props("id=scheduler-ai-transcript").classes(
             "mb-3 max-h-80 w-full gap-2 overflow-y-auto rounded border "
