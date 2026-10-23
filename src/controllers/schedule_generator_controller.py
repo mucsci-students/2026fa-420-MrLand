@@ -35,6 +35,19 @@ class ScheduleGeneratorController:
     def schedule_to_csv(self, result, schedule_number: int) -> bytes:
         return self.model.schedule_to_csv(result, schedule_number)
 
+    def generate_active_configuration(
+        self, config, config_name: str = "active configuration"
+    ) -> tuple[ScheduleGenerationState | None, str | None]:
+        if self.model.state_snapshot().running:
+            return None, "Generation is already in progress. Please wait for it to finish."
+
+        if not self.model.begin_generation(config_name, config.limit):
+            return None, "Generation is already in progress. Please wait for it to finish."
+
+        self.model.generate_configuration(config_name, config)
+        state = self.model.state_snapshot()
+        return state, state.error
+
     def start_generation(
         self,
         config_name: str | None,

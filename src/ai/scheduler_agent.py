@@ -23,15 +23,14 @@ from scheduler.config import (
     RoomConfig,
     TimeBlock,
 )
-from scheduler.scheduler import Scheduler
-
+from src.controllers.schedule_generator_controller import (
+    schedule_generator_controller,
+)
 from src.models.configuration_model import (
     ConfigService,
     create_draft_config,
     validate_config,
 )
-from src.models.schedule_files import records_from_result
-from src.models.schedule_result import ScheduleResult
 
 try:
     from langchain.agents import create_agent
@@ -47,8 +46,8 @@ except ImportError as exc:  # pragma: no cover - dependency resolution is handle
 load_dotenv()
 
 
+# Return a valid draft config object that can be mutated safely.
 def empty_scheduler_config() -> CombinedConfig:
-    """Return a valid draft config object that can be mutated safely."""
     return create_draft_config()
 
 
@@ -59,11 +58,14 @@ class SchedulerAgentState:
         self,
         config: CombinedConfig | None = None,
         save_configuration: Callable[[str], None] | None = None,
+        schedule_generator: Any | None = None,
     ):
         self.config = config if config is not None else empty_scheduler_config()
         self.has_active_configuration = config is not None
         self._save_configuration = save_configuration
+        self._schedule_generator = schedule_generator or schedule_generator_controller
 
+    # Return the standard prompt shown when no configuration is active.
     @staticmethod
     def configuration_required_message() -> str:
         return (
@@ -71,16 +73,19 @@ class SchedulerAgentState:
             "before working with scheduler configuration."
         )
 
+    # Report whether the agent can currently access a configuration.
     def get_active_configuration_status(self) -> str:
         if not self.has_active_configuration:
             return self.configuration_required_message()
         return "A scheduler configuration is active."
 
+    # Format a configuration collection for the assistant.
     def _list_items(self, items: list[Any], *, label: str) -> str:
         if not items:
             return f"No {label} found."
         return "\n".join(item.model_dump_json() for item in items)
 
+    # Add a room using the assistant's configuration defaults.
     def add_room(
         self,
         *,
@@ -100,6 +105,7 @@ class SchedulerAgentState:
         )
         return f"Room {name} added successfully."
 
+    # Add a lab using the assistant's configuration defaults.
     def add_lab(
         self,
         *,
@@ -119,6 +125,7 @@ class SchedulerAgentState:
         )
         return f"Lab {name} added successfully."
 
+    # Add a faculty member with empty availability and preferences.
     def add_faculty(
         self,
         *,
@@ -146,6 +153,7 @@ class SchedulerAgentState:
         )
         return f"Faculty member {name} added successfully."
 
+    # Add a course section with the supplied scheduler constraints.
     def add_course(
         self,
         *,
@@ -188,18 +196,23 @@ class SchedulerAgentState:
         )
         return f"Course {course_id} added successfully."
 
+    # Return all configured rooms in JSON form.
     def get_rooms(self) -> str:
         return self._list_items(self.config.config.rooms, label="rooms")
 
+    # Return all configured labs in JSON form.
     def get_labs(self) -> str:
         return self._list_items(self.config.config.labs, label="labs")
 
+    # Return all configured faculty members in JSON form.
     def get_faculty(self) -> str:
         return self._list_items(self.config.config.faculty, label="faculty members")
 
+    # Return all configured courses in JSON form.
     def get_courses(self) -> str:
         return self._list_items(self.config.config.courses, label="courses")
 
+    # Summarize the counts of configured scheduling resources.
     def get_config_summary(self) -> str:
         return (
             f"Rooms: {len(self.config.config.rooms)}\n"
@@ -208,6 +221,7 @@ class SchedulerAgentState:
             f"Faculty: {len(self.config.config.faculty)}"
         )
 
+    # Serialize the full configuration or one supported configuration area.
     def inspect_configuration(self, area: str = "all") -> str:
         payload = self.config.model_dump(mode="json")
         areas = {
@@ -232,6 +246,7 @@ class SchedulerAgentState:
             return f"Unknown configuration area '{area}'."
         return json.dumps(result, indent=2, default=str)
 
+    # Create a typed item or a weekday's time-block set.
     def create_configuration_item(
         self,
         *,
@@ -267,6 +282,7 @@ class SchedulerAgentState:
             return f"Could not create {area} item: {error}"
         return f"Created {area} item '{item_key or key}'."
 
+    # Merge changed fields into an existing configuration item.
     def update_configuration_item(
         self,
         *,
@@ -311,6 +327,7 @@ class SchedulerAgentState:
             return f"Could not update {area} item '{item_key}': {error}"
         return f"Updated {area} item '{item_key}'."
 
+    # Delete a keyed configuration item or a weekday's time blocks.
     def delete_configuration_item(self, *, area: str, item_key: str) -> str:
         if area == "time_blocks":
             day = item_key.upper()
@@ -327,6 +344,7 @@ class SchedulerAgentState:
             return f"Items cannot be deleted from configuration area '{area}'."
         return f"Deleted {area} item '{item_key}'."
 
+    # Apply provided global and time-slot settings.
     def update_configuration_settings(
         self,
         *,
@@ -356,6 +374,7 @@ class SchedulerAgentState:
             return "No settings were provided to update."
         return f"Updated global settings: {', '.join(changed)}."
 
+    # Format validation problems for the active configuration.
     def validate_current_config(self) -> str:
         problems = validate_config(self.config)
         if not problems:
@@ -366,6 +385,7 @@ class SchedulerAgentState:
             lines.append(f"- {problem.area}: {item} -> {problem.message}")
         return "\n".join(lines)
 
+    # Validate and save the active configuration through the app callback.
     def save_current_config(self, config_name: str) -> str:
         problems = validate_config(self.config)
         if problems:
@@ -379,47 +399,27 @@ class SchedulerAgentState:
             return f"Could not save configuration '{config_name}': {error}"
         return f"Configuration saved as '{config_name}.json'."
 
+    # Generate from the active config and direct results to the viewer.
     def generate_schedules(self) -> str:
         problems = validate_config(self.config)
         if problems:
             return "Cannot generate schedules until the configuration is valid.\n" + (
                 self.validate_current_config()
             )
-        scheduler = Scheduler(self.config)
-        schedules = []
-        for schedule in scheduler.get_models():
-            schedules.append(schedule)
-            if len(schedules) >= self.config.limit:
-                break
-        if not schedules:
-            return json.dumps(
-                {
-                    "generated": 0,
-                    "message": "No valid schedules could be generated.",
-                    "diagnosis": str(scheduler.diagnose()),
-                },
-                indent=2,
-            )
-        results = [
-            records_from_result(
-                ScheduleResult(
-                    config_name="active configuration",
-                    schedule=schedule,
-                    config=self.config,
-                )
-            )
-            for schedule in schedules
-        ]
-        audits = [scheduler.audit_schedule(schedule) for schedule in schedules]
-        return json.dumps(
-            {
-                "generated": len(schedules),
-                "valid": sum(audit.is_valid for audit in audits),
-                "schedules": results,
-            },
-            indent=2,
+        state, error = self._schedule_generator.generate_active_configuration(
+            self.config
+        )
+        if error:
+            return f"Schedule generation failed: {error}"
+
+        if state is None or state.generated == 0:
+            return "No valid schedules could be generated."
+        return (
+            f"Schedule generation complete. Generated {state.generated} schedule(s), "
+            f"{state.valid} valid. View generated schedules in the Schedule Viewer tab."
         )
 
+    # Resolve a supported area to its mutable configuration collection.
     def _item_collection(self, area: str) -> list[Any]:
         if area in {"rooms", "labs", "courses", "faculty"}:
             return getattr(self.config.config, area)
@@ -427,6 +427,7 @@ class SchedulerAgentState:
             return self.config.time_slot_config.classes
         raise ValueError(f"Unknown configuration area '{area}'.")
 
+    # Validate an item dictionary with its scheduler configuration type.
     @staticmethod
     def _parse_item(area: str, item: dict[str, Any]) -> Any:
         model = {
@@ -440,6 +441,7 @@ class SchedulerAgentState:
             raise ValueError(f"Unknown configuration area '{area}'.")
         return model.model_validate(item)
 
+    # Return the stable key used to find or de-duplicate an item.
     @staticmethod
     def _item_identity(area: str, item: Any) -> str:
         if area == "courses":
@@ -448,6 +450,7 @@ class SchedulerAgentState:
             return str(item.credits)
         return item.name
 
+    # Find an item by key or return a message explaining why it is unresolved.
     def _find_item_index(
         self, area: str, collection: list[Any], item_key: str
     ) -> int | str:
@@ -602,6 +605,7 @@ class SaveConfigurationArgs(BaseModel):
     config_name: str = Field(description="Name for the saved JSON configuration")
 
 
+# Register assistant tools with configuration and change-validation guards.
 def get_tool_list(
     state: SchedulerAgentState,
     apply_change: Callable[[Callable[[], str]], tuple[bool, list[Any]]] | None = None,
@@ -610,6 +614,7 @@ def get_tool_list(
     if save_configuration is not None:
         state._save_configuration = save_configuration
 
+    # Apply edits through the configuration controller when available.
     def mutation_tool(operation: Callable[..., str]) -> Callable[..., str]:
         def guarded_operation(**arguments: Any) -> str:
             if not state.has_active_configuration:
@@ -638,6 +643,7 @@ def get_tool_list(
 
         return guarded_operation
 
+    # Block configuration operations when no active config is attached.
     def configuration_tool(operation: Callable[..., str]) -> Callable[..., str]:
         def guarded_operation(**arguments: Any) -> str:
             if not state.has_active_configuration:
@@ -758,6 +764,7 @@ def get_tool_list(
     ]
 
 
+# Build the scheduler agent, model, tools, and behavior instructions.
 def build_scheduler_agent(
     *,
     config: CombinedConfig | None = None,
@@ -765,7 +772,6 @@ def build_scheduler_agent(
     apply_change: Callable[[Callable[[], str]], tuple[bool, list[Any]]] | None = None,
     save_configuration: Callable[[str], None] | None = None,
 ) -> Any:
-    """Create a LangChain agent configured for the scheduler domain."""
     state = SchedulerAgentState(config=config)
     if model is None:
         api_key = os.environ.get("OPENAI_API_KEY")
@@ -810,11 +816,14 @@ def build_scheduler_agent(
             "report validation problems. Save only when the user explicitly asks "
             "you to save, and only claim success if the save tool succeeds. "
             "Generate schedules only from a valid active configuration. "
+            "When schedules are generated, do not reproduce schedule rows; "
+            "report the count and direct the user to the Schedule Viewer tab. "
             + configuration_context
         ),
     )
 
 
+# Invoke the agent with the query and prior conversation messages.
 def invoke_scheduler_agent(
     *,
     config: CombinedConfig,
@@ -833,6 +842,7 @@ def invoke_scheduler_agent(
 
 
 def run_cli() -> None:
+    # Run an interactive terminal conversation with the scheduler assistant.
     config = empty_scheduler_config()
     history: list[Any] = []
     while True:

@@ -30,6 +30,22 @@ def test_scheduler_tools_edit_the_active_configuration_through_controller():
     assert "Room 101" in tools["get_rooms"].invoke({})
 
 
+def test_add_tools_preserve_case_sensitive_duplicate_checks():
+    config = ConfigurationController().new_configuration()
+    tools = _tools(SchedulerAgentState(config))
+
+    tools["add_room"].invoke({"name": "Room 101", "capacity": 30})
+    tools["add_room"].invoke({"name": "room 101", "capacity": 30})
+    tools["add_lab"].invoke({"name": "Lab 1", "capacity": 30})
+    tools["add_lab"].invoke({"name": "lab 1", "capacity": 30})
+    tools["add_faculty"].invoke({"name": "Dr. Smith"})
+    tools["add_faculty"].invoke({"name": "dr. smith"})
+
+    assert len(config.config.rooms) == 2
+    assert len(config.config.labs) == 2
+    assert len(config.config.faculty) == 2
+
+
 def test_scheduler_tool_reports_controller_rejection_without_mutating():
     config = ConfigurationController().new_configuration()
 
@@ -157,6 +173,11 @@ def test_save_tool_uses_the_application_save_callback(monkeypatch):
 
 def test_generate_schedules_uses_the_active_configuration(monkeypatch):
     import src.ai.scheduler_agent as scheduler_agent
+    import src.models.schedule_generator_model as schedule_generator_model
+
+    from src.controllers.schedule_controller import ScheduleController
+    from src.controllers.schedule_generator_controller import ScheduleGeneratorController
+    from src.models.schedule_generator_model import ScheduleGeneratorModel
 
     config = ConfigurationController().new_configuration()
     schedule = [
@@ -179,11 +200,16 @@ def test_generate_schedules_uses_the_active_configuration(monkeypatch):
         def audit_schedule(self, _schedule):
             return SimpleNamespace(is_valid=True)
 
+    monkeypatch.setattr(schedule_generator_model, "Scheduler", FakeScheduler)
     monkeypatch.setattr(scheduler_agent, "validate_config", lambda _config: [])
-    monkeypatch.setattr(scheduler_agent, "Scheduler", FakeScheduler)
+    generator = ScheduleGeneratorController(ScheduleGeneratorModel())
+    state = SchedulerAgentState(config, schedule_generator=generator)
 
-    result = json.loads(SchedulerAgentState(config).generate_schedules())
+    result = state.generate_schedules()
+    viewer = ScheduleController(generator=generator)
 
-    assert result["generated"] == 1
-    assert result["valid"] == 1
-    assert result["schedules"][0][0]["course"] == "CS 101.01"
+    assert "Generated 1 schedule(s), 1 valid." in result
+    assert "Schedule Viewer tab" in result
+    assert "CS 101.01" not in result
+    assert viewer.sync_generated()
+    assert viewer.current.records[0]["course"] == "CS 101.01"
