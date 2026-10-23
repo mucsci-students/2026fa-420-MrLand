@@ -5,7 +5,11 @@ Used by: GUI."""
 from nicegui import ui
 
 from src.controllers.class_pattern_controller import ClassPatternController
-from src.views.common import ConfigurationChangeHandler, run_configuration_change
+from src.views.common import (
+    ConfigurationChangeHandler,
+    parse_whole_number,
+    run_crud_mutation,
+)
 
 controller = ClassPatternController()
 
@@ -68,10 +72,11 @@ def class_patterns_gui(
 
         # Ensure numeric fields contain positive whole numbers.
         def integer_value(field, label):
-            value = field.value
-            if value is None or not float(value).is_integer() or value <= 0:
-                raise ValueError(f"{label} must be a positive integer.")
-            return int(value)
+            message = f"{label} must be a positive integer."
+            value = parse_whole_number(field.value, message)
+            if value <= 0:
+                raise ValueError(message)
+            return value
 
         # Show whether the meeting controls are adding or editing a draft.
         def update_meeting_status() -> None:
@@ -219,14 +224,10 @@ def class_patterns_gui(
 
         # Add the validated pattern and its meetings to the configuration.
         def add_pattern() -> None:
-            try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: controller.add_pattern(patterns, *pattern_values()),
-                ):
-                    return
-            except (TypeError, ValueError) as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change,
+                lambda: controller.add_pattern(patterns, *pattern_values()),
+            ):
                 return
             reset_form()
             refresh_patterns()
@@ -234,16 +235,12 @@ def class_patterns_gui(
 
         # Save changes to the pattern currently being modified.
         def update_pattern() -> None:
-            try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: controller.update_pattern(
-                        patterns, editing_pattern["pattern"], *pattern_values()
-                    ),
-                ):
-                    return
-            except (TypeError, ValueError) as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change,
+                lambda: controller.update_pattern(
+                    patterns, editing_pattern["pattern"], *pattern_values()
+                ),
+            ):
                 return
             reset_form()
             refresh_patterns()
@@ -274,15 +271,11 @@ def class_patterns_gui(
 
         # Delete the selected pattern after confirmation.
         def delete_pattern(pattern, dialog) -> None:
-            try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: controller.delete_pattern(patterns, pattern),
-                ):
-                    dialog.close()
-                    return
-            except ValueError as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change,
+                lambda: controller.delete_pattern(patterns, pattern),
+                handled_errors=(ValueError,),
+            ):
                 dialog.close()
                 return
             if editing_pattern["pattern"] is pattern:

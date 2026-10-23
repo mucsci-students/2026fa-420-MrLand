@@ -294,7 +294,7 @@ def export_schedules(schedules):
     default_name = model.default_export_file_name(entry, file_format)
     file_name = input(f"File name [{default_name}]: ").strip()
     try:
-        content, safe_name, _media_type = model.export(entry, file_format, file_name)
+        content, safe_name, _ = model.export(entry, file_format, file_name)
         model.directory.mkdir(parents=True, exist_ok=True)
         path = model.directory / safe_name
         if path.exists() and not confirm_yes_no(f"'{safe_name}' already exists. Overwrite it?"):

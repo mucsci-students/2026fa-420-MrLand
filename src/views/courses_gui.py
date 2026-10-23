@@ -5,7 +5,11 @@ Used by: GUI."""
 from nicegui import ui
 
 from src.controllers.course_controller import CourseController
-from src.views.common import ConfigurationChangeHandler, run_configuration_change
+from src.views.common import (
+    ConfigurationChangeHandler,
+    parse_whole_number,
+    run_crud_mutation,
+)
 
 controller = CourseController()
 
@@ -118,10 +122,11 @@ def courses_gui(
 
         # Ensure numeric form fields contain positive whole numbers.
         def integer_value(field, label):
-            value = field.value
-            if value is None or not float(value).is_integer() or value <= 0:
-                raise ValueError(f"{label} must be a positive integer.")
-            return int(value)
+            message = f"{label} must be a positive integer."
+            value = parse_whole_number(field.value, message)
+            if value <= 0:
+                raise ValueError(message)
+            return value
 
         # Validate and collect course data, excluding resources for online courses.
         def form_values():
@@ -215,14 +220,10 @@ def courses_gui(
 
         # Add the validated form values to the current configuration.
         def add_course() -> None:
-            try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: controller.add_course(course_members, *form_values()),
-                ):
-                    return
-            except (TypeError, ValueError) as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change,
+                lambda: controller.add_course(course_members, *form_values()),
+            ):
                 return
             reset_form()
             refresh_courses()
@@ -230,16 +231,12 @@ def courses_gui(
 
         # Save edits to the course currently being modified.
         def update_course() -> None:
-            try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: controller.update_course(
-                        course_members, editing_course["course"], *form_values()
-                    ),
-                ):
-                    return
-            except (TypeError, ValueError) as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change,
+                lambda: controller.update_course(
+                    course_members, editing_course["course"], *form_values()
+                ),
+            ):
                 return
             reset_form()
             refresh_courses()
@@ -274,15 +271,11 @@ def courses_gui(
 
         # Delete the selected course after the user confirms the action.
         def delete_course(course, dialog) -> None:
-            try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: controller.delete_course(course_members, course),
-                ):
-                    dialog.close()
-                    return
-            except ValueError as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change,
+                lambda: controller.delete_course(course_members, course),
+                handled_errors=(ValueError,),
+            ):
                 dialog.close()
                 return
             if editing_course["course"] is course:

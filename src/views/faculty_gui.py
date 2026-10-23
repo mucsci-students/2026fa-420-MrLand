@@ -5,7 +5,11 @@ Used by: GUI."""
 from nicegui import ui
 
 from src.controllers.faculty_controller import FacultyController
-from src.views.common import ConfigurationChangeHandler, run_configuration_change
+from src.views.common import (
+    ConfigurationChangeHandler,
+    parse_whole_number,
+    run_crud_mutation,
+)
 
 controller = FacultyController()
 
@@ -107,10 +111,9 @@ def faculty_gui(
 
         # Validate whole-number form fields against their allowed bounds.
         def integer_value(field, label, minimum, maximum=None):
-            value = field.value
-            if value is None or not float(value).is_integer():
-                raise ValueError(f"{label} must be a whole number.")
-            value = int(value)
+            value = parse_whole_number(
+                field.value, f"{label} must be a whole number."
+            )
             if value < minimum or (maximum is not None and value > maximum):
                 if maximum is None:
                     raise ValueError(f"{label} must be at least {minimum}.")
@@ -179,14 +182,10 @@ def faculty_gui(
 
         # Add the validated faculty details to the current configuration.
         def add_member() -> None:
-            try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: controller.add_member(faculty_members, *form_values()),
-                ):
-                    return
-            except (TypeError, ValueError) as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change,
+                lambda: controller.add_member(faculty_members, *form_values()),
+            ):
                 return
             reset_form()
             refresh_faculty()
@@ -194,16 +193,12 @@ def faculty_gui(
 
         # Save edits to the faculty member currently being modified.
         def update_member() -> None:
-            try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: controller.update_member(
-                        faculty_members, editing_member["member"], *form_values()
-                    ),
-                ):
-                    return
-            except (TypeError, ValueError) as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change,
+                lambda: controller.update_member(
+                    faculty_members, editing_member["member"], *form_values()
+                ),
+            ):
                 return
             reset_form()
             refresh_faculty()
@@ -240,15 +235,11 @@ def faculty_gui(
 
         # Delete the selected faculty member after confirmation.
         def delete_member(member, dialog) -> None:
-            try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: controller.delete_member(faculty_members, member),
-                ):
-                    dialog.close()
-                    return
-            except ValueError as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change,
+                lambda: controller.delete_member(faculty_members, member),
+                handled_errors=(ValueError,),
+            ):
                 dialog.close()
                 return
             if editing_member["member"] is member:

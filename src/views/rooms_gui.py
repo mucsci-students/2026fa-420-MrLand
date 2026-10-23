@@ -5,7 +5,7 @@ Used by: GUI."""
 from nicegui import ui
 
 from src.controllers.room_controller import RoomController
-from src.views.common import ConfigurationChangeHandler, run_configuration_change
+from src.views.common import ConfigurationChangeHandler, run_crud_mutation
 
 controller = RoomController()
 
@@ -132,13 +132,9 @@ def rooms_gui(
 
         # Apply a new room to the current configuration.
         def add_room() -> None:
-            try:
-                if not run_configuration_change(
-                    on_change, lambda: controller.add_room(rooms, *form_values())
-                ):
-                    return
-            except (TypeError, ValueError) as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change, lambda: controller.add_room(rooms, *form_values())
+            ):
                 return
             reset_form()
             refresh_rooms()
@@ -146,16 +142,12 @@ def rooms_gui(
 
         # Save edits to the room currently being modified.
         def update_room() -> None:
-            try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: controller.update_room(
-                        rooms, editing_room["room"], *form_values()
-                    ),
-                ):
-                    return
-            except (TypeError, ValueError) as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change,
+                lambda: controller.update_room(
+                    rooms, editing_room["room"], *form_values()
+                ),
+            ):
                 return
             reset_form()
             refresh_rooms()
@@ -181,14 +173,11 @@ def rooms_gui(
 
         # Delete the selected room after the user confirms the action.
         def delete_room(room, dialog) -> None:
-            try:
-                if not run_configuration_change(
-                    on_change, lambda: controller.delete_room(rooms, room)
-                ):
-                    dialog.close()
-                    return
-            except ValueError as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change,
+                lambda: controller.delete_room(rooms, room),
+                handled_errors=(ValueError,),
+            ):
                 dialog.close()
                 return
             if editing_room["room"] is room:
