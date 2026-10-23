@@ -7,10 +7,9 @@ import os
 from collections.abc import Callable
 from typing import Any
 
-from langchain_core.exceptions import LangChainException
 from nicegui import ui
-from openai import OpenAIError
 
+from src.ai.api_errors import friendly_error_message
 from src.ai.scheduler_agent import invoke_scheduler_agent
 from src.controllers.configuration_controller import ConfigurationController
 from src.controllers.schedule_generator_controller import (
@@ -171,8 +170,10 @@ def scheduler_ai_assistant(
             state["messages"][-1] = ("assistant", response)
             if accepted_mutations:
                 refresh_configuration()
-        except (LangChainException, OpenAIError, TypeError, ValueError) as exc:
-            state["messages"][-1] = ("assistant", f"AI request failed: {exc}")
+        except Exception as exc:
+            message = friendly_error_message(exc)
+            state["messages"][-1] = ("assistant", message)
+            ui.notify(message, type="negative")
         finally:
             progress_monitor.cancel()
             try:
