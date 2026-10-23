@@ -90,6 +90,16 @@ class ConfigurationController:
         self.configuration = self.config_service.load(config_name)
         self._has_valid_configuration = True
         return self.configuration
+    
+    
+    # Load and validate a configuration from an uploaded JSON file
+    def load_uploaded_configuration(self, content: bytes) -> CombinedConfig:
+        configuration = self.config_service.load_uploaded(content)
+
+        self.configuration = configuration
+        self._has_valid_configuration = True
+
+        return self.configuration
 
     # Names of saved configs for user's load list
     def list_names(self) -> list[str]:
