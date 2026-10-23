@@ -24,11 +24,6 @@ from src.controllers.schedule_inspection_controller import (
 )
 
 
-BACKGROUND = "#101820"
-PANEL = "#17252d"
-TEXT = "#d8e7e8"
-ACCENT = "#75e6da"
-
 DAYS = [
     ("MON", "Monday"),
     ("TUE", "Tuesday"),
@@ -64,7 +59,7 @@ class ScheduleCalendarView:
                     overflow: auto !important;
                     padding: 12px !important;
                     box-sizing: border-box !important;
-                    background: #101820 !important;
+                    background: var(--app-background) !important;
                 }}
 
                 .schedule-calendar-fullscreen .schedule-calendar-scroll {{
@@ -79,14 +74,14 @@ class ScheduleCalendarView:
                 .schedule-calendar-scroll {{
                     width: 100%;
                     overflow-x: auto;
-                    border: 1px solid #29404b;
+                    border: 1px solid var(--border-color);
                     border-radius: 8px;
                 }}
                 .schedule-calendar-grid {{
                     display: grid;
                     grid-template-columns: 76px repeat(5, minmax(150px, 1fr));
                     min-width: 850px;
-                    background: {BACKGROUND};
+                    background: var(--app-background);
                 }}
                 .schedule-calendar-heading {{
                     position: sticky;
@@ -95,28 +90,28 @@ class ScheduleCalendarView:
                     padding: 12px 8px;
                     text-align: center;
                     font-weight: 600;
-                    color: {TEXT};
-                    background: {PANEL};
-                    border-bottom: 1px solid #29404b;
-                    border-right: 1px solid #29404b;
+                    color: var(--app-foreground);
+                    background: var(--surface-raised);
+                    border-bottom: 1px solid var(--border-color);
+                    border-right: 1px solid var(--border-color);
                 }}
                 .schedule-calendar-time {{
                     box-sizing: border-box;
                     padding: 4px 8px 0 0;
                     text-align: right;
-                    color: #a9c0c4;
+                    color: var(--text-muted);
                     font-size: 12px;
-                    border-right: 1px solid #29404b;
+                    border-right: 1px solid var(--border-color);
                 }}
                 .schedule-calendar-day {{
                     position: relative;
-                    border-right: 1px solid #29404b;
+                    border-right: 1px solid var(--border-color);
                     background-image: repeating-linear-gradient(
                         to bottom,
                         transparent 0,
                         transparent 59px,
-                        #29404b 59px,
-                        #29404b 60px
+                        var(--border-color) 59px,
+                        var(--border-color) 60px
                     );
                 }}
                 .schedule-calendar-event {{
@@ -149,7 +144,7 @@ class ScheduleCalendarView:
                 }}
                 .schedule-calendar-empty {{
                     padding: 24px;
-                    color: #a9c0c4;
+                    color: var(--text-muted);
                     text-align: center;
                 }}
             </style>
@@ -176,7 +171,7 @@ class ScheduleCalendarView:
         with self.fullscreen_dialog:
             with ui.card().classes(
                 "w-full h-full gap-2"
-            ).style("background: #101820; color: #d8e7e8;"
+            ).style("background: var(--app-background); color: var(--app-foreground);"
                     "display: flex; flex-direction: column;"
                     ):
                 with ui.row().classes(
