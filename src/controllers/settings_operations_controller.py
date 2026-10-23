@@ -1,6 +1,6 @@
-"""Reads and updates global settings, including interactive CLI prompts.
+"""Reads and updates global settings.
 
-Used by: GUI and CLI."""
+Used by: GUI."""
 
 from scheduler.config import CombinedConfig, OptimizerFlags
 
@@ -25,7 +25,7 @@ def update_settings_from_values(combined_config, limit, optimizer_flags):
 
 
 def reset_settings_values(combined_config):
-    """Restore default settings without CLI output for GUI callers."""
+    """Restore default settings without printing output."""
     return update_settings_from_values(
         combined_config, DEFAULT_LIMIT, list(DEFAULT_OPTIMIZER_FLAGS)
     )

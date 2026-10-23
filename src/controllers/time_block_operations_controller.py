@@ -1,6 +1,6 @@
 """Time-block validation, editing, and interactive management operations.
 
-Used by: GUI and CLI."""
+Used by: GUI."""
 
 from pydantic import ValidationError
 
