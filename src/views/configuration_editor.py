@@ -37,6 +37,7 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
         "config": None,
         "name": None,
         "saved": False,
+        "pending_load": None,
         "status_badge": None,
         "undo_button": None,
         "redo_button": None,
@@ -418,7 +419,7 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
             "Loading another configuration will overwrite your work unless you save it."
         ).classes("text-sm text-[#9fb2b8]")
         with ui.row().classes("mt-4 w-full justify-end gap-2"):
-            ui.button("Cancel", on_click=unsaved_load_dialog.close).props("flat")
+            ui.button("Cancel", on_click=lambda: cancel_load()).props("flat")
             ui.button("Save Configuration", on_click=lambda: save_and_load()).props(
                 "unelevated"
             ).classes("bg-[#75e6da] text-[#101820]")
@@ -478,9 +479,19 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
             return
         toggle_load_select()
 
+    def cancel_load() -> None:
+        state["pending_load"] = None
+        load_select.value = None
+        unsaved_load_dialog.close()
+
     def discard_and_load() -> None:
         unsaved_load_dialog.close()
-        show_load_select()
+        pending_name = state["pending_load"]
+        state["pending_load"] = None
+        if pending_name:
+            on_select_change(pending_name, confirmed=True)
+        else:
+            show_load_select()
 
     def save_and_load() -> None:
         config_name = state["name"]
@@ -504,13 +515,17 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
             f"Downloading '{file_name}'. Choose the save location in your browser.",
             type="positive",
         )
-        show_load_select()
+        discard_and_load()
 
     # Load a selected configuration, hiding the selector after success.
-    def on_select_change(name: str | None) -> None:
+    def on_select_change(name: str | None, *, confirmed: bool = False) -> None:
         if not name:
             return
         if name != state["name"]:
+            if state["config"] is not None and not state["saved"] and not confirmed:
+                state["pending_load"] = name
+                unsaved_load_dialog.open()
+                return
             confirm_load(name)
         # Hide again only if the load worked (or it was already open).
         if state["name"] == name:

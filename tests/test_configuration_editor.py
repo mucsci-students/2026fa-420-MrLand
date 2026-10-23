@@ -134,3 +134,67 @@ def test_save_and_load_downloads_json_then_opens_selector(editor_controller, mon
         await user.should_see("Downloading 'demo.json'")
 
     run_editor_simulation(action)
+
+
+@pytest.mark.parametrize("choice", ["Cancel", "Discard and Load", "Save Configuration"])
+def test_selecting_another_config_protects_unsaved_draft(
+    editor_controller, monkeypatch, choice
+):
+    editor_controller.save_configuration("other")
+    monkeypatch.setattr(editor_controller, "list_names", lambda: ["demo", "other"])
+
+    async def action(user, mark_unsaved):
+        await load_demo_config(user)
+        user.find("Load configuration").click()
+        await user.should_see("Select Configuration")
+        mark_unsaved()
+        draft = editor_controller.configuration
+        draft_data = draft.model_dump(mode="json")
+
+        user.find(kind=ui.select, content="Select Configuration").click()
+        user.find("other").click()
+        await user.should_see("Unsaved changes")
+        assert editor_controller.configuration is draft
+        await user.should_see("Editing: demo")
+
+        dialog = click_open_dialog_button(user, choice)
+        if choice == "Cancel":
+            await user.should_see("Draft - not saved")
+            assert editor_controller.configuration is draft
+            assert not dialog.value
+            # The canceled choice must not survive into the Load button flow.
+            user.find("Load configuration").click()
+            await user.should_see("Unsaved changes")
+            click_open_dialog_button(user, "Discard and Load")
+            await user.should_see("Select Configuration")
+            assert editor_controller.configuration is draft
+            return
+
+        if choice == "Save Configuration":
+            download = await user.download.next()
+            assert download.status_code == 200
+            assert json.loads(download.content) == draft_data
+        await user.should_see("Loaded 'other'.")
+        await user.should_see("Editing: other")
+        await user.should_see("Draft saved")
+        await user.should_not_see("Select Configuration")
+        assert not dialog.value
+
+    run_editor_simulation(action)
+
+
+def test_selecting_another_config_without_edits_loads_without_warning(
+    editor_controller, monkeypatch
+):
+    editor_controller.save_configuration("other")
+    monkeypatch.setattr(editor_controller, "list_names", lambda: ["demo", "other"])
+
+    async def action(user, _mark_unsaved):
+        await load_demo_config(user)
+        user.find("Load configuration").click()
+        user.find(kind=ui.select, content="Select Configuration").click()
+        user.find("other").click()
+        await user.should_see("Loaded 'other'.")
+        assert not find_dialog_with_label(user, "Unsaved changes").value
+
+    run_editor_simulation(action)
