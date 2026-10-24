@@ -157,6 +157,12 @@ def schedule_viewer() -> None:
                     auto_upload=True,
                     max_files=1,
                 ).props("accept=.csv,.json dark flat bordered").classes("w-full")
+                
+                with ui.row().classes("w-full justify-end"):
+                    ui.button(
+                        "Cancel",
+                        on_click=load_dialog.close,
+                    ).props("flat")
 
         # ---------------------------------------------------------
         # Export dialog
