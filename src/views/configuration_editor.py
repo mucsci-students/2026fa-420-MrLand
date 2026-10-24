@@ -43,6 +43,7 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
         "config": None,
         "name": None,
         "saved": False,
+        "pending_load": None,
         "status_badge": None,
         "undo_button": None,
         "redo_button": None,
@@ -294,7 +295,13 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
                 state["combination_unlocked"] = True
                 on_unlock()
 
-    # Persist the active draft and report validation or storage errors.
+    # Download the active draft and report validation or browser errors.
+    def download_configuration(file_name: str) -> str:
+        content, file_name, media_type = controller.export_configuration(file_name)
+        ui.download(content, filename=file_name, media_type=media_type)
+        set_saved_status(True)
+        return file_name
+
     def save_current_config() -> None:
         if state["config"] is None:
             ui.notify("No configuration is open to save.", type="negative")
@@ -310,7 +317,7 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
             save_status.set_text("Enter a file name without a folder path.")
             return
         try:
-            content, file_name, media_type = controller.export_configuration(file_name)
+            file_name = download_configuration(file_name)
         except ConfigValidationError as exc:
             show_problems("Can't save yet", exc.problems)
             return
@@ -321,8 +328,6 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
             ui.notify(f"Unable to save configuration: {exc}", type="negative")
             return
 
-        ui.download(content, filename=file_name, media_type=media_type)
-        set_saved_status(True)
         save_dialog.close()
         ui.notify(
             f"Downloading '{file_name}'. Choose the save location in your browser.",
@@ -465,6 +470,23 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
                 "unelevated color=negative"
             )
 
+    with ui.dialog() as unsaved_load_dialog, ui.card().classes(
+        "border border-[#29404b] bg-[#182630]"
+    ):
+        ui.label("Unsaved changes").classes("text-lg font-semibold text-white")
+        ui.label(
+            "Loading another configuration will overwrite your work unless you save it."
+        ).classes("text-sm text-[#9fb2b8]")
+        with ui.row().classes("mt-4 w-full justify-end gap-2"):
+            ui.button("Cancel", on_click=lambda: cancel_load()).props("flat")
+            ui.button("Save Configuration", on_click=lambda: save_and_load()).props(
+                "unelevated"
+            ).classes("bg-[#75e6da] text-[#101820]")
+            ui.button(
+                "Discard and Load",
+                on_click=lambda: discard_and_load(),
+            ).props("unelevated color=negative")
+
     # Collect and validate the name for a newly created configuration.
     with ui.dialog() as create_dialog, ui.card().classes("border border-[#29404b] bg-[#182630]"):
         ui.label("Create new configuration").classes("text-lg font-semibold text-white")
@@ -496,20 +518,73 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
     def refresh_load_options() -> None:
         load_select.set_options(controller.list_names(), value=None)
 
+    # Show the refreshed choices without changing the selector's current visibility.
+    def show_load_select() -> None:
+        refresh_load_options()
+        load_select.set_visibility(True)
+        load_select.run_method("showPopup")
+
     # Toggle the load selector and display its current options immediately.
     def toggle_load_select() -> None:
         if load_select.visible:
             load_select.set_visibility(False)
             return
-        refresh_load_options()
-        load_select.set_visibility(True)
-        load_select.run_method("showPopup")  # opens the list right away
+        show_load_select()
+
+    # Protect an edited draft before opening the configuration selector.
+    def request_load_select() -> None:
+        if state["config"] is not None and not state["saved"]:
+            unsaved_load_dialog.open()
+            return
+        toggle_load_select()
+
+    def cancel_load() -> None:
+        state["pending_load"] = None
+        load_select.value = None
+        unsaved_load_dialog.close()
+
+    def discard_and_load() -> None:
+        unsaved_load_dialog.close()
+        pending_name = state["pending_load"]
+        state["pending_load"] = None
+        if pending_name:
+            on_select_change(pending_name, confirmed=True)
+        else:
+            show_load_select()
+
+    def save_and_load() -> None:
+        config_name = state["name"]
+        if state["config"] is None or not config_name:
+            ui.notify("No named configuration is open to save.", type="negative")
+            return
+        unsaved_load_dialog.close()
+        try:
+            file_name = download_configuration(f"{config_name}.json")
+        except ConfigValidationError as exc:
+            show_problems("Can't save yet", exc.problems)
+            return
+        except ValueError as exc:
+            ui.notify(str(exc), type="negative")
+            return
+        except Exception as exc:  # pragma: no cover - UI guard
+            ui.notify(f"Unable to save configuration: {exc}", type="negative")
+            return
+
+        ui.notify(
+            f"Downloading '{file_name}'. Choose the save location in your browser.",
+            type="positive",
+        )
+        discard_and_load()
 
     # Load a selected configuration, hiding the selector after success.
-    def on_select_change(name: str | None) -> None:
+    def on_select_change(name: str | None, *, confirmed: bool = False) -> None:
         if not name:
             return
         if name != state["name"]:
+            if state["config"] is not None and not state["saved"] and not confirmed:
+                state["pending_load"] = name
+                unsaved_load_dialog.open()
+                return
             confirm_load(name)
         # Hide again only if the load worked (or it was already open).
         if state["name"] == name:

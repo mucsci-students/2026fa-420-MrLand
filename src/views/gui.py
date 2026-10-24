@@ -286,6 +286,7 @@ def build_app() -> None:
             ui.tab("viewer", label="Schedule Viewer", icon="calendar_view_week")
 
         editor_refresh: Callable[[], None]
+        viewer_refresh: Callable[[], None]
         unlock_assistant: Callable[[], None] = lambda: None
 
         def request_assistant_unlock() -> None:
@@ -297,7 +298,11 @@ def build_app() -> None:
             with ui.tab_panel("generator"):
                 schedule_generator()
             with ui.tab_panel("viewer"):
-                schedule_viewer()
+                viewer_refresh = schedule_viewer()
+
+        tabs.on_value_change(
+            lambda event: viewer_refresh() if event.value == "viewer" else None
+        )
 
     unlock_assistant = scheduler_ai_assistant(controller, editor_refresh)
 

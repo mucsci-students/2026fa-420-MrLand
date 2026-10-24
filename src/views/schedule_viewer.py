@@ -7,6 +7,8 @@ Used by: GUI."""
 # Secondary Author: Micah Schafer
 
 
+from collections.abc import Callable
+
 from nicegui import ui
 from src.controllers.schedule_controller import (
     schedule_controller as controller,
@@ -31,7 +33,7 @@ async def read_upload(event) -> tuple[str, bytes]:
     return event.name, event.content.read()  # NiceGUI 2.x
 
 
-def schedule_viewer() -> None:
+def schedule_viewer() -> Callable[[], None]:
     # adds custom CSS to the web elements to style the schedule viewer
     ui.add_head_html(
         f"""
@@ -433,6 +435,10 @@ def schedule_viewer() -> None:
             if controller.sync_generated():
                 show_selected_schedule()
 
+        def refresh_viewer() -> None:
+            controller.sync_generated()
+            show_selected_schedule()
+
         # ---------------------------------------------------------
         # Loading
         # ---------------------------------------------------------
@@ -545,3 +551,5 @@ def schedule_viewer() -> None:
         controller.sync_generated()
         show_selected_schedule()
         ui.timer(1.0, check_for_generated_schedules)
+
+    return refresh_viewer
