@@ -123,6 +123,7 @@ def schedule_viewer() -> Callable[[], None]:
 
     # set while the code itself changes the dropdown, so it doesn't re-trigger
     syncing = False
+    load_generation = 0
 
     with ui.column().classes("w-full min-h-screen px-6 py-8").style(
         "background-color: var(--app-background);"
@@ -163,7 +164,7 @@ def schedule_viewer() -> Callable[[], None]:
                 with ui.row().classes("w-full justify-end"):
                     ui.button(
                         "Cancel",
-                        on_click=load_dialog.close,
+                        on_click=lambda: cancel_load(),
                     ).props("flat")
 
         # ---------------------------------------------------------
@@ -444,8 +445,16 @@ def schedule_viewer() -> Callable[[], None]:
         # ---------------------------------------------------------
 
         def open_load_dialog():
+            nonlocal load_generation
+            load_generation += 1
             upload.reset()
             load_dialog.open()
+
+        def cancel_load():
+            nonlocal load_generation
+            load_generation += 1
+            upload.reset()
+            load_dialog.close()
 
         def finish_load(entry, error):
             if error:
@@ -459,7 +468,12 @@ def schedule_viewer() -> Callable[[], None]:
             )
             
         async def on_upload(event):
+            generation = load_generation
+            if not load_dialog.value:
+                return
             file_name, content = await read_upload(event)
+            if generation != load_generation or not load_dialog.value:
+                return
             upload.reset()
             finish_load(*controller.load_uploaded_file(file_name, content))
 

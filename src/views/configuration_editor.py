@@ -374,7 +374,7 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
                 loaded_config = controller.load_uploaded_configuration(content)
 
                 state["config"] = loaded_config
-                state["name"] = file_name.removesuffix(".json")
+                state["name"] = file_name[:-5]
                 clear_history()
                 set_saved_status(False)
                 editor_body.refresh()
@@ -388,6 +388,8 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
                 ui.notify(f"Unable to load configuration: {exc}", type="negative")
             except Exception as exc:
                 ui.notify(f"Unable to load configuration: {exc}", type="negative")
+            finally:
+                config_upload.reset()
 
         # Dialog for uploading a configuration from the user's computer.
         with ui.dialog() as load_dialog:
@@ -401,7 +403,7 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
                     "Select a JSON configuration file from your computer."
                 ).classes("text-sm text-[#9fb2b8]")
 
-                ui.upload(
+                config_upload = ui.upload(
                     label="Choose configuration file",
                     auto_upload=True,
                     on_upload=handle_config_upload,
@@ -413,6 +415,10 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
                         "Cancel",
                         on_click=load_dialog.close,
                     ).props("flat")
+
+        def open_load_dialog() -> None:
+            config_upload.reset()
+            load_dialog.open()
 
         def open_save_dialog() -> None:
             if state["config"] is None:
@@ -430,7 +436,7 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
             ui.button(
                 "Load configuration",
                 icon="folder_open",
-                on_click=load_dialog.open,
+                on_click=lambda: request_load_select(),
             ).props("outline").classes("bg-[#75e6da] text-[#101820]")
             ui.button(
                 "Create configuration",
@@ -531,12 +537,12 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
             return
         show_load_select()
 
-    # Protect an edited draft before opening the configuration selector.
+    # Protect an edited draft before opening the configuration upload dialog.
     def request_load_select() -> None:
         if state["config"] is not None and not state["saved"]:
             unsaved_load_dialog.open()
             return
-        toggle_load_select()
+        open_load_dialog()
 
     def cancel_load() -> None:
         state["pending_load"] = None
@@ -550,7 +556,7 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
         if pending_name:
             on_select_change(pending_name, confirmed=True)
         else:
-            show_load_select()
+            open_load_dialog()
 
     def save_and_load() -> None:
         config_name = state["name"]
