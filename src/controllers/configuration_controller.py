@@ -155,10 +155,12 @@ class ConfigurationController:
         Run edit against open config under validation rules
 
         Routing edits here keeps validation in one place
-        Rolls changes back if invalid
+        Rolls changes back on validation problems only when a valid baseline
+        exists. Edits to new drafts without a valid baseline are retained.
 
         Returns:
-        Tuple (accepted, problems)
+        Tuple (accepted, problems); accepted may be True with validation
+        problems when editing a new draft without a valid baseline.
 
         Raises: 
         ValueError - No config is open

@@ -47,6 +47,6 @@ class LabController:
         * @param (labs) - List containing the lab being deleted
         * @param (lab_to_delete) - The lab being removed.
         * 
-        * Returns: The updated LabConfig
+        * Returns: The LabConfig removed from labs
         '''
         return delete_lab_from_values(labs, lab_to_delete)
