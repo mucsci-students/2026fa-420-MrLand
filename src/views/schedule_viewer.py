@@ -123,6 +123,7 @@ def schedule_viewer() -> Callable[[], None]:
 
     # set while the code itself changes the dropdown, so it doesn't re-trigger
     syncing = False
+    load_generation = 0
 
     with ui.column().classes("w-full min-h-screen px-6 py-8").style(
         "background-color: var(--app-background);"
@@ -148,31 +149,23 @@ def schedule_viewer() -> Callable[[], None]:
         with ui.dialog() as load_dialog:
             with ui.card().classes("bg-[#101820] border border-[#29404b] w-[480px] gap-3"):
                 ui.label("Load Schedule").classes("text-lg font-semibold text-white")
-                ui.label(
-                    "Choose a saved schedule from the schedules folder."
-                ).classes("text-sm text-gray-400")
-
-                saved_file_select = ui.select(
-                    [],
-                    label="Saved schedules",
-                    with_input=True,
-                ).props("outlined dark").classes("schedule-dropdown w-full")
 
                 load_status = ui.label("").classes("text-sm text-red-400")
 
-                with ui.row().classes("w-full justify-end gap-2"):
-                    ui.button("Cancel", on_click=load_dialog.close).props("flat")
-                    load_button = ui.button("Load", icon="upload_file")
-
-                ui.separator().classes("bg-[#29404b]")
                 ui.label(
-                    "Or upload a CSV or JSON schedule from your computer."
+                    "Upload a CSV or JSON schedule from your computer."
                 ).classes("text-sm text-gray-400")
 
                 upload = ui.upload(
                     auto_upload=True,
                     max_files=1,
                 ).props("accept=.csv,.json dark flat bordered").classes("w-full")
+                
+                with ui.row().classes("w-full justify-end"):
+                    ui.button(
+                        "Cancel",
+                        on_click=lambda: cancel_load(),
+                    ).props("flat")
 
         # ---------------------------------------------------------
         # Export dialog
@@ -452,13 +445,16 @@ def schedule_viewer() -> Callable[[], None]:
         # ---------------------------------------------------------
 
         def open_load_dialog():
-            saved_files = controller.list_saved_files()
-            saved_file_select.set_options(saved_files, value=None)
-            load_status.text = (
-                "" if saved_files else "No saved schedules found in the schedules folder."
-            )
+            nonlocal load_generation
+            load_generation += 1
             upload.reset()
             load_dialog.open()
+
+        def cancel_load():
+            nonlocal load_generation
+            load_generation += 1
+            upload.reset()
+            load_dialog.close()
 
         def finish_load(entry, error):
             if error:
@@ -470,16 +466,18 @@ def schedule_viewer() -> Callable[[], None]:
                 f"Loaded {entry.file_name} ({len(entry.records)} sections)",
                 type="positive",
             )
-
-        def on_load_saved_file():
-            finish_load(*controller.load_saved_file(saved_file_select.value))
-
+            
         async def on_upload(event):
+            generation = load_generation
+            if not load_dialog.value:
+                return
             file_name, content = await read_upload(event)
+            if generation != load_generation or not load_dialog.value:
+                return
             upload.reset()
             finish_load(*controller.load_uploaded_file(file_name, content))
 
-        load_button.on_click(on_load_saved_file)
+
         upload.on_upload(on_upload)
 
         # ---------------------------------------------------------

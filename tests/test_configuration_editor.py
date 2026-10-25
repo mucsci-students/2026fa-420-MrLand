@@ -1,8 +1,10 @@
 import asyncio
 import json
+from unittest.mock import Mock
 
 import pytest
 from nicegui import ElementFilter, ui
+from nicegui.elements.upload_files import SmallFileUpload
 from nicegui.testing import UserInteraction, user_simulation
 
 import src.views.configuration_editor as editor
@@ -39,14 +41,26 @@ def run_editor_simulation(action):
 
 
 async def load_demo_config(user, mark_unsaved=None):
-    user.find("Load configuration").click()
-    await user.should_see("Select Configuration")
+    # The server-file selector remains supported alongside the upload dialog.
+    show_server_selector(user)
     user.find(kind=ui.select, content="Select Configuration").click()
     user.find("demo").click()
     await user.should_see("Loaded 'demo'.")
     if mark_unsaved is not None:
         mark_unsaved()
         await user.should_see("Draft - not saved")
+
+
+def show_server_selector(user):
+    with user.client:
+        selector = next(iter(ElementFilter(kind=ui.select, content="Select Configuration")))
+        selector.set_visibility(True)
+
+
+async def upload_config(user, file_name, content):
+    with user.client:
+        upload = next(iter(ElementFilter(kind=ui.upload)))
+        await upload.handle_uploads([SmallFileUpload(file_name, "application/json", content)])
 
 
 def click_open_dialog_button(user, label):
@@ -85,17 +99,17 @@ def test_load_prompts_for_unsaved_changes_and_cancel_keeps_draft(editor_controll
     run_editor_simulation(action)
 
 
-def test_load_without_edits_opens_selector_without_warning(editor_controller):
+def test_load_without_edits_opens_upload_without_warning(editor_controller):
     async def action(user, _mark_unsaved):
         await load_demo_config(user)
         user.find("Load configuration").click()
-        await user.should_see("Select Configuration")
+        await user.should_see("Load Configuration")
         assert not find_dialog_with_label(user, "Unsaved changes").value
 
     run_editor_simulation(action)
 
 
-def test_discard_and_load_opens_selector_without_saving(editor_controller, monkeypatch):
+def test_discard_and_load_opens_upload_without_saving(editor_controller, monkeypatch):
     def unexpected_local_save(*args, **kwargs):
         raise AssertionError("Discard and Load must not save the config locally.")
 
@@ -106,13 +120,13 @@ def test_discard_and_load_opens_selector_without_saving(editor_controller, monke
         user.find("Load configuration").click()
         await user.should_see("Unsaved changes")
         dialog = click_open_dialog_button(user, "Discard and Load")
-        await user.should_see("Select Configuration")
+        await user.should_see("Load Configuration")
         assert not dialog.value
 
     run_editor_simulation(action)
 
 
-def test_save_and_load_downloads_json_then_opens_selector(editor_controller, monkeypatch):
+def test_save_and_load_downloads_json_then_opens_upload(editor_controller, monkeypatch):
     def unexpected_local_save(*args, **kwargs):
         raise AssertionError("Popup Save must download instead of saving locally.")
 
@@ -130,7 +144,7 @@ def test_save_and_load_downloads_json_then_opens_selector(editor_controller, mon
         assert json.loads(download.content) == editor_controller.configuration.model_dump(
             mode="json"
         )
-        await user.should_see("Select Configuration")
+        await user.should_see("Load Configuration")
         await user.should_see("Downloading 'demo.json'")
 
     run_editor_simulation(action)
@@ -145,8 +159,7 @@ def test_selecting_another_config_protects_unsaved_draft(
 
     async def action(user, mark_unsaved):
         await load_demo_config(user)
-        user.find("Load configuration").click()
-        await user.should_see("Select Configuration")
+        show_server_selector(user)
         mark_unsaved()
         draft = editor_controller.configuration
         draft_data = draft.model_dump(mode="json")
@@ -166,7 +179,7 @@ def test_selecting_another_config_protects_unsaved_draft(
             user.find("Load configuration").click()
             await user.should_see("Unsaved changes")
             click_open_dialog_button(user, "Discard and Load")
-            await user.should_see("Select Configuration")
+            await user.should_see("Load Configuration")
             assert editor_controller.configuration is draft
             return
 
@@ -191,10 +204,99 @@ def test_selecting_another_config_without_edits_loads_without_warning(
 
     async def action(user, _mark_unsaved):
         await load_demo_config(user)
-        user.find("Load configuration").click()
+        show_server_selector(user)
         user.find(kind=ui.select, content="Select Configuration").click()
         user.find("other").click()
         await user.should_see("Loaded 'other'.")
         assert not find_dialog_with_label(user, "Unsaved changes").value
+
+    run_editor_simulation(action)
+
+
+@pytest.mark.parametrize("suffix", ["json", "JSON", "JsOn"])
+def test_uploaded_name_strips_json_suffix_before_saving(editor_controller, monkeypatch, suffix):
+    content = editor_controller.configuration.model_dump_json().encode()
+    export = Mock(wraps=editor_controller.export_configuration)
+    monkeypatch.setattr(editor_controller, "export_configuration", export)
+
+    async def action(user, _mark_unsaved):
+        user.find("Load configuration").click()
+        await user.should_see("Load Configuration")
+        await upload_config(user, f"plan.final.{suffix}", content)
+        await user.should_see("Editing: plan.final")
+        user.find("Save configuration").click()
+        await user.should_see("Save Configuration")
+        click_open_dialog_button(user, "Save")
+        download = await user.download.next()
+        assert download.status_code == 200
+        export.assert_called_once_with("plan.final.json")
+        assert json.loads(download.content) == json.loads(content)
+
+    run_editor_simulation(action)
+
+
+@pytest.mark.parametrize("file_name, content", [("bad.json", b"{"), ("bad.txt", b"{}")])
+def test_failed_upload_resets_control_and_allows_retry(
+    editor_controller, monkeypatch, file_name, content
+):
+    valid_content = editor_controller.configuration.model_dump_json().encode()
+
+    async def action(user, _mark_unsaved):
+        await load_demo_config(user)
+        draft = editor_controller.configuration
+        with user.client:
+            upload = next(iter(ElementFilter(kind=ui.upload)))
+        reset = Mock(wraps=upload.reset)
+        monkeypatch.setattr(upload, "reset", reset)
+        user.find("Load configuration").click()
+        await user.should_see("Load Configuration")
+        reset.assert_called_once_with()
+        await upload_config(user, file_name, content)
+        await user.should_see(
+            "Please select a .json file." if file_name.endswith(".txt")
+            else "Unable to load configuration"
+        )
+        assert reset.call_count == 2
+        assert find_dialog_with_label(user, "Load Configuration").value
+        assert editor_controller.configuration is draft
+        await upload_config(user, "retry.json", valid_content)
+        await user.should_see("Editing: retry")
+        assert reset.call_count == 3
+        user.find("Load configuration").click()
+        await user.should_see("Unsaved changes")
+        click_open_dialog_button(user, "Discard and Load")
+        await user.should_see("Load Configuration")
+        assert reset.call_count == 4
+
+    run_editor_simulation(action)
+
+
+@pytest.mark.parametrize("choice", ["Cancel", "Discard and Load", "Save Configuration"])
+def test_uploaded_draft_requires_confirmation_before_replacement(editor_controller, choice):
+    content = editor_controller.configuration.model_dump_json().encode()
+
+    async def action(user, _mark_unsaved):
+        user.find("Load configuration").click()
+        await user.should_see("Load Configuration")
+        await upload_config(user, "draft.json", content)
+        await user.should_see("Editing: draft")
+        draft = editor_controller.configuration
+        user.find("Load configuration").click()
+        await user.should_see("Unsaved changes")
+        assert not find_dialog_with_label(user, "Load Configuration").value
+        assert editor_controller.configuration is draft
+        click_open_dialog_button(user, choice)
+        if choice == "Cancel":
+            assert not find_dialog_with_label(user, "Load Configuration").value
+            assert editor_controller.configuration is draft
+            await user.should_see("Editing: draft")
+            return
+        if choice == "Save Configuration":
+            download = await user.download.next()
+            assert json.loads(download.content) == json.loads(content)
+        await user.should_see("Load Configuration")
+        await upload_config(user, "replacement.json", content)
+        await user.should_see("Editing: replacement")
+        assert editor_controller.configuration is not draft
 
     run_editor_simulation(action)
