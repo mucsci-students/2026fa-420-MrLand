@@ -107,7 +107,8 @@ def build_app() -> None:
             html[data-theme="light"] [class~="text-[#75e6da]"] {
                 color: var(--accent-color) !important;
             }
-            html[data-theme="light"] [class~="bg-[#101820]"] {
+            html[data-theme="light"] [class~="bg-[#101820]"],
+            html[data-theme="light"] [class~="bg-[#203b42]"] {
                 background-color: var(--app-background) !important;
             }
             html[data-theme="light"] [class~="bg-[#17232b]"],
