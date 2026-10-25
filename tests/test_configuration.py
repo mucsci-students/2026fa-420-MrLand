@@ -555,7 +555,7 @@ def test_controller_export_configuration_returns_browser_download_data(
 ):
     controller.configuration = valid_config
 
-    content, file_name, media_type = controller.export_configuration("..\\demo")
+    content, file_name, media_type = controller.export_configuration("demo")
 
     assert file_name == "demo.json"
     assert media_type == "application/json"
