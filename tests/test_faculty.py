@@ -1,8 +1,7 @@
-
+import os
+import sys
 import unittest
 from unittest.mock import patch
-import sys
-import os
 
 # Add the project's src folder to Python's path
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -13,7 +12,6 @@ from src.controllers import faculty_operations_controller as faculty
 
 
 class TestFacultyCRUD(unittest.TestCase):
-
     def setUp(self):
         # Create a separate faculty list for every test
         self.faculty_members = []
@@ -21,50 +19,40 @@ class TestFacultyCRUD(unittest.TestCase):
     def test_add_faculty(self):
         # Inputs for add_faculty()
         inputs = [
-            "Dr. Smith",       # name
-            "12",              # maximum credits
-            "6",               # minimum credits
-            "3",               # course limit
-
+            "Dr. Smith",  # name
+            "12",  # maximum credits
+            "6",  # minimum credits
+            "3",  # course limit
             # Monday availability
             "09:00-17:00",
             "done",
-
             # Tuesday
             "09:00-17:00",
             "done",
-
             # Wednesday
             "09:00-17:00",
             "done",
-
             # Thursday
             "done",
-
             # Friday
             "done",
-
-            "4",               # maximum days
-
+            "4",  # maximum days
             # Course preferences
             "CS101",
             "10",
             "done",
-
             # Room preferences
             "Room A",
             "8",
             "done",
-
             # Lab preferences
             "Lab 1",
             "7",
             "done",
-
             # Mandatory days
             "mon",
             "wed",
-            "done"
+            "done",
         ]
 
         with patch("builtins.input", side_effect=inputs):
@@ -82,35 +70,17 @@ class TestFacultyCRUD(unittest.TestCase):
         self.assertEqual(new_faculty.unique_course_limit, 3)
         self.assertEqual(new_faculty.maximum_days, 4)
 
-        self.assertEqual(
-            new_faculty.times["MON"][0].start,
-            "09:00"
-        )
+        self.assertEqual(new_faculty.times["MON"][0].start, "09:00")
 
-        self.assertEqual(
-            new_faculty.times["MON"][0].end,
-            "17:00"
-        )
+        self.assertEqual(new_faculty.times["MON"][0].end, "17:00")
 
-        self.assertEqual(
-            new_faculty.course_preferences,
-            {"CS101": 10}
-        )
+        self.assertEqual(new_faculty.course_preferences, {"CS101": 10})
 
-        self.assertEqual(
-            new_faculty.room_preferences,
-            {"Room A": 8}
-        )
+        self.assertEqual(new_faculty.room_preferences, {"Room A": 8})
 
-        self.assertEqual(
-            new_faculty.lab_preferences,
-            {"Lab 1": 7}
-        )
+        self.assertEqual(new_faculty.lab_preferences, {"Lab 1": 7})
 
-        self.assertEqual(
-            new_faculty.mandatory_days,
-            {"MON", "WED"}
-        )
+        self.assertEqual(new_faculty.mandatory_days, {"MON", "WED"})
 
     def test_add_faculty_from_values(self):
         member = faculty.add_faculty_from_values(
@@ -274,14 +244,11 @@ class TestFacultyCRUD(unittest.TestCase):
             minimum_credits=6,
             unique_course_limit=3,
             maximum_days=4,
-            times={
-                "MON": ["09:00-17:00"],
-                "TUE": ["09:00-17:00"]
-            },
+            times={"MON": ["09:00-17:00"], "TUE": ["09:00-17:00"]},
             course_preferences={"CS101": 10},
             room_preferences={"Room A": 8},
             lab_preferences={"Lab 1": 7},
-            mandatory_days={"MON"}
+            mandatory_days={"MON"},
         )
 
         self.faculty_members.append(faculty_member)
@@ -291,9 +258,7 @@ class TestFacultyCRUD(unittest.TestCase):
             faculty.view_faculty(self.faculty_members)
 
         # Check that the faculty member's information was printed
-        printed_text = "\n".join(
-            str(call.args[0]) for call in mock_print.call_args_list
-        )
+        printed_text = "\n".join(str(call.args[0]) for call in mock_print.call_args_list)
 
         self.assertIn("Dr. Smith", printed_text)
         self.assertIn("Maximum Credits: 12", printed_text)
@@ -309,13 +274,11 @@ class TestFacultyCRUD(unittest.TestCase):
             minimum_credits=6,
             unique_course_limit=3,
             maximum_days=4,
-            times={
-                "MON": ["09:00-17:00"]
-            },
+            times={"MON": ["09:00-17:00"]},
             course_preferences={},
             room_preferences={},
             lab_preferences={},
-            mandatory_days={"MON"}
+            mandatory_days={"MON"},
         )
 
         self.faculty_members.append(faculty_member)
@@ -324,20 +287,13 @@ class TestFacultyCRUD(unittest.TestCase):
         # First input = faculty number
         # Second input = attribute number
         # Third input = new maximum credits
-        inputs = [
-            "1",
-            "2",
-            "15"
-        ]
+        inputs = ["1", "2", "15"]
 
         with patch("builtins.input", side_effect=inputs):
             faculty.modify_faculty(self.faculty_members)
 
         # Check that maximum credits changed
-        self.assertEqual(
-            self.faculty_members[0].maximum_credits,
-            15
-        )
+        self.assertEqual(self.faculty_members[0].maximum_credits, 15)
 
     def test_delete_faculty(self):
         # Add a faculty member directly
@@ -347,13 +303,11 @@ class TestFacultyCRUD(unittest.TestCase):
             minimum_credits=6,
             unique_course_limit=3,
             maximum_days=4,
-            times={
-                "MON": ["09:00-17:00"]
-            },
+            times={"MON": ["09:00-17:00"]},
             course_preferences={},
             room_preferences={},
             lab_preferences={},
-            mandatory_days={"MON"}
+            mandatory_days={"MON"},
         )
 
         self.faculty_members.append(faculty_member)
@@ -385,7 +339,7 @@ class TestFacultyGetters(unittest.TestCase):
             course_preferences={},
             room_preferences={},
             lab_preferences={},
-            mandatory_days=set()
+            mandatory_days=set(),
         )
 
         self.faculty_members.append(existing)
@@ -400,9 +354,7 @@ class TestFacultyGetters(unittest.TestCase):
 
         self.assertEqual(result, "Dr. Jones")
 
-        printed_text = "\n".join(
-            str(c.args[0]) for c in mock_print.call_args_list
-        )
+        printed_text = "\n".join(str(c.args[0]) for c in mock_print.call_args_list)
 
         self.assertIn("already exists", printed_text)
 
@@ -414,23 +366,20 @@ class TestFacultyGetters(unittest.TestCase):
         self.assertEqual(result, 12)
 
     def test_get_min_credits_invalid_then_valid(self):
-        with patch("builtins.input", side_effect=["abc", "6"]):
-            with patch("builtins.print"):
-                result = faculty.get_min_credits()
+        with patch("builtins.input", side_effect=["abc", "6"]), patch("builtins.print"):
+            result = faculty.get_min_credits()
 
         self.assertEqual(result, 6)
 
     def test_get_course_limit_invalid_then_valid(self):
-        with patch("builtins.input", side_effect=["x", "3"]):
-            with patch("builtins.print"):
-                result = faculty.get_course_limit()
+        with patch("builtins.input", side_effect=["x", "3"]), patch("builtins.print"):
+            result = faculty.get_course_limit()
 
         self.assertEqual(result, 3)
 
     def test_get_max_days_invalid_then_valid(self):
-        with patch("builtins.input", side_effect=["", "5"]):
-            with patch("builtins.print"):
-                result = faculty.get_max_days()
+        with patch("builtins.input", side_effect=["", "5"]), patch("builtins.print"):
+            result = faculty.get_max_days()
 
         self.assertEqual(result, 5)
 
@@ -440,7 +389,6 @@ class TestFacultyGetters(unittest.TestCase):
             "09:00-12:00",
             "13:00-17:00",
             "done",
-
             # TUE - FRI: nothing entered
             "done",
             "done",
@@ -448,14 +396,10 @@ class TestFacultyGetters(unittest.TestCase):
             "done",
         ]
 
-        with patch("builtins.input", side_effect=inputs):
-            with patch("builtins.print"):
-                times = faculty.faculty_times()
+        with patch("builtins.input", side_effect=inputs), patch("builtins.print"):
+            times = faculty.faculty_times()
 
-        self.assertEqual(
-            times["MON"],
-            ["09:00-12:00", "13:00-17:00"]
-        )
+        self.assertEqual(times["MON"], ["09:00-12:00", "13:00-17:00"])
 
         # Days with no ranges entered should not appear in the dict
         self.assertNotIn("TUE", times)
@@ -470,36 +414,31 @@ class TestFacultyGetters(unittest.TestCase):
 
         self.assertEqual(result, {"CS101": 5})
 
-        printed_text = "\n".join(
-            str(c.args[0]) for c in mock_print.call_args_list
-        )
+        printed_text = "\n".join(str(c.args[0]) for c in mock_print.call_args_list)
 
         self.assertIn("Invalid preference", printed_text)
 
     def test_course_preference_getter_rejects_non_digit(self):
         inputs = ["CS101", "abc", "7", "done"]
 
-        with patch("builtins.input", side_effect=inputs):
-            with patch("builtins.print"):
-                result = faculty.course_preference_getter()
+        with patch("builtins.input", side_effect=inputs), patch("builtins.print"):
+            result = faculty.course_preference_getter()
 
         self.assertEqual(result, {"CS101": 7})
 
     def test_room_preference_getter_basic(self):
         inputs = ["Room A", "8", "done"]
 
-        with patch("builtins.input", side_effect=inputs):
-            with patch("builtins.print"):
-                result = faculty.room_preference_getter()
+        with patch("builtins.input", side_effect=inputs), patch("builtins.print"):
+            result = faculty.room_preference_getter()
 
         self.assertEqual(result, {"Room A": 8})
 
     def test_lab_preference_getter_basic(self):
         inputs = ["Lab 1", "9", "done"]
 
-        with patch("builtins.input", side_effect=inputs):
-            with patch("builtins.print"):
-                result = faculty.lab_preference_getter()
+        with patch("builtins.input", side_effect=inputs), patch("builtins.print"):
+            result = faculty.lab_preference_getter()
 
         self.assertEqual(result, {"Lab 1": 9})
 
@@ -512,22 +451,18 @@ class TestFacultyGetters(unittest.TestCase):
 
         self.assertEqual(result, {"MON", "FRI"})
 
-        printed_text = "\n".join(
-            str(c.args[0]) for c in mock_print.call_args_list
-        )
+        printed_text = "\n".join(str(c.args[0]) for c in mock_print.call_args_list)
 
         self.assertIn("Invalid day", printed_text)
 
     def test_mandatory_days_getter_no_days_selected(self):
-        with patch("builtins.input", side_effect=["done"]):
-            with patch("builtins.print"):
-                result = faculty.mandatory_days_getter()
+        with patch("builtins.input", side_effect=["done"]), patch("builtins.print"):
+            result = faculty.mandatory_days_getter()
 
         self.assertEqual(result, set())
 
 
 class TestViewFacultyNames(unittest.TestCase):
-
     def setUp(self):
         self.faculty_members = []
 
@@ -537,9 +472,7 @@ class TestViewFacultyNames(unittest.TestCase):
 
         self.assertFalse(result)
 
-        printed_text = "\n".join(
-            str(c.args[0]) for c in mock_print.call_args_list
-        )
+        printed_text = "\n".join(str(c.args[0]) for c in mock_print.call_args_list)
 
         self.assertIn("No faculty members found.", printed_text)
 
@@ -556,7 +489,7 @@ class TestViewFacultyNames(unittest.TestCase):
                     course_preferences={},
                     room_preferences={},
                     lab_preferences={},
-                    mandatory_days=set()
+                    mandatory_days=set(),
                 )
             )
 
@@ -565,9 +498,7 @@ class TestViewFacultyNames(unittest.TestCase):
 
         self.assertTrue(result)
 
-        printed_text = "\n".join(
-            str(c.args[0]) for c in mock_print.call_args_list
-        )
+        printed_text = "\n".join(str(c.args[0]) for c in mock_print.call_args_list)
 
         self.assertIn("Dr. Smith", printed_text)
         self.assertIn("Dr. Jones", printed_text)
@@ -575,7 +506,6 @@ class TestViewFacultyNames(unittest.TestCase):
 
 
 class TestViewFacultyEdgeCases(unittest.TestCase):
-
     def setUp(self):
         self.faculty_members = []
 
@@ -583,9 +513,7 @@ class TestViewFacultyEdgeCases(unittest.TestCase):
         with patch("builtins.print") as mock_print:
             faculty.view_faculty(self.faculty_members)
 
-        mock_print.assert_called_once_with(
-            "No faculty members found."
-        )
+        mock_print.assert_called_once_with("No faculty members found.")
 
     def test_view_faculty_prints_all_members(self):
         # Unlike view_faculty_names(), view_faculty() has no early-return
@@ -602,23 +530,20 @@ class TestViewFacultyEdgeCases(unittest.TestCase):
                     course_preferences={},
                     room_preferences={},
                     lab_preferences={},
-                    mandatory_days=set()
+                    mandatory_days=set(),
                 )
             )
 
         with patch("builtins.print") as mock_print:
             faculty.view_faculty(self.faculty_members)
 
-        printed_text = "\n".join(
-            str(c.args[0]) for c in mock_print.call_args_list
-        )
+        printed_text = "\n".join(str(c.args[0]) for c in mock_print.call_args_list)
 
         self.assertIn("Dr. Smith", printed_text)
         self.assertIn("Dr. Jones", printed_text)
 
 
 class TestModifyFacultyEdgeCases(unittest.TestCase):
-
     def setUp(self):
         self.faculty_members = []
 
@@ -628,15 +553,11 @@ class TestModifyFacultyEdgeCases(unittest.TestCase):
             minimum_credits=6,
             unique_course_limit=3,
             maximum_days=4,
-            times={
-                "MON": ["09:00-17:00"],
-                "TUE": ["09:00-17:00"],
-                "THU": ["09:00-17:00"]
-            },
+            times={"MON": ["09:00-17:00"], "TUE": ["09:00-17:00"], "THU": ["09:00-17:00"]},
             course_preferences={},
             room_preferences={},
             lab_preferences={},
-            mandatory_days={"MON"}
+            mandatory_days={"MON"},
         )
 
         self.faculty_members.append(self.faculty_member)
@@ -644,9 +565,8 @@ class TestModifyFacultyEdgeCases(unittest.TestCase):
     def test_modify_faculty_with_empty_list_prompts_nothing(self):
         self.faculty_members.clear()
 
-        with patch("builtins.input") as mock_input:
-            with patch("builtins.print"):
-                faculty.modify_faculty(self.faculty_members)
+        with patch("builtins.input") as mock_input, patch("builtins.print"):
+            faculty.modify_faculty(self.faculty_members)
 
         mock_input.assert_not_called()
 
@@ -654,38 +574,24 @@ class TestModifyFacultyEdgeCases(unittest.TestCase):
         # First attempt: non-numeric index triggers a ValueError and a
         # recursive call back into modify_faculty(); the second attempt
         # succeeds with a valid index/attribute/value.
-        inputs = [
-            "not_a_number",
-            "1",
-            "2",
-            "20"
-        ]
+        inputs = ["not_a_number", "1", "2", "20"]
 
-        with patch("builtins.input", side_effect=inputs):
-            with patch("builtins.print"):
-                faculty.modify_faculty(self.faculty_members)
+        with patch("builtins.input", side_effect=inputs), patch("builtins.print"):
+            faculty.modify_faculty(self.faculty_members)
 
-        self.assertEqual(
-            self.faculty_members[0].maximum_credits,
-            20
-        )
+        self.assertEqual(self.faculty_members[0].maximum_credits, 20)
 
     def test_modify_faculty_index_out_of_range(self):
         with patch("builtins.input", side_effect=["99"]):
             with patch("builtins.print") as mock_print:
                 faculty.modify_faculty(self.faculty_members)
 
-        printed_text = "\n".join(
-            str(c.args[0]) for c in mock_print.call_args_list
-        )
+        printed_text = "\n".join(str(c.args[0]) for c in mock_print.call_args_list)
 
         self.assertIn("Invalid selection.", printed_text)
 
         # Faculty member should be untouched
-        self.assertEqual(
-            self.faculty_members[0].maximum_credits,
-            12
-        )
+        self.assertEqual(self.faculty_members[0].maximum_credits, 12)
 
     def test_modify_faculty_invalid_attribute_choice_leaves_data_unchanged(self):
         # Valid faculty index, but an out-of-range attribute number.
@@ -695,76 +601,43 @@ class TestModifyFacultyEdgeCases(unittest.TestCase):
             with patch("builtins.print") as mock_print:
                 faculty.modify_faculty(self.faculty_members)
 
-        printed_text = "\n".join(
-            str(c.args[0]) for c in mock_print.call_args_list
-        )
+        printed_text = "\n".join(str(c.args[0]) for c in mock_print.call_args_list)
 
         self.assertIn("Invalid selection.", printed_text)
 
-        self.assertEqual(
-            self.faculty_members[0].maximum_credits,
-            12
-        )
+        self.assertEqual(self.faculty_members[0].maximum_credits, 12)
 
-        self.assertEqual(
-            self.faculty_members[0].minimum_credits,
-            6
-        )
+        self.assertEqual(self.faculty_members[0].minimum_credits, 6)
 
     def test_modify_faculty_non_numeric_attribute_choice_retries_then_bails(self):
         # A non-numeric attribute choice raises inside the try block and
         # is caught, prompting the retry/(f)aculty menu; choosing "f"
         # exits without modifying anything.
-        inputs = [
-            "1",
-            "not_a_number",
-            "f"
-        ]
+        inputs = ["1", "not_a_number", "f"]
 
-        with patch("builtins.input", side_effect=inputs):
-            with patch("builtins.print"):
-                faculty.modify_faculty(self.faculty_members)
+        with patch("builtins.input", side_effect=inputs), patch("builtins.print"):
+            faculty.modify_faculty(self.faculty_members)
 
-        self.assertEqual(
-            self.faculty_members[0].maximum_credits,
-            12
-        )
+        self.assertEqual(self.faculty_members[0].maximum_credits, 12)
 
     def test_modify_faculty_name(self):
-        inputs = [
-            "1",
-            "1",
-            "Dr. Renamed"
-        ]
+        inputs = ["1", "1", "Dr. Renamed"]
 
         with patch("builtins.input", side_effect=inputs):
             faculty.modify_faculty(self.faculty_members)
 
-        self.assertEqual(
-            self.faculty_members[0].name,
-            "Dr. Renamed"
-        )
+        self.assertEqual(self.faculty_members[0].name, "Dr. Renamed")
 
     def test_modify_faculty_mandatory_days(self):
-        inputs = [
-            "1",
-            "10",
-            "tue",
-            "thu",
-            "done"
-        ]
+        inputs = ["1", "10", "tue", "thu", "done"]
 
         with patch("builtins.input", side_effect=inputs):
             faculty.modify_faculty(self.faculty_members)
 
-        self.assertEqual(
-            self.faculty_members[0].mandatory_days,
-            {"TUE", "THU"}
-        )
+        self.assertEqual(self.faculty_members[0].mandatory_days, {"TUE", "THU"})
 
 
 class TestDeleteFacultyEdgeCases(unittest.TestCase):
-
     def setUp(self):
         self.faculty_members = []
 
@@ -775,13 +648,11 @@ class TestDeleteFacultyEdgeCases(unittest.TestCase):
                 minimum_credits=6,
                 unique_course_limit=3,
                 maximum_days=4,
-                times={
-                    "MON": ["09:00-17:00"]
-                },
+                times={"MON": ["09:00-17:00"]},
                 course_preferences={},
                 room_preferences={},
                 lab_preferences={},
-                mandatory_days={"MON"}
+                mandatory_days={"MON"},
             )
         )
 
@@ -790,38 +661,22 @@ class TestDeleteFacultyEdgeCases(unittest.TestCase):
             with patch("builtins.print") as mock_print:
                 faculty.delete_faculty(self.faculty_members)
 
-        printed_text = "\n".join(
-            str(c.args[0]) for c in mock_print.call_args_list
-        )
+        printed_text = "\n".join(str(c.args[0]) for c in mock_print.call_args_list)
 
-        self.assertIn(
-            "Invalid input. Please enter a valid number.",
-            printed_text
-        )
+        self.assertIn("Invalid input. Please enter a valid number.", printed_text)
 
-        self.assertEqual(
-            len(self.faculty_members),
-            1
-        )
+        self.assertEqual(len(self.faculty_members), 1)
 
     def test_delete_faculty_out_of_range_leaves_list_unchanged(self):
         with patch("builtins.input", return_value="99"):
             with patch("builtins.print") as mock_print:
                 faculty.delete_faculty(self.faculty_members)
 
-        printed_text = "\n".join(
-            str(c.args[0]) for c in mock_print.call_args_list
-        )
+        printed_text = "\n".join(str(c.args[0]) for c in mock_print.call_args_list)
 
-        self.assertIn(
-            "Invalid selection.",
-            printed_text
-        )
+        self.assertIn("Invalid selection.", printed_text)
 
-        self.assertEqual(
-            len(self.faculty_members),
-            1
-        )
+        self.assertEqual(len(self.faculty_members), 1)
 
     def test_delete_faculty_correct_member_among_multiple(self):
         self.faculty_members.append(
@@ -835,29 +690,19 @@ class TestDeleteFacultyEdgeCases(unittest.TestCase):
                 course_preferences={},
                 room_preferences={},
                 lab_preferences={},
-                mandatory_days=set()
+                mandatory_days=set(),
             )
         )
 
-        self.assertEqual(
-            len(self.faculty_members),
-            2
-        )
+        self.assertEqual(len(self.faculty_members), 2)
 
         # Delete faculty member #2 ("Dr. Jones")
-        with patch("builtins.input", return_value="2"):
-            with patch("builtins.print"):
-                faculty.delete_faculty(self.faculty_members)
+        with patch("builtins.input", return_value="2"), patch("builtins.print"):
+            faculty.delete_faculty(self.faculty_members)
 
-        self.assertEqual(
-            len(self.faculty_members),
-            1
-        )
+        self.assertEqual(len(self.faculty_members), 1)
 
-        self.assertEqual(
-            self.faculty_members[0].name,
-            "Dr. Smith"
-        )
+        self.assertEqual(self.faculty_members[0].name, "Dr. Smith")
 
 
 if __name__ == "__main__":

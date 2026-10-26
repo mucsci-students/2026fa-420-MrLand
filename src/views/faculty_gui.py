@@ -48,33 +48,37 @@ def faculty_gui(
 ) -> None:
     """Build the faculty editor, including its add, edit, and delete controls."""
     ui.label("Faculty").classes("text-xl font-semibold text-white")
-    ui.label("Add a faculty member and teaching constraints.").classes(
-        "text-sm text-[#9fb2b8]"
-    )
+    ui.label("Add a faculty member and teaching constraints.").classes("text-sm text-[#9fb2b8]")
     ui.label("Existing faculty").classes("mt-4 text-lg font-semibold text-white")
     faculty_list = ui.column().classes("w-full gap-1")
 
     with ui.row().classes("w-full flex-wrap items-center gap-2"):
-        add_button = ui.button("Add new faculty member", icon="add", on_click=lambda: show_form()).props(
-            "unelevated"
-        ).classes("bg-[#75e6da] text-[#101820]")
+        add_button = (
+            ui.button("Add new faculty member", icon="add", on_click=lambda: show_form())
+            .props("unelevated")
+            .classes("bg-[#75e6da] text-[#101820]")
+        )
 
     # Form fields and callbacks for creating or editing a faculty member.
-    with ui.column().classes("w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4") as form_container:
+    with ui.column().classes(
+        "w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4"
+    ) as form_container:
         form_container.set_visibility(False)
-        form_heading = ui.label("Add New Faculty Member").classes("text-lg font-semibold text-white")
+        form_heading = ui.label("Add New Faculty Member").classes(
+            "text-lg font-semibold text-white"
+        )
 
         with ui.row().classes("w-full flex-wrap gap-4"):
             name = ui.input("Faculty name").classes("min-w-56 flex-1")
-            maximum_credits = ui.number(
-                "Maximum credits", value=12, min=0, step=1
-            ).classes("min-w-40 flex-1")
-            minimum_credits = ui.number(
-                "Minimum credits", value=3, min=0, step=1
-            ).classes("min-w-40 flex-1")
-            course_limit = ui.number(
-                "Course limit", value=3, min=1, step=1
-            ).classes("min-w-40 flex-1")
+            maximum_credits = ui.number("Maximum credits", value=12, min=0, step=1).classes(
+                "min-w-40 flex-1"
+            )
+            minimum_credits = ui.number("Minimum credits", value=3, min=0, step=1).classes(
+                "min-w-40 flex-1"
+            )
+            course_limit = ui.number("Course limit", value=3, min=1, step=1).classes(
+                "min-w-40 flex-1"
+            )
             maximum_days = ui.number(
                 "Maximum teaching days", value=5, min=0, max=5, step=1
             ).classes("min-w-40 flex-1")
@@ -99,9 +103,11 @@ def faculty_gui(
                 "Lab preferences", placeholder="Lab 101=8, Lab 202=5"
             ).classes("w-full")
 
-        mandatory_days = ui.select(
-            list(DAYS), multiple=True, label="Mandatory teaching days"
-        ).props("use-chips clearable").classes("mandatory-days w-full")
+        mandatory_days = (
+            ui.select(list(DAYS), multiple=True, label="Mandatory teaching days")
+            .props("use-chips clearable")
+            .classes("mandatory-days w-full")
+        )
 
         editing_member = {"member": None}
 
@@ -220,8 +226,7 @@ def faculty_gui(
             maximum_days.value = member.maximum_days
             for day, field in availability_fields.items():
                 field.value = ", ".join(
-                    f"{item.start}-{item.end}"
-                    for item in member.times.get(day, [])
+                    f"{item.start}-{item.end}" for item in member.times.get(day, [])
                 )
             course_preferences.value = ", ".join(
                 f"{key}={score}" for key, score in member.course_preferences.items()
@@ -258,16 +263,22 @@ def faculty_gui(
             refresh_faculty()
 
         with ui.row().classes("w-full flex-wrap items-center gap-2"):
-            add_submit_button = ui.button("Create faculty member", icon="add", on_click=add_member).props(
-                "unelevated"
-            ).classes("bg-[#75e6da] text-[#101820]")
-            update_button = ui.button(
-                "Save changes", icon="save", on_click=update_member
-            ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
+            add_submit_button = (
+                ui.button("Create faculty member", icon="add", on_click=add_member)
+                .props("unelevated")
+                .classes("bg-[#75e6da] text-[#101820]")
+            )
+            update_button = (
+                ui.button("Save changes", icon="save", on_click=update_member)
+                .props("unelevated")
+                .classes("bg-[#75e6da] text-[#101820]")
+            )
             update_button.set_visibility(False)
-            cancel_button = ui.button("Cancel", on_click=reset_form).props(
-                "outline"
-            ).classes("border-[#45616b] text-[#d8e7e8]")
+            cancel_button = (
+                ui.button("Cancel", on_click=reset_form)
+                .props("outline")
+                .classes("border-[#45616b] text-[#d8e7e8]")
+            )
             cancel_button.set_visibility(False)
 
     # Rebuild the faculty summaries and their edit/delete controls.
@@ -275,9 +286,7 @@ def faculty_gui(
         faculty_list.clear()
         with faculty_list:
             if not faculty_members:
-                ui.label("No faculty members added yet.").classes(
-                    "text-sm text-[#9fb2b8]"
-                )
+                ui.label("No faculty members added yet.").classes("text-sm text-[#9fb2b8]")
                 return
             for member in faculty_members:
                 with ui.row().classes(
@@ -297,15 +306,14 @@ def faculty_gui(
                             icon="edit",
                             on_click=lambda selected=member: begin_edit(selected),
                         ).props("flat round dense").tooltip("Edit faculty member")
-                        with ui.dialog() as dialog, ui.card().classes(
-                            "border border-[#29404b] bg-[#182630]"
+                        with (
+                            ui.dialog() as dialog,
+                            ui.card().classes("border border-[#29404b] bg-[#182630]"),
                         ):
                             ui.label(f"Delete {member.name}?").classes(
                                 "text-lg font-semibold text-white"
                             )
-                            ui.label("This cannot be undone.").classes(
-                                "text-sm text-[#9fb2b8]"
-                            )
+                            ui.label("This cannot be undone.").classes("text-sm text-[#9fb2b8]")
                             with ui.row().classes("mt-4 w-full justify-end gap-2"):
                                 ui.button("Cancel", on_click=dialog.close).props("flat")
                                 ui.button(

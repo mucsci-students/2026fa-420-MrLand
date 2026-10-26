@@ -4,6 +4,7 @@ Used by: GUI and CLI."""
 
 from scheduler.config import RoomConfig, TimeRange
 
+
 # Gets room name from user input, ensuring it's not empty and unique
 def get_room_name(rooms, exclude=None):
     while True:
@@ -11,14 +12,11 @@ def get_room_name(rooms, exclude=None):
         if not name:
             print("Room name cannot be empty. Please try again.")
             continue
-        if any(
-            room.name.lower() == name.lower()
-            for room in rooms
-            if room is not exclude
-        ):
+        if any(room.name.lower() == name.lower() for room in rooms if room is not exclude):
             print("Room name already exists. Please try again.")
             continue
         return name
+
 
 # Gets room capacity from user input, ensuring it's a positive integer
 def get_room_capacity():
@@ -37,6 +35,7 @@ def get_room_capacity():
 
         return capacity
 
+
 # Gets room features from user input, allowing multiple features to be added
 def get_room_features():
     features = []
@@ -51,6 +50,7 @@ def get_room_features():
             features.append(feature)
 
     return features
+
 
 def delete_room_features(room):
     while True:
@@ -80,6 +80,7 @@ def delete_room_features(room):
             print(f"Deleted '{feature}'.")
         except ValueError:
             print("Enter a valid feature number.")
+
 
 # Gets room availability from user input, ensuring valid day and time range formats
 def get_room_availability():
@@ -112,10 +113,7 @@ def get_room_availability():
             time_range = parts[1]
 
             if day not in valid_days:
-                print(
-                    f"Invalid day. Please use one of the following: "
-                    f"{', '.join(valid_days)}"
-                )
+                print(f"Invalid day. Please use one of the following: {', '.join(valid_days)}")
             else:
                 try:
                     validated_range = TimeRange.from_string(time_range)
@@ -126,10 +124,7 @@ def get_room_availability():
                     availability[day].append(validated_range)
 
                 except (ValueError, TypeError):
-                    print(
-                        "Invalid time range. "
-                        "Use HH:MM-HH:MM with end after start."
-                    )
+                    print("Invalid time range. Use HH:MM-HH:MM with end after start.")
 
         first_entry = input("Enter availability: ").strip()
 
@@ -140,10 +135,7 @@ def _build_room_from_values(rooms, name, capacity, features, availability, exclu
     name = name.strip()
     if not name:
         raise ValueError("Room name cannot be empty.")
-    if any(
-        room is not exclude and room.name.lower() == name.lower()
-        for room in rooms
-    ):
+    if any(room is not exclude and room.name.lower() == name.lower() for room in rooms):
         raise ValueError("Room name already exists.")
     if isinstance(capacity, bool) or not isinstance(capacity, int) or capacity <= 0:
         raise ValueError("Capacity must be a positive integer.")
@@ -210,9 +202,10 @@ def add_rooms(rooms):
         rooms.append(room)
         print(f"Room added: {room.name}")
 
-    except Exception as exc:
+    except (TypeError, ValueError, AttributeError) as exc:
         print(f"Room validation failed: {exc}")
-        return None
+        return
+
 
 # View rooms function that displays all rooms and their details
 def view_rooms(rooms):
@@ -226,6 +219,7 @@ def view_rooms(rooms):
         print(f"   Capacity: {room.capacity}")
         print(f"   Features: {room.features}")
         print(f"   Availability: {room.times}")
+
 
 # Modify rooms function that allows the user to select a room and modify its details
 def modify_rooms(rooms):
@@ -298,11 +292,12 @@ def modify_rooms(rooms):
 
         print(f"Room updated: {room.name}")
 
-    except Exception as exc:
+    except (TypeError, ValueError, AttributeError, RuntimeError) as exc:
         # Restore previous valid state
         rooms[index] = type(room).model_validate(old_room)
         print(f"Update failed: {exc}")
         print("Previous valid room data was restored.")
+
 
 # Delete rooms function that allows the user to select a room and delete it from the rooms list
 def delete_rooms(rooms):

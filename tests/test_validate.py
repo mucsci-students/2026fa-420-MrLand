@@ -46,16 +46,32 @@ VALID_CONFIG = {
         ],
     },
     "time_slot_config": {
-        "times": {
-            day: [{"start": "10:00", "spacing": 60, "end": "11:00"}] for day in WEEKDAYS
-        },
+        "times": {day: [{"start": "10:00", "spacing": 60, "end": "11:00"}] for day in WEEKDAYS},
         "classes": [
             {
                 "credits": 4,
                 "meetings": [
-                    {"day": "MON", "start_time": None, "duration": 60, "lab": False, "delivery": "in_person"},
-                    {"day": "WED", "start_time": None, "duration": 60, "lab": True, "delivery": "in_person"},
-                    {"day": "FRI", "start_time": None, "duration": 60, "lab": False, "delivery": "in_person"},
+                    {
+                        "day": "MON",
+                        "start_time": None,
+                        "duration": 60,
+                        "lab": False,
+                        "delivery": "in_person",
+                    },
+                    {
+                        "day": "WED",
+                        "start_time": None,
+                        "duration": 60,
+                        "lab": True,
+                        "delivery": "in_person",
+                    },
+                    {
+                        "day": "FRI",
+                        "start_time": None,
+                        "duration": 60,
+                        "lab": False,
+                        "delivery": "in_person",
+                    },
                 ],
                 "disabled": False,
                 "start_time": None,

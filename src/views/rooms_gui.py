@@ -28,28 +28,30 @@ def rooms_gui(
 ) -> None:
     """Build the room editor, including its add, edit, and delete controls."""
     ui.label("Rooms").classes("text-xl font-semibold text-white")
-    ui.label("Add a room and its scheduling constraints.").classes(
-        "text-sm text-[#9fb2b8]"
-    )
+    ui.label("Add a room and its scheduling constraints.").classes("text-sm text-[#9fb2b8]")
     ui.label("Existing rooms").classes("mt-4 text-lg font-semibold text-white")
     room_list = ui.column().classes("w-full gap-1")
 
     with ui.row().classes("w-full flex-wrap items-center gap-2"):
-        add_button = ui.button("Add new room", icon="add", on_click=lambda: show_form()).props(
-            "unelevated"
-        ).classes("bg-[#75e6da] text-[#101820]")
+        add_button = (
+            ui.button("Add new room", icon="add", on_click=lambda: show_form())
+            .props("unelevated")
+            .classes("bg-[#75e6da] text-[#101820]")
+        )
 
     # Form fields and callbacks for creating or editing a room.
-    with ui.column().classes("w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4") as form_container:
+    with ui.column().classes(
+        "w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4"
+    ) as form_container:
         form_container.set_visibility(False)
         form_heading = ui.label("Add New Room").classes("text-lg font-semibold text-white")
 
         with ui.row().classes("w-full flex-wrap gap-4"):
             name = ui.input("Room name").classes("min-w-56 flex-1")
             capacity = ui.number("Capacity", value=1, min=1, step=1).classes("w-40")
-            features = ui.input(
-                "Features", placeholder="Projector, whiteboard"
-            ).classes("min-w-56 flex-1")
+            features = ui.input("Features", placeholder="Projector, whiteboard").classes(
+                "min-w-56 flex-1"
+            )
 
         unrestricted = ui.checkbox("Unrestricted availability", value=True).classes(
             "text-[#d8e7e8]"
@@ -82,18 +84,12 @@ def rooms_gui(
             availability = None
             if not unrestricted.value:
                 availability = {
-                    day: [
-                        value.strip()
-                        for value in field.value.split(",")
-                        if value.strip()
-                    ]
+                    day: [value.strip() for value in field.value.split(",") if value.strip()]
                     for day, field in availability_fields.items()
                 }
 
             parsed_features = [
-                feature.strip()
-                for feature in (features.value or "").split(",")
-                if feature.strip()
+                feature.strip() for feature in (features.value or "").split(",") if feature.strip()
             ]
             return name.value or "", int(capacity_value), parsed_features, availability
 
@@ -149,9 +145,7 @@ def rooms_gui(
             try:
                 if not run_configuration_change(
                     on_change,
-                    lambda: controller.update_room(
-                        rooms, editing_room["room"], *form_values()
-                    ),
+                    lambda: controller.update_room(rooms, editing_room["room"], *form_values()),
                 ):
                     return
             except (TypeError, ValueError) as exc:
@@ -171,8 +165,7 @@ def rooms_gui(
             unrestricted.value = room.times is None
             for day, field in availability_fields.items():
                 field.value = ", ".join(
-                    f"{item.start}-{item.end}"
-                    for item in (room.times or {}).get(day, [])
+                    f"{item.start}-{item.end}" for item in (room.times or {}).get(day, [])
                 )
             form_container.set_visibility(True)
             add_submit_button.set_visibility(False)
@@ -198,16 +191,22 @@ def rooms_gui(
             refresh_rooms()
 
         with ui.row().classes("w-full flex-wrap items-center gap-2"):
-            add_submit_button = ui.button("Create room", icon="add", on_click=add_room).props(
-                "unelevated"
-            ).classes("bg-[#75e6da] text-[#101820]")
-            update_button = ui.button(
-                "Save changes", icon="save", on_click=update_room
-            ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
+            add_submit_button = (
+                ui.button("Create room", icon="add", on_click=add_room)
+                .props("unelevated")
+                .classes("bg-[#75e6da] text-[#101820]")
+            )
+            update_button = (
+                ui.button("Save changes", icon="save", on_click=update_room)
+                .props("unelevated")
+                .classes("bg-[#75e6da] text-[#101820]")
+            )
             update_button.set_visibility(False)
-            cancel_button = ui.button("Cancel", on_click=reset_form).props(
-                "outline"
-            ).classes("border-[#45616b] text-[#d8e7e8]")
+            cancel_button = (
+                ui.button("Cancel", on_click=reset_form)
+                .props("outline")
+                .classes("border-[#45616b] text-[#d8e7e8]")
+            )
             cancel_button.set_visibility(False)
 
     # Rebuild the room summaries and their edit/delete controls.
@@ -234,15 +233,14 @@ def rooms_gui(
                             icon="edit",
                             on_click=lambda selected=room: begin_edit(selected),
                         ).props("flat round dense").tooltip("Edit room")
-                        with ui.dialog() as dialog, ui.card().classes(
-                            "border border-[#29404b] bg-[#182630]"
+                        with (
+                            ui.dialog() as dialog,
+                            ui.card().classes("border border-[#29404b] bg-[#182630]"),
                         ):
                             ui.label(f"Delete {room.name}?").classes(
                                 "text-lg font-semibold text-white"
                             )
-                            ui.label("This cannot be undone.").classes(
-                                "text-sm text-[#9fb2b8]"
-                            )
+                            ui.label("This cannot be undone.").classes("text-sm text-[#9fb2b8]")
                             with ui.row().classes("mt-4 w-full justify-end gap-2"):
                                 ui.button("Cancel", on_click=dialog.close).props("flat")
                                 ui.button(

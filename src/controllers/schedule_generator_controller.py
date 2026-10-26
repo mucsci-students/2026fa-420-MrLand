@@ -53,13 +53,11 @@ class ScheduleGeneratorController:
                 if limit_override <= 0:
                     raise ValueError
             except (TypeError, ValueError):
-                return None, (
-                    "Temporary generation limit must be a positive whole number."
-                )
+                return None, ("Temporary generation limit must be a positive whole number.")
 
         try:
             config = self.model.load_config(config_name)
-        except Exception as error:
+        except (OSError, TypeError, ValueError, RuntimeError) as error:
             return None, f"Could not load configuration: {error}"
 
         requested = limit_override if limit_override is not None else config.limit

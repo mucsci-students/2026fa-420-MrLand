@@ -28,9 +28,9 @@ def scheduler_ai_assistant(
     @ui.refreshable
     def transcript() -> None:
         if not state["messages"]:
-            ui.label(
-                "Ask about or make changes to the active scheduler configuration."
-            ).classes("text-sm text-[#9fb2b8]")
+            ui.label("Ask about or make changes to the active scheduler configuration.").classes(
+                "text-sm text-[#9fb2b8]"
+            )
             return
         for role, text in state["messages"]:
             is_user = role == "user"
@@ -41,9 +41,7 @@ def scheduler_ai_assistant(
                 ui.label("You" if is_user else "Scheduler AI").classes(
                     "text-xs font-semibold text-[#75e6da]"
                 )
-                ui.label(text).classes(
-                    "whitespace-pre-wrap break-words text-sm text-[#d8e7e8]"
-                )
+                ui.label(text).classes("whitespace-pre-wrap break-words text-sm text-[#d8e7e8]")
 
     async def send_prompt() -> None:
         query = (message_input.value or "").strip()
@@ -96,8 +94,7 @@ def scheduler_ai_assistant(
                 (
                     message.text
                     for message in reversed(result["messages"])
-                    if getattr(message, "type", None) == "ai"
-                    and getattr(message, "text", None)
+                    if getattr(message, "type", None) == "ai" and getattr(message, "text", None)
                 ),
                 "The assistant did not return a text response.",
             )
@@ -119,9 +116,7 @@ def scheduler_ai_assistant(
         assistant_panel.set_visibility(False)
         assistant_launcher.set_visibility(True)
 
-    with ui.card().classes(
-        "border border-[#29404b] bg-[#182630] p-3"
-    ) as assistant_panel:
+    with ui.card().classes("border border-[#29404b] bg-[#182630] p-3") as assistant_panel:
         assistant_panel.style(
             "position: fixed; right: 20px; bottom: 20px; z-index: 9999; "
             "width: min(440px, calc(100vw - 40px));"
@@ -130,13 +125,12 @@ def scheduler_ai_assistant(
             with ui.row().classes("items-center gap-2"):
                 ui.icon("auto_awesome").classes("text-[#75e6da]")
                 ui.label("Scheduler AI").classes("font-semibold text-white")
-            ui.button(icon="close", on_click=close_assistant).props(
-                "flat round"
-            ).classes("text-[#75e6da]")
+            ui.button(icon="close", on_click=close_assistant).props("flat round").classes(
+                "text-[#75e6da]"
+            )
 
         with ui.column().classes(
-            "mb-3 max-h-80 w-full gap-2 overflow-y-auto rounded border "
-            "border-[#29404b] p-3"
+            "mb-3 max-h-80 w-full gap-2 overflow-y-auto rounded border border-[#29404b] p-3"
         ):
             transcript()
 

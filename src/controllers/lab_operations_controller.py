@@ -6,6 +6,7 @@ import re
 
 from scheduler.config import LabConfig
 
+
 # returns the lab if it exists, else None
 def find_lab(labs, name, exclude=None):
     for lab in labs:
@@ -14,6 +15,7 @@ def find_lab(labs, name, exclude=None):
         if lab.name.lower() == name.lower():
             return lab
     return None
+
 
 def lab_exists(labs, name, exclude=None):
     return find_lab(labs, name, exclude=exclude) is not None
@@ -80,6 +82,7 @@ def get_lab_name(labs, exclude=None):
 
         return name
 
+
 def get_lab_capacity():
     while True:
         capacity_input = input("Enter Lab Capacity: ").strip()
@@ -96,6 +99,7 @@ def get_lab_capacity():
 
         return capacity
 
+
 def delete_lab_features(lab):
     while True:
         if not lab.features:
@@ -111,7 +115,7 @@ def delete_lab_features(lab):
 
         choice = input("==> ").strip()
 
-        if choice == 'done':
+        if choice == "done":
             break
 
         try:
@@ -129,6 +133,7 @@ def delete_lab_features(lab):
         except ValueError:
             print("Enter a valid feature number.")
 
+
 def get_lab_features():
     features = set()
     print("\nEnter Lab Features")
@@ -145,6 +150,7 @@ def get_lab_features():
 
     return features
 
+
 def validate_time_range(time):
     pattern = r"^([0-1][0-9]|2[0-3]):[0-5][0-9]-([0-1][0-9]|2[0-3]):[0-5][0-9]$"
 
@@ -153,6 +159,7 @@ def validate_time_range(time):
         return False
 
     return True
+
 
 def get_lab_times():
     while True:
@@ -213,8 +220,9 @@ def add_lab(labs):
         labs.append(lab)
         print(f"'{name}' Added")
 
-    except Exception as error:
+    except (TypeError, ValueError, AttributeError) as error:
         print(f"Failed To Create Lab: {error}")
+
 
 def view_labs(labs):
     if not labs:
@@ -239,6 +247,7 @@ def view_labs(labs):
 
             for day, ranges in lab.times.items():
                 print(f" {day}: {ranges}")
+
 
 def modify_lab(labs):
     if not labs:
@@ -318,7 +327,7 @@ def modify_lab(labs):
         else:
             print("Invalid Option.")
 
-    except Exception as error:
+    except (TypeError, ValueError, AttributeError, RuntimeError) as error:
         labs[index] = type(lab).model_validate(old_lab)
         print(f"Update failed: {error}")
         print("Previous valid lab data was restored.")

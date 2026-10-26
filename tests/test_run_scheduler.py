@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from src.controllers import run_scheduler_controller as run_scheduler
 from src.models.schedule_result import ScheduleResult
 
@@ -49,8 +47,12 @@ def test_run_scheduler_missing_config(monkeypatch, capsys):
     monkeypatch.setattr("builtins.input", lambda _: "nonexistent")
     schedules = []
 
-    with patch("src.controllers.run_scheduler_controller.config_exists", return_value=False) as mock_exists, \
-         patch("src.controllers.run_scheduler_controller.config_load") as mock_load:
+    with (
+        patch(
+            "src.controllers.run_scheduler_controller.config_exists", return_value=False
+        ) as mock_exists,
+        patch("src.controllers.run_scheduler_controller.config_load") as mock_load,
+    ):
         run_scheduler.run_scheduler(schedules)
 
     mock_exists.assert_called_once_with("nonexistent")
@@ -63,8 +65,13 @@ def test_run_scheduler_load_raises(monkeypatch, capsys):
     monkeypatch.setattr("builtins.input", lambda _: "broken_config")
     schedules = []
 
-    with patch("src.controllers.run_scheduler_controller.config_exists", return_value=True), \
-         patch("src.controllers.run_scheduler_controller.config_load", side_effect=ValueError("bad json")):
+    with (
+        patch("src.controllers.run_scheduler_controller.config_exists", return_value=True),
+        patch(
+            "src.controllers.run_scheduler_controller.config_load",
+            side_effect=ValueError("bad json"),
+        ),
+    ):
         run_scheduler.run_scheduler(schedules)
 
     out = capsys.readouterr().out
@@ -81,9 +88,14 @@ def test_run_scheduler_scheduler_init_fails(monkeypatch, capsys):
     fake_config = MagicMock()
     schedules = []
 
-    with patch("src.controllers.run_scheduler_controller.config_exists", return_value=True), \
-         patch("src.controllers.run_scheduler_controller.config_load", return_value=fake_config), \
-         patch("src.controllers.run_scheduler_controller.Scheduler", side_effect=RuntimeError("z3 init failed")):
+    with (
+        patch("src.controllers.run_scheduler_controller.config_exists", return_value=True),
+        patch("src.controllers.run_scheduler_controller.config_load", return_value=fake_config),
+        patch(
+            "src.controllers.run_scheduler_controller.Scheduler",
+            side_effect=RuntimeError("z3 init failed"),
+        ),
+    ):
         run_scheduler.run_scheduler(schedules)
 
     out = capsys.readouterr().out
@@ -114,9 +126,14 @@ def test_run_scheduler_no_valid_schedule(monkeypatch, capsys):
     diagnosis.relaxation_suggestions = [suggestion]
     mock_scheduler_instance.diagnose.return_value = diagnosis
 
-    with patch("src.controllers.run_scheduler_controller.config_exists", return_value=True), \
-         patch("src.controllers.run_scheduler_controller.config_load", return_value=fake_config), \
-         patch("src.controllers.run_scheduler_controller.Scheduler", return_value=mock_scheduler_instance):
+    with (
+        patch("src.controllers.run_scheduler_controller.config_exists", return_value=True),
+        patch("src.controllers.run_scheduler_controller.config_load", return_value=fake_config),
+        patch(
+            "src.controllers.run_scheduler_controller.Scheduler",
+            return_value=mock_scheduler_instance,
+        ),
+    ):
         run_scheduler.run_scheduler(schedules)
 
     out = capsys.readouterr().out
@@ -142,9 +159,14 @@ def test_run_scheduler_success_stops_at_limit(monkeypatch, capsys):
     mock_scheduler_instance.get_models.return_value = iter(all_models)
     mock_scheduler_instance.audit_schedule.return_value = make_audit(True)
 
-    with patch("src.controllers.run_scheduler_controller.config_exists", return_value=True), \
-         patch("src.controllers.run_scheduler_controller.config_load", return_value=fake_config), \
-         patch("src.controllers.run_scheduler_controller.Scheduler", return_value=mock_scheduler_instance):
+    with (
+        patch("src.controllers.run_scheduler_controller.config_exists", return_value=True),
+        patch("src.controllers.run_scheduler_controller.config_load", return_value=fake_config),
+        patch(
+            "src.controllers.run_scheduler_controller.Scheduler",
+            return_value=mock_scheduler_instance,
+        ),
+    ):
         run_scheduler.run_scheduler(schedules)
 
     out = capsys.readouterr().out
@@ -166,12 +188,19 @@ def test_run_scheduler_success_counts_invalid_schedules(monkeypatch, capsys):
     mock_scheduler_instance = MagicMock()
     mock_scheduler_instance.get_models.return_value = iter(all_models)
     mock_scheduler_instance.audit_schedule.side_effect = [
-        make_audit(True), make_audit(False), make_audit(True)
+        make_audit(True),
+        make_audit(False),
+        make_audit(True),
     ]
 
-    with patch("src.controllers.run_scheduler_controller.config_exists", return_value=True), \
-         patch("src.controllers.run_scheduler_controller.config_load", return_value=fake_config), \
-         patch("src.controllers.run_scheduler_controller.Scheduler", return_value=mock_scheduler_instance):
+    with (
+        patch("src.controllers.run_scheduler_controller.config_exists", return_value=True),
+        patch("src.controllers.run_scheduler_controller.config_load", return_value=fake_config),
+        patch(
+            "src.controllers.run_scheduler_controller.Scheduler",
+            return_value=mock_scheduler_instance,
+        ),
+    ):
         run_scheduler.run_scheduler(schedules)
 
     out = capsys.readouterr().out
@@ -191,9 +220,14 @@ def test_run_scheduler_appends_to_existing_schedules_list(monkeypatch, capsys):
     mock_scheduler_instance.get_models.return_value = iter([[make_schedule_instance()]])
     mock_scheduler_instance.audit_schedule.return_value = make_audit(True)
 
-    with patch("src.controllers.run_scheduler_controller.config_exists", return_value=True), \
-         patch("src.controllers.run_scheduler_controller.config_load", return_value=fake_config), \
-         patch("src.controllers.run_scheduler_controller.Scheduler", return_value=mock_scheduler_instance):
+    with (
+        patch("src.controllers.run_scheduler_controller.config_exists", return_value=True),
+        patch("src.controllers.run_scheduler_controller.config_load", return_value=fake_config),
+        patch(
+            "src.controllers.run_scheduler_controller.Scheduler",
+            return_value=mock_scheduler_instance,
+        ),
+    ):
         run_scheduler.run_scheduler(schedules)
 
     assert len(schedules) == 2

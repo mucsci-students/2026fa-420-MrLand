@@ -6,7 +6,6 @@ from collections.abc import Callable
 
 from nicegui import ui
 
-
 ConfigurationChangeHandler = Callable[[Callable[[], object]], bool]
 
 
@@ -24,9 +23,7 @@ def run_configuration_change(
 def section_header(eyebrow: str, title: str, description: str) -> None:
     """Render a shared section heading with a label, title, and description."""
     with ui.column().classes("gap-1"):
-        ui.label(eyebrow.upper()).classes(
-            "text-xs font-bold tracking-[0.2em] text-[#75e6da]"
-        )
+        ui.label(eyebrow.upper()).classes("text-xs font-bold tracking-[0.2em] text-[#75e6da]")
         ui.label(title).classes("text-3xl font-semibold text-white")
         ui.label(description).classes("max-w-2xl text-sm text-[#9fb2b8]")
 

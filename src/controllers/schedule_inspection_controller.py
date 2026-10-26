@@ -11,8 +11,9 @@ def get_course_details(schedule, course_id):
     for course_instance in schedule:
         if str(course_instance.course) == str(course_id):
             return course_instance.course
-        
+
     return None
+
 
 # function used to get faculty details from the config file based on the faculty_name
 def get_faculty_details(config, faculty_name):
@@ -20,11 +21,13 @@ def get_faculty_details(config, faculty_name):
         if faculty.name == faculty_name:
             return faculty
 
+
 # function used to get room details from the config file based on the room_name
 def get_room_details(config, room_name):
     for room in config.config.rooms:
         if room.name == room_name:
             return room
+
 
 # function used to get lab details from the config file based on the lab_name
 def get_lab_details(config, lab_name):

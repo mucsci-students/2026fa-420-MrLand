@@ -135,9 +135,7 @@ class SchedulerAgentState:
             course.course_id == course_id and course.section_id == section_id
             for course in self.config.config.courses
         ):
-            return (
-                f"Course {course_id} section {section_id or 'default'} already exists."
-            )
+            return f"Course {course_id} section {section_id or 'default'} already exists."
 
         self.config.config.courses.append(
             CourseConfig(
@@ -200,9 +198,7 @@ class AddRoomArgs(BaseModel):
 class AddLabArgs(BaseModel):
     name: str = Field(description="Lab name, such as 'Lab 1'")
     capacity: int = Field(default=0, description="Lab capacity")
-    features: list[str] | None = Field(
-        default=None, description="Optional lab features"
-    )
+    features: list[str] | None = Field(default=None, description="Optional lab features")
 
 
 class AddFacultyArgs(BaseModel):
@@ -223,12 +219,8 @@ class AddCourseArgs(BaseModel):
     room: list[str] | None = Field(
         default=None, description="List of room names the course can use"
     )
-    lab: list[str] | None = Field(
-        default=None, description="List of lab names the course can use"
-    )
-    conflicts: list[str] | None = Field(
-        default=None, description="List of conflicting course IDs"
-    )
+    lab: list[str] | None = Field(default=None, description="List of lab names the course can use")
+    conflicts: list[str] | None = Field(default=None, description="List of conflicting course IDs")
     faculty: list[str] | None = Field(
         default=None, description="List of faculty names assigned to the course"
     )
@@ -254,9 +246,7 @@ def get_tool_list(
 
         def guarded_operation(**arguments: Any) -> str:
             result: list[str] = []
-            accepted, problems = apply_change(
-                lambda: result.append(operation(**arguments))
-            )
+            accepted, problems = apply_change(lambda: result.append(operation(**arguments)))
             if not accepted:
                 details = "\n".join(
                     f"- {problem.area}: {problem.item or 'overall'}: {problem.message}"
@@ -265,10 +255,7 @@ def get_tool_list(
                 return f"Change rejected by scheduler validation:\n{details}"
             message = result[0]
             if problems:
-                message += (
-                    "\nThe draft still has validation issues; see the editor "
-                    "for details."
-                )
+                message += "\nThe draft still has validation issues; see the editor for details."
             return message
 
         return guarded_operation
@@ -349,9 +336,7 @@ def build_scheduler_agent(
     if model is None:
         resolved_api_key = api_key or os.environ.get("OPENAI_API_KEY")
         if not resolved_api_key:
-            raise ValueError(
-                "Set OPENAI_API_KEY or provide an API key in the AI assistant."
-            )
+            raise ValueError("Set OPENAI_API_KEY or provide an API key in the AI assistant.")
         model = ChatOpenAI(
             model="gpt-6-luna",
             use_responses_api=True,
@@ -418,8 +403,7 @@ def run_cli() -> None:
             (
                 message.text
                 for message in reversed(result["messages"])
-                if getattr(message, "type", None) == "ai"
-                and getattr(message, "text", None)
+                if getattr(message, "type", None) == "ai" and getattr(message, "text", None)
             ),
             "",
         )

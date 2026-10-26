@@ -4,7 +4,6 @@ Used by: CLI."""
 
 from scheduler.config import TimeSlotConfig
 
-
 DEFAULT_MAX_TIME_GAP = 30
 DEFAULT_MIN_TIME_OVERLAP = 45
 
@@ -28,8 +27,7 @@ def modify_time_slot_settings(time_slot_config: TimeSlotConfig):
     print("\nMODIFY TIME SLOT SETTINGS")
 
     max_time_gap = get_integer(
-        f"Enter max time gap in minutes "
-        f"(current: {time_slot_config.max_time_gap}): "
+        f"Enter max time gap in minutes (current: {time_slot_config.max_time_gap}): "
     )
 
     if max_time_gap <= 0:
@@ -37,8 +35,7 @@ def modify_time_slot_settings(time_slot_config: TimeSlotConfig):
         return
 
     min_time_overlap = get_integer(
-        f"Enter min time overlap in minutes "
-        f"(current: {time_slot_config.min_time_overlap}): "
+        f"Enter min time overlap in minutes (current: {time_slot_config.min_time_overlap}): "
     )
 
     if min_time_overlap <= 0:

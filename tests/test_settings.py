@@ -7,16 +7,15 @@ from scheduler.config import (
 )
 
 from src.controllers.settings_operations_controller import (
-    view_settings,
     modify_settings,
     reset_settings,
-    update_settings_from_values,
     reset_settings_values,
+    update_settings_from_values,
+    view_settings,
 )
 
 
 class TestGlobalSettingsCRUD(unittest.TestCase):
-
     def setUp(self):
         self.config = CombinedConfig(
             config={
@@ -141,11 +140,7 @@ class TestGlobalSettingsCRUD(unittest.TestCase):
     def test_view_settings(self, mock_print):
         view_settings(self.config)
 
-        output = "\n".join(
-            str(call.args[0])
-            for call in mock_print.call_args_list
-            if call.args
-        )
+        output = "\n".join(str(call.args[0]) for call in mock_print.call_args_list if call.args)
 
         self.assertIn("GLOBAL SETTINGS", output)
         self.assertIn("Generation limit: 10", output)
@@ -160,11 +155,7 @@ class TestGlobalSettingsCRUD(unittest.TestCase):
 
         view_settings(self.config)
 
-        output = "\n".join(
-            str(call.args[0])
-            for call in mock_print.call_args_list
-            if call.args
-        )
+        output = "\n".join(str(call.args[0]) for call in mock_print.call_args_list if call.args)
 
         self.assertIn("faculty_course", output)
         self.assertIn("pack_rooms", output)
@@ -239,9 +230,7 @@ class TestGlobalSettingsCRUD(unittest.TestCase):
         self.assertEqual(self.config.optimizer_flags, [])
 
     def test_update_settings_from_values(self):
-        update_settings_from_values(
-            self.config, 25, ["faculty_room", "pack_labs"]
-        )
+        update_settings_from_values(self.config, 25, ["faculty_room", "pack_labs"])
 
         self.assertEqual(self.config.limit, 25)
         self.assertEqual(

@@ -7,26 +7,24 @@ from nicegui import ui
 from src.controllers.schedule_generator_controller import (
     schedule_generator_controller as controller,
 )
-from src.models.schedule_generator_model import ScheduleGenerationState
 from src.models.configuration_repository import ConfigLoadError
+from src.models.schedule_generator_model import ScheduleGenerationState
 
 
 def schedule_generator() -> None:
     """Build the Schedule Generator page."""
-    ui.label("Schedule Generator").classes(
-        "text-2xl font-semibold text-white"
-    )
-    ui.label(
-        "Generate schedules from a saved configuration."
-    ).classes("text-gray-400 mb-6")
+    ui.label("Schedule Generator").classes("text-2xl font-semibold text-white")
+    ui.label("Generate schedules from a saved configuration.").classes("text-gray-400 mb-6")
 
-    ui.label("Configuration").classes(
-        "text-lg font-semibold text-white"
+    ui.label("Configuration").classes("text-lg font-semibold text-white")
+    config_select = (
+        ui.select(
+            options=controller.list_config_names(),
+            label="Select Configuration",
+        )
+        .classes("w-full max-w-xl")
+        .props("dark outlined")
     )
-    config_select = ui.select(
-        options=controller.list_config_names(),
-        label="Select Configuration",
-    ).classes("w-full max-w-xl").props("dark outlined")
     config_load_error = ui.label("").classes("text-red-400")
     config_load_error.visible = False
     config_select.on(
@@ -36,30 +34,34 @@ def schedule_generator() -> None:
         ),
     )
 
-    ui.label("Generation Limit").classes(
-        "text-lg font-semibold text-white mt-4"
+    ui.label("Generation Limit").classes("text-lg font-semibold text-white mt-4")
+    configured_limit = (
+        ui.input(
+            label="Configured Generation Limit",
+            value="",
+        )
+        .classes("w-full max-w-xl")
+        .props("dark outlined readonly")
     )
-    configured_limit = ui.input(
-        label="Configured Generation Limit",
-        value="",
-    ).classes("w-full max-w-xl").props("dark outlined readonly")
-    ui.label(
-        "The generation limit saved in the selected configuration."
-    ).classes("text-sm text-gray-400")
+    ui.label("The generation limit saved in the selected configuration.").classes(
+        "text-sm text-gray-400"
+    )
 
-    generation_limit_override = ui.input(
-        label="Temporary Generation Limit Override",
-        value="",
-        placeholder="Leave blank to use configured limit",
-    ).classes("w-full max-w-xl mt-2").props("dark outlined")
+    generation_limit_override = (
+        ui.input(
+            label="Temporary Generation Limit Override",
+            value="",
+            placeholder="Leave blank to use configured limit",
+        )
+        .classes("w-full max-w-xl mt-2")
+        .props("dark outlined")
+    )
     ui.label(
         "Optional. This only applies to the current generation "
         "and does not change the saved configuration."
     ).classes("text-sm text-gray-400 mb-6")
 
-    ui.label("Optimizer Options").classes(
-        "text-lg font-semibold text-white"
-    )
+    ui.label("Optimizer Options").classes("text-lg font-semibold text-white")
     ui.label(
         "Configured optimizer options are shown below. "
         "Temporary overrides can be enabled separately."
@@ -74,21 +76,17 @@ def schedule_generator() -> None:
         "Pack Labs": "pack_labs",
     }
 
-    ui.label("Configured Optimizer Options").classes(
-        "text-md font-semibold text-white mt-2"
-    )
+    ui.label("Configured Optimizer Options").classes("text-md font-semibold text-white mt-2")
     configured_optimizer_checkboxes = {}
     with ui.column().classes("gap-1"):
         for label, value in optimizer_flags.items():
             configured_optimizer_checkboxes[value] = (
-                ui.checkbox(label)
-                .props("dark disable")
-                .classes("text-gray-400")
+                ui.checkbox(label).props("dark disable").classes("text-gray-400")
             )
 
-    optimizer_override_enabled = ui.checkbox(
-        "Use temporary optimizer overrides"
-    ).props("dark").classes("text-gray-300 mt-4")
+    optimizer_override_enabled = (
+        ui.checkbox("Use temporary optimizer overrides").props("dark").classes("text-gray-300 mt-4")
+    )
     ui.label(
         "When enabled, the selections below replace the configured "
         "optimizer options for this generation only."
@@ -98,9 +96,7 @@ def schedule_generator() -> None:
     with ui.column().classes("gap-1 mt-2 mb-6"):
         for label, value in optimizer_flags.items():
             temporary_optimizer_checkboxes[value] = (
-                ui.checkbox(label)
-                .props("dark")
-                .classes("text-gray-400")
+                ui.checkbox(label).props("dark").classes("text-gray-400")
             )
     for checkbox in temporary_optimizer_checkboxes.values():
         checkbox.disable()
@@ -112,9 +108,7 @@ def schedule_generator() -> None:
             else:
                 checkbox.disable()
 
-    optimizer_override_enabled.on_value_change(
-        update_optimizer_override_state
-    )
+    optimizer_override_enabled.on_value_change(update_optimizer_override_state)
 
     def reset_config_controls() -> None:
         config_load_error.text = ""
@@ -157,57 +151,36 @@ def schedule_generator() -> None:
 
     config_select.on_value_change(load_selected_config)
 
-    progress_container = ui.column().classes(
-        "w-full max-w-2xl gap-2 mt-6"
-    )
+    progress_container = ui.column().classes("w-full max-w-2xl gap-2 mt-6")
     progress_container.visible = False
     with progress_container:
-        progress_label = ui.label("Starting scheduler...").classes(
-            "text-sm text-gray-300"
-        )
+        progress_label = ui.label("Starting scheduler...").classes("text-sm text-gray-300")
         progress = ui.linear_progress(value=0).classes("w-full")
-        progress_percentage = ui.label("0%").classes(
-            "text-sm text-gray-300"
-        )
-        progress_status = ui.label(
-            "Generated 0 of 0 schedules"
-        ).classes("text-sm text-gray-400")
+        progress_percentage = ui.label("0%").classes("text-sm text-gray-300")
+        progress_status = ui.label("Generated 0 of 0 schedules").classes("text-sm text-gray-400")
         with ui.row().classes("items-center gap-2"):
             spinner = ui.spinner(size="24px")
-            spinner_label = ui.label(
-                "Z3 is searching for schedules..."
-            ).classes("text-sm text-gray-400")
+            spinner_label = ui.label("Z3 is searching for schedules...").classes(
+                "text-sm text-gray-400"
+            )
 
-    result_container = ui.column().classes(
-        "w-full max-w-2xl mt-6"
-    )
+    result_container = ui.column().classes("w-full max-w-2xl mt-6")
     completion_rendered = False
 
     def render_diagnosis(diagnosis) -> None:
         with result_container:
-            ui.label(
-                "No valid schedule could be generated "
-                "for this configuration."
-            ).classes("text-red-400 text-lg")
-            ui.label(f"Status: {diagnosis.status}").classes(
-                "text-gray-300"
+            ui.label("No valid schedule could be generated for this configuration.").classes(
+                "text-red-400 text-lg"
             )
+            ui.label(f"Status: {diagnosis.status}").classes("text-gray-300")
             if diagnosis.conflicting_constraints:
-                ui.label("Conflicting Constraints").classes(
-                    "text-md font-semibold text-white mt-4"
-                )
+                ui.label("Conflicting Constraints").classes("text-md font-semibold text-white mt-4")
                 for finding in diagnosis.conflicting_constraints:
-                    ui.label(f"• {finding.message}").classes(
-                        "text-gray-400"
-                    )
+                    ui.label(f"• {finding.message}").classes("text-gray-400")
             if diagnosis.relaxation_suggestions:
-                ui.label("Suggestions").classes(
-                    "text-md font-semibold text-white mt-4"
-                )
+                ui.label("Suggestions").classes("text-md font-semibold text-white mt-4")
                 for suggestion in diagnosis.relaxation_suggestions:
-                    ui.label(f"• {suggestion.message}").classes(
-                        "text-gray-400"
-                    )
+                    ui.label(f"• {suggestion.message}").classes("text-gray-400")
 
     def update_progress() -> None:
         nonlocal completion_rendered
@@ -225,10 +198,7 @@ def schedule_generator() -> None:
         progress_percentage.text = f"{percentage:.0f}%"
         progress_label.text = state.message
         if state.requested > 0:
-            progress_status.text = (
-                f"Generated {state.generated} of "
-                f"{state.requested} schedules"
-            )
+            progress_status.text = f"Generated {state.generated} of {state.requested} schedules"
 
         if state.running:
             progress_container.visible = True
@@ -245,10 +215,9 @@ def schedule_generator() -> None:
         if state.error:
             progress_label.text = "Schedule generation failed."
             with result_container:
-                ui.label(
-                    "An error occurred while generating "
-                    f"schedules: {state.error}"
-                ).classes("text-red-400")
+                ui.label(f"An error occurred while generating schedules: {state.error}").classes(
+                    "text-red-400"
+                )
             return
 
         if state.generated == 0:
@@ -263,23 +232,16 @@ def schedule_generator() -> None:
         progress_percentage.text = "100%"
         progress_label.text = "Schedule generation complete."
         progress_status.text = (
-            f"Generated {state.generated} of "
-            f"{state.requested} requested schedules"
+            f"Generated {state.generated} of {state.requested} requested schedules"
         )
         with result_container:
-            ui.label("Scheduler ran successfully.").classes(
-                "text-green-400 text-lg font-semibold"
+            ui.label("Scheduler ran successfully.").classes("text-green-400 text-lg font-semibold")
+            ui.label(f"Generated {state.generated} schedule(s).").classes("text-gray-300")
+            ui.label(f"Valid schedules: {state.valid}").classes("text-gray-300")
+            ui.label("View the generated schedules in the Schedule Viewer tab.").classes(
+                "text-gray-400 mt-2"
             )
-            ui.label(f"Generated {state.generated} schedule(s).").classes(
-                "text-gray-300"
-            )
-            ui.label(f"Valid schedules: {state.valid}").classes(
-                "text-gray-300"
-            )
-            ui.label(
-                "View the generated schedules in the "
-                "Schedule Viewer tab."
-            ).classes("text-gray-400 mt-2")
+
     progress_timer = ui.timer(
         0.2,
         update_progress,
@@ -289,9 +251,9 @@ def schedule_generator() -> None:
     def generate_schedules() -> None:
         nonlocal completion_rendered
         if controller.state_snapshot().running:
-            ui.label(
-                "Generation is already in progress. Please wait for it to finish."
-            ).classes("text-red-400")
+            ui.label("Generation is already in progress. Please wait for it to finish.").classes(
+                "text-red-400"
+            )
             return
         result_container.clear()
         completion_rendered = False
@@ -319,9 +281,10 @@ def schedule_generator() -> None:
         progress_container.visible = True
         progress.value = 0
         progress_percentage.text = "0%"
-        if generation_limit_override.value is not None and str(
-            generation_limit_override.value
-        ).strip():
+        if (
+            generation_limit_override.value is not None
+            and str(generation_limit_override.value).strip()
+        ):
             progress_label.text = (
                 f"Starting scheduler for '{config_select.value}' with "
                 f"temporary limit override of {requested}..."

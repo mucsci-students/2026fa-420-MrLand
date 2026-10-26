@@ -4,7 +4,6 @@ Used by: GUI and CLI."""
 
 from scheduler.config import CombinedConfig, OptimizerFlags
 
-
 DEFAULT_LIMIT = 10
 DEFAULT_OPTIMIZER_FLAGS = []
 
@@ -51,10 +50,7 @@ def modify_settings(combined_config: CombinedConfig):
     while True:
         try:
             limit = int(
-                input(
-                    f"Enter generation limit "
-                    f"(current: {combined_config.limit}): "
-                ).strip()
+                input(f"Enter generation limit (current: {combined_config.limit}): ").strip()
             )
 
             if limit <= 0:
@@ -70,10 +66,7 @@ def modify_settings(combined_config: CombinedConfig):
     for flag in OptimizerFlags:
         print(f"  - {flag.value}")
 
-    flag_input = input(
-        "Enter optimizer flags separated by commas "
-        "(leave blank for none): "
-    ).strip()
+    flag_input = input("Enter optimizer flags separated by commas (leave blank for none): ").strip()
 
     optimizer_flags = []
 

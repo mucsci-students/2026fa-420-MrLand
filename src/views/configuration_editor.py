@@ -18,8 +18,8 @@ from src.views.labs_gui import labs_gui
 from src.views.rooms_gui import rooms_gui
 from src.views.time_blocks_gui import time_blocks_gui
 
-
 controller = ConfigurationController()
+
 
 def configuration_editor() -> None:
     """Build the editor workspace and coordinate configuration lifecycle actions."""
@@ -38,7 +38,7 @@ def configuration_editor() -> None:
     def apply_config_change(mutation) -> bool:
         try:
             accepted, problems = controller.apply_change(mutation)
-        except Exception as exc:
+        except (TypeError, ValueError, AttributeError, RuntimeError, OSError) as exc:
             state["config"] = controller.configuration
             editor_body.refresh()
             ui.notify(f"Change was not applied: {exc}", type="negative")
@@ -87,9 +87,9 @@ def configuration_editor() -> None:
                 ).classes("font-semibold text-amber-300")
                 for problem in current_problems:
                     prefix = f"{problem.item}: " if problem.item else ""
-                    ui.label(
-                        f"{problem.area} — {prefix}{problem.message}"
-                    ).classes("break-words text-sm text-[#d8e7e8]")
+                    ui.label(f"{problem.area} — {prefix}{problem.message}").classes(
+                        "break-words text-sm text-[#d8e7e8]"
+                    )
 
         with ui.card().classes("w-full border border-[#29404b] bg-[#182630] p-6"):
             ui.label("Configuration pages").classes("text-lg font-semibold text-white")
@@ -121,8 +121,12 @@ def configuration_editor() -> None:
         labs_list = getattr(config_section, "labs", []) if config_section is not None else []
 
         time_slot_config = getattr(config, "time_slot_config", None)
-        time_blocks_list = getattr(time_slot_config, "times", {}) if time_slot_config is not None else {}
-        class_patterns_list = getattr(time_slot_config, "classes", []) if time_slot_config is not None else []
+        time_blocks_list = (
+            getattr(time_slot_config, "times", {}) if time_slot_config is not None else {}
+        )
+        class_patterns_list = (
+            getattr(time_slot_config, "classes", []) if time_slot_config is not None else []
+        )
 
         with ui.column().classes(panel_classes) as rooms_panel:
             rooms_gui(rooms_list, on_change=apply_config_change)
@@ -177,7 +181,7 @@ def configuration_editor() -> None:
         except ConfigValidationError as exc:
             show_problems("Can't save yet", exc.problems)
             return
-        except Exception as exc:  # pragma: no cover - UI guard
+        except (TypeError, ValueError, AttributeError, RuntimeError, OSError) as exc:  # pragma: no cover - UI guard
             ui.notify(f"Unable to save configuration: {exc}", type="negative")
             return
         set_saved_status(True)
@@ -189,8 +193,6 @@ def configuration_editor() -> None:
             "Configuration Editor",
             "Edit the Schedule Configuration File",
         )
-
-
 
         # Workspace actions for loading, creating, saving, and validating configs.
         with ui.row().classes("w-full flex-wrap gap-3"):
@@ -216,10 +218,14 @@ def configuration_editor() -> None:
             ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
 
         # Hidden selector is populated when the user chooses to load a config.
-        load_select = ui.select(
-            options=controller.list_names(),
-            label="Select Configuration",
-        ).classes("w-full max-w-xl").props("dark outlined")
+        load_select = (
+            ui.select(
+                options=controller.list_names(),
+                label="Select Configuration",
+            )
+            .classes("w-full max-w-xl")
+            .props("dark outlined")
+        )
         load_select.set_visibility(False)
         load_select.on_value_change(lambda e: on_select_change(e.value))
 
@@ -228,9 +234,9 @@ def configuration_editor() -> None:
     # Confirm before replacing an open draft with a new configuration.
     with ui.dialog() as discard_dialog, ui.card().classes("border border-[#29404b] bg-[#182630]"):
         ui.label("Start a new configuration?").classes("text-lg font-semibold text-white")
-        ui.label(
-            "Any unsaved changes to the current configuration will be lost."
-        ).classes("text-sm text-[#9fb2b8]")
+        ui.label("Any unsaved changes to the current configuration will be lost.").classes(
+            "text-sm text-[#9fb2b8]"
+        )
         with ui.row().classes("mt-4 w-full justify-end gap-2"):
             ui.button("Keep editing", on_click=discard_dialog.close).props("flat")
             ui.button("Continue", on_click=lambda: open_create_dialog()).props(
@@ -240,9 +246,11 @@ def configuration_editor() -> None:
     # Collect and validate the name for a newly created configuration.
     with ui.dialog() as create_dialog, ui.card().classes("border border-[#29404b] bg-[#182630]"):
         ui.label("Create new configuration").classes("text-lg font-semibold text-white")
-        name_input = ui.input(
-            "Configuration name", placeholder="fall_2026"
-        ).props("autofocus").classes("w-80")
+        name_input = (
+            ui.input("Configuration name", placeholder="fall_2026")
+            .props("autofocus")
+            .classes("w-80")
+        )
         name_input.on("keydown.enter", lambda: confirm_create())
         with ui.row().classes("mt-4 w-full justify-end gap-2"):
             ui.button("Cancel", on_click=create_dialog.close).props("flat")
@@ -297,7 +305,7 @@ def configuration_editor() -> None:
             return
         try:
             config = controller.new_configuration()
-        except Exception as exc:  # pragma: no cover - UI guard
+        except (TypeError, ValueError, AttributeError, RuntimeError, OSError) as exc:  # pragma: no cover - UI guard
             ui.notify(f"Unable to create configuration: {exc}", type="negative")
             return
 
@@ -322,7 +330,7 @@ def configuration_editor() -> None:
         except ConfigLoadError as exc:
             ui.notify(f"'{config_name}' is not a valid configuration: {exc}", type="negative")
             return
-        except Exception as exc:  # pragma: no cover - UI guard
+        except (TypeError, ValueError, AttributeError, RuntimeError, OSError) as exc:  # pragma: no cover - UI guard
             ui.notify(f"Unable to load configuration: {exc}", type="negative")
             return
 
@@ -333,8 +341,9 @@ def configuration_editor() -> None:
         ui.notify(f"Loaded '{config_name}'.", type="positive")
 
     # Dialog surface used to display validation results and rejected edits.
-    with ui.dialog() as validate_dialog, ui.card().classes(
-        "min-w-[28rem] max-w-2xl border border-[#29404b] bg-[#182630]"
+    with (
+        ui.dialog() as validate_dialog,
+        ui.card().classes("min-w-[28rem] max-w-2xl border border-[#29404b] bg-[#182630]"),
     ):
         validate_title = ui.label().classes("text-lg font-semibold text-white")
         validate_results = ui.column().classes("w-full gap-3")
@@ -378,7 +387,7 @@ def configuration_editor() -> None:
             return
         try:
             problems = controller.validate_configuration()
-        except Exception as exc:  # pragma: no cover - UI guard
+        except (TypeError, ValueError, AttributeError, RuntimeError, OSError) as exc:  # pragma: no cover - UI guard
             ui.notify(f"Unable to validate configuration: {exc}", type="negative")
             return
         show_problems("Validate configuration", problems)

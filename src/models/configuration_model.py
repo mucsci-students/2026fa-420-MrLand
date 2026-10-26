@@ -2,15 +2,15 @@
 
 Used by: GUI and CLI."""
 
-from dataclasses import dataclass
 import copy
 import json
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, TypeVar
+from typing import TypeVar
 
 from jsonschema import Draft202012Validator, FormatChecker
 from pydantic import ValidationError
-
 from scheduler.config import CombinedConfig, SchedulerConfig, TimeSlotConfig
 
 from src.models.configuration_repository import (
@@ -23,9 +23,7 @@ from src.models.configuration_repository import (
 
 T = TypeVar("T")
 _CONFIG_SCHEMA_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "schemas"
-    / "combined-config.schema.json"
+    Path(__file__).resolve().parents[1] / "schemas" / "combined-config.schema.json"
 )
 with _CONFIG_SCHEMA_PATH.open(encoding="utf-8") as schema_file:
     _CONFIG_SCHEMA = json.load(schema_file)
@@ -39,9 +37,7 @@ _CONFIG_SCHEMA_VALIDATOR = Draft202012Validator(
 def create_draft_config() -> CombinedConfig:
     """Create an incomplete configuration that can be filled before validation."""
     return CombinedConfig.model_construct(
-        config=SchedulerConfig.model_construct(
-            rooms=[], labs=[], courses=[], faculty=[]
-        ),
+        config=SchedulerConfig.model_construct(rooms=[], labs=[], courses=[], faculty=[]),
         time_slot_config=TimeSlotConfig.model_construct(times={}, classes=[]),
         limit=10,
         optimizer_flags=[],
@@ -58,10 +54,11 @@ def validate_config_name(name: str) -> str:
         )
     return name
 
+
 @dataclass(frozen=True)
 class ValidationProblem:
-    area: str          # e.g. "Courses"
-    item: str | None   # e.g. "CS 121", or None for the whole area
+    area: str  # e.g. "Courses"
+    item: str | None  # e.g. "CS 121", or None for the whole area
     message: str
 
 
@@ -87,7 +84,7 @@ def _item_label(config: CombinedConfig, loc: tuple) -> str | None:
     """Turn a list position into a readable name, like 'CS 121' or 'Room 101'."""
     if len(loc) < 3:
         return None
-    if loc[1] == "times":                      # time blocks are keyed by day
+    if loc[1] == "times":  # time blocks are keyed by day
         return str(loc[2])
     if not isinstance(loc[2], int):
         return None
@@ -151,7 +148,7 @@ def validate_config(config: CombinedConfig) -> list[ValidationProblem]:
             if field:
                 message = f"{field}: {message}"
             problems.append(ValidationProblem(area, item, message))
-    except Exception as exc:  # anything else the library raises
+    except (TypeError, ValueError, AttributeError) as exc:
         problems.append(ValidationProblem("Whole configuration", None, str(exc)))
         return problems
 
@@ -185,15 +182,9 @@ def apply_configuration_change(
 
 def _restore_config(config: CombinedConfig, snapshot: CombinedConfig) -> None:
     object.__setattr__(config, "__dict__", snapshot.__dict__)
-    object.__setattr__(
-        config, "__pydantic_fields_set__", snapshot.__pydantic_fields_set__
-    )
-    object.__setattr__(
-        config, "__pydantic_extra__", snapshot.__pydantic_extra__
-    )
-    object.__setattr__(
-        config, "__pydantic_private__", snapshot.__pydantic_private__
-    )
+    object.__setattr__(config, "__pydantic_fields_set__", snapshot.__pydantic_fields_set__)
+    object.__setattr__(config, "__pydantic_extra__", snapshot.__pydantic_extra__)
+    object.__setattr__(config, "__pydantic_private__", snapshot.__pydantic_private__)
 
 
 class ConfigService:

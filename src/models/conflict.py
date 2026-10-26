@@ -6,6 +6,7 @@ Used by: GUI and CLI."""
 
 # ---- validation helpers -----------------------------------------------
 
+
 def _is_valid_conflict_candidate(course_id, candidate, courses):
     """True if candidate is a real, different course_id (case-insensitive)."""
     if candidate.lower() == course_id.lower():
@@ -28,6 +29,7 @@ def _find_existing(conflicts, candidate):
 
 
 # ---- actions (operate on a plain course_id + conflicts list) ----------
+
 
 def add_conflicts(course_id, conflicts, courses):
     """Add one or more new conflicts. Accepts a single course number or a
@@ -106,6 +108,7 @@ def view_conflicts_list(course_id, conflicts):
 
 # ---- menu ---------------------------------------------------------------
 
+
 def conflicts_menu(course_id, courses, conflicts=None):
     """Interactive add/modify/delete/view loop for a course's conflicts.
 
@@ -157,6 +160,6 @@ def modify_conflicts(course, courses):
     try:
         course.conflicts = updated_conflicts
         print("Conflicts updated successfully")
-    except Exception as e:
+    except (TypeError, ValueError, AttributeError) as e:
         print(f"Error occurred while updating conflicts: {e}")
         print("Conflicts were not updated.")

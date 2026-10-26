@@ -3,9 +3,7 @@
 Used by: GUI and CLI."""
 
 from pydantic import ValidationError
-
-from scheduler.config import TimeSlotConfig, TimeBlock
-
+from scheduler.config import TimeBlock, TimeSlotConfig
 
 VALID_DAYS = {"MON", "TUE", "WED", "THU", "FRI"}
 
@@ -26,9 +24,7 @@ def add_time_block_from_values(times, day, start, spacing, end):
     return block
 
 
-def update_time_block_from_values(
-    times, existing_day, existing_block, day, start, spacing, end
-):
+def update_time_block_from_values(times, existing_day, existing_block, day, start, spacing, end):
     """Replace a block, optionally moving it to another weekday."""
     existing_day = existing_day.strip().upper()
     try:
@@ -59,9 +55,7 @@ def delete_time_block_from_values(times, day, block_to_delete):
 
 def get_day():
     """Get a valid weekday from the user."""
-    day = input(
-        "Enter day (MON, TUE, WED, THU, FRI): "
-    ).strip().upper()
+    day = input("Enter day (MON, TUE, WED, THU, FRI): ").strip().upper()
 
     if day not in VALID_DAYS:
         print("Invalid day. Please enter MON, TUE, WED, THU, or FRI.")
@@ -92,11 +86,7 @@ def add_time_block(time_slot_config: TimeSlotConfig):
     end = input("Enter end time (HH:MM): ").strip()
 
     try:
-        time_block = TimeBlock(
-            start=start,
-            spacing=spacing,
-            end=end
-        )
+        time_block = TimeBlock(start=start, spacing=spacing, end=end)
     except ValidationError as e:
         print("Invalid time block:")
         for error in e.errors():
@@ -126,10 +116,7 @@ def view_time_blocks(time_slot_config: TimeSlotConfig):
             continue
 
         for i, block in enumerate(blocks, start=1):
-            print(
-                f"  {i}. {block.start}-{block.end} "
-                f"(spacing: {block.spacing} minutes)"
-            )
+            print(f"  {i}. {block.start}-{block.end} (spacing: {block.spacing} minutes)")
 
 
 def modify_time_block(time_slot_config: TimeSlotConfig):
@@ -154,9 +141,7 @@ def modify_time_block(time_slot_config: TimeSlotConfig):
         print("No time blocks found for that day.")
         return
 
-    index = get_integer(
-        "Enter the number of the time block to modify: "
-    ) - 1
+    index = get_integer("Enter the number of the time block to modify: ") - 1
 
     if index < 0 or index >= len(blocks):
         print("Invalid time block.")
@@ -167,11 +152,7 @@ def modify_time_block(time_slot_config: TimeSlotConfig):
     end = input("Enter new end time (HH:MM): ").strip()
 
     try:
-        new_time_block = TimeBlock(
-            start=start,
-            spacing=spacing,
-            end=end
-        )
+        new_time_block = TimeBlock(start=start, spacing=spacing, end=end)
     except ValidationError as e:
         print("Invalid time block:")
         for error in e.errors():
@@ -205,9 +186,7 @@ def delete_time_block(time_slot_config: TimeSlotConfig):
         print("No time blocks found for that day.")
         return
 
-    index = get_integer(
-        "Enter the number of the time block to delete: "
-    ) - 1
+    index = get_integer("Enter the number of the time block to delete: ") - 1
 
     if index < 0 or index >= len(blocks):
         print("Invalid time block.")

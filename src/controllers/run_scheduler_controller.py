@@ -2,12 +2,15 @@
 
 Used by: CLI."""
 
-from src.models.schedule_result import ScheduleResult
+from scheduler.scheduler import Scheduler
+
 from src.models.configuration_model import (
     config_exists,
+)
+from src.models.configuration_model import (
     load_config as config_load,
 )
-from scheduler.scheduler import Scheduler
+from src.models.schedule_result import ScheduleResult
 
 
 def confirm_yes_no(prompt: str) -> bool:
@@ -42,13 +45,13 @@ def run_scheduler(
 
     try:
         full_config = config_loader(config_name)
-    except Exception as error:
+    except (OSError, TypeError, ValueError, RuntimeError) as error:
         print(f"Failed to load configuration '{config_name}': {error}")
         return
 
     try:
         scheduler = scheduler_factory(full_config)
-    except Exception as error:
+    except (OSError, TypeError, ValueError, RuntimeError) as error:
         print(f"Error occurred while starting the scheduler: {error}")
         return
 
@@ -68,16 +71,12 @@ def run_scheduler(
             print(f"  Suggestion: {suggestion.message}")
         return
 
-    valid_count = sum(
-        1 for schedule in generated if scheduler.audit_schedule(schedule).is_valid
-    )
+    valid_count = sum(1 for schedule in generated if scheduler.audit_schedule(schedule).is_valid)
 
     schedules.extend(
-        result_type(config_name=config_name, schedule=s, config=full_config)
-        for s in generated
+        result_type(config_name=config_name, schedule=s, config=full_config) for s in generated
     )
 
     print(
-        f"Scheduler ran successfully. Generated {len(generated)} schedule(s), "
-        f"{valid_count} valid."
+        f"Scheduler ran successfully. Generated {len(generated)} schedule(s), {valid_count} valid."
     )

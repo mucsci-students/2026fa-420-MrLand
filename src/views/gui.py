@@ -240,39 +240,39 @@ def build_app() -> None:
 
     # Read the current browser theme, apply its opposite, and update the button label.
     async def toggle_theme() -> None:
-        current = await ui.run_javascript(
-            "document.documentElement.dataset.theme"
-        )
+        current = await ui.run_javascript("document.documentElement.dataset.theme")
         next_theme = Theme.DARK if current == Theme.LIGHT.value else Theme.LIGHT
         await ui.run_javascript(theme.script(next_theme))
         toggle_button.set_text(f"{next_theme.value.title()} Mode")
 
     # Keep the button label aligned with the saved or system-selected theme on connect.
     async def sync_theme_label() -> None:
-        current = await ui.run_javascript(
-            "document.documentElement.dataset.theme"
-        )
+        current = await ui.run_javascript("document.documentElement.dataset.theme")
         toggle_button.set_text(f"{Theme(current).value.title()} Mode")
 
     # Shared application header and theme control.
-    with ui.header().props("data-theme-region=header").classes(
-        "border-b border-[#29404b] bg-[#101820] px-6 py-4"
+    with (
+        ui.header()
+        .props("data-theme-region=header")
+        .classes("border-b border-[#29404b] bg-[#101820] px-6 py-4")
     ):
         with ui.row().classes("w-full items-center justify-between"):
             with ui.row().classes("items-center gap-3"):
                 ui.icon("calendar_month", size="32px").classes("text-[#75e6da]")
                 with ui.column().classes("gap-0"):
                     ui.label("Scheduler").classes("text-lg font-semibold text-white")
-            toggle_button = ui.button(
-                "Dark Mode", icon="contrast", on_click=toggle_theme
-            ).props("unelevated aria-label=Toggle color theme").classes(
-                "bg-[#75e6da] text-[#101820]"
+            toggle_button = (
+                ui.button("Dark Mode", icon="contrast", on_click=toggle_theme)
+                .props("unelevated aria-label=Toggle color theme")
+                .classes("bg-[#75e6da] text-[#101820]")
             )
             ui.context.client.on_connect(sync_theme_label)
 
     # Main tabbed area containing configuration, generation, and schedule views.
-    with ui.column().props("data-theme-region=content").classes(
-        "mx-auto w-full max-w-7xl gap-0 px-6 py-8"
+    with (
+        ui.column()
+        .props("data-theme-region=content")
+        .classes("mx-auto w-full max-w-7xl gap-0 px-6 py-8")
     ):
         tabs = ui.tabs(value="configuration").classes("w-full border-b border-[#29404b]")
         with tabs:

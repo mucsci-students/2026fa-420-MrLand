@@ -22,18 +22,20 @@ def class_patterns_gui(
     ui.label("Define meeting patterns for each course credit value.").classes(
         "text-sm text-[#9fb2b8]"
     )
-    ui.label("Existing class patterns").classes(
-        "mt-4 text-lg font-semibold text-white"
-    )
+    ui.label("Existing class patterns").classes("mt-4 text-lg font-semibold text-white")
     pattern_list = ui.column().classes("w-full gap-1")
 
     with ui.row().classes("w-full flex-wrap items-center gap-2"):
-        add_button = ui.button("Add new class pattern", icon="add", on_click=lambda: show_form()).props(
-            "unelevated"
-        ).classes("bg-[#75e6da] text-[#101820]")
+        add_button = (
+            ui.button("Add new class pattern", icon="add", on_click=lambda: show_form())
+            .props("unelevated")
+            .classes("bg-[#75e6da] text-[#101820]")
+        )
 
     # Pattern fields and a draft editor for the pattern's individual meetings.
-    with ui.column().classes("w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4") as form_container:
+    with ui.column().classes(
+        "w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4"
+    ) as form_container:
         form_container.set_visibility(False)
         form_heading = ui.label("Add New Class Pattern").classes("text-lg font-semibold text-white")
 
@@ -49,9 +51,9 @@ def class_patterns_gui(
         with ui.row().classes("w-full flex-wrap items-end gap-3"):
             meeting_day = ui.select(list(DAYS), value="MON", label="Day").classes("min-w-36")
             meeting_start = ui.input("Start time override").props("type=time").classes("w-48")
-            meeting_duration = ui.number(
-                "Duration (minutes)", value=75, min=1, step=1
-            ).classes("w-48")
+            meeting_duration = ui.number("Duration (minutes)", value=75, min=1, step=1).classes(
+                "w-48"
+            )
             meeting_lab = ui.checkbox("Lab meeting").classes("text-[#d8e7e8]")
             meeting_delivery = ui.select(
                 list(DELIVERY_MODES), value="in_person", label="Delivery"
@@ -168,13 +170,19 @@ def class_patterns_gui(
             refresh_drafts()
 
         with ui.row().classes("w-full items-center gap-2"):
-            add_meeting_button = ui.button("Add meeting", icon="add", on_click=add_meeting_draft).props(
-                "outline"
-            ).classes("border-[#45616b] text-[#d8e7e8]")
-            cancel_meeting_edit_button = ui.button(
-                "Cancel edit",
-                on_click=lambda: (reset_meeting_form(), refresh_drafts()),
-            ).props("flat").classes("text-[#d8e7e8]")
+            add_meeting_button = (
+                ui.button("Add meeting", icon="add", on_click=add_meeting_draft)
+                .props("outline")
+                .classes("border-[#45616b] text-[#d8e7e8]")
+            )
+            cancel_meeting_edit_button = (
+                ui.button(
+                    "Cancel edit",
+                    on_click=lambda: (reset_meeting_form(), refresh_drafts()),
+                )
+                .props("flat")
+                .classes("text-[#d8e7e8]")
+            )
             cancel_meeting_edit_button.set_visibility(False)
         refresh_drafts()
 
@@ -292,16 +300,22 @@ def class_patterns_gui(
             refresh_patterns()
 
         with ui.row().classes("w-full flex-wrap items-center gap-2"):
-            add_submit_button = ui.button("Create class pattern", icon="add", on_click=add_pattern).props(
-                "unelevated"
-            ).classes("bg-[#75e6da] text-[#101820]")
-            update_button = ui.button(
-                "Save changes", icon="save", on_click=update_pattern
-            ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
+            add_submit_button = (
+                ui.button("Create class pattern", icon="add", on_click=add_pattern)
+                .props("unelevated")
+                .classes("bg-[#75e6da] text-[#101820]")
+            )
+            update_button = (
+                ui.button("Save changes", icon="save", on_click=update_pattern)
+                .props("unelevated")
+                .classes("bg-[#75e6da] text-[#101820]")
+            )
             update_button.set_visibility(False)
-            cancel_button = ui.button("Cancel", on_click=reset_form).props(
-                "outline"
-            ).classes("border-[#45616b] text-[#d8e7e8]")
+            cancel_button = (
+                ui.button("Cancel", on_click=reset_form)
+                .props("outline")
+                .classes("border-[#45616b] text-[#d8e7e8]")
+            )
             cancel_button.set_visibility(False)
 
     # Rebuild pattern summaries and their edit/delete controls.
@@ -309,9 +323,7 @@ def class_patterns_gui(
         pattern_list.clear()
         with pattern_list:
             if not patterns:
-                ui.label("No class patterns added yet.").classes(
-                    "text-sm text-[#9fb2b8]"
-                )
+                ui.label("No class patterns added yet.").classes("text-sm text-[#9fb2b8]")
                 return
             for pattern in patterns:
                 status = "Disabled" if pattern.disabled else "Enabled"
@@ -336,15 +348,14 @@ def class_patterns_gui(
                             icon="edit",
                             on_click=lambda selected=pattern: begin_edit(selected),
                         ).props("flat round dense").tooltip("Edit class pattern")
-                        with ui.dialog() as dialog, ui.card().classes(
-                            "border border-[#29404b] bg-[#182630]"
+                        with (
+                            ui.dialog() as dialog,
+                            ui.card().classes("border border-[#29404b] bg-[#182630]"),
                         ):
                             ui.label(f"Delete {pattern.credits}-credit pattern?").classes(
                                 "text-lg font-semibold text-white"
                             )
-                            ui.label("This cannot be undone.").classes(
-                                "text-sm text-[#9fb2b8]"
-                            )
+                            ui.label("This cannot be undone.").classes("text-sm text-[#9fb2b8]")
                             with ui.row().classes("mt-4 w-full justify-end gap-2"):
                                 ui.button("Cancel", on_click=dialog.close).props("flat")
                                 ui.button(

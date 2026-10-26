@@ -20,7 +20,6 @@ T = TypeVar("T")
 
 
 class ConfigurationController:
-
     def __init__(self) -> None:
         self.config_service = ConfigService()
         self.configuration: CombinedConfig | None = None
@@ -62,9 +61,7 @@ class ConfigurationController:
             raise ValueError("No configuration has been created or loaded.")
         return validate_config(self.configuration)
 
-    def apply_change(
-        self, mutation: Callable[[], T]
-    ) -> tuple[bool, list[ValidationProblem]]:
+    def apply_change(self, mutation: Callable[[], T]) -> tuple[bool, list[ValidationProblem]]:
         if self.configuration is None:
             raise ValueError("No configuration has been created or loaded.")
 

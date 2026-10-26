@@ -9,10 +9,8 @@ import tempfile
 from pathlib import Path
 
 from pydantic import ValidationError
-
+from scheduler import configuration
 from scheduler.config import CombinedConfig
-import scheduler.configuration as configuration
-
 
 CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
 
@@ -51,7 +49,7 @@ def save_config(combined_config: CombinedConfig, config_name: str) -> None:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(combined_config.model_dump_json(indent=4))
         os.replace(tmp_name, path)
-    except BaseException:
+    except (OSError, TypeError, ValueError):
         if os.path.exists(tmp_name):
             os.remove(tmp_name)
         raise
@@ -65,9 +63,7 @@ def load_config(config_name: str) -> CombinedConfig:
     try:
         return configuration.load_config_from_file(CombinedConfig, str(path))
     except (json.JSONDecodeError, ValidationError) as exc:
-        raise ConfigLoadError(
-            f"Config '{config_name}' is invalid: {exc}"
-        ) from exc
+        raise ConfigLoadError(f"Config '{config_name}' is invalid: {exc}") from exc
 
 
 def config_exists(config_name: str) -> bool:
