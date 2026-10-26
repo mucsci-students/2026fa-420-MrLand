@@ -348,7 +348,7 @@ def configuration_editor(
 
         save_dialog.close()
         ui.notify(
-            f"Downloading '{file_name}'. Choose the save location in your browser.",
+            f"Downloading '{file_name}'.",
             type="positive",
         )
 
@@ -368,7 +368,8 @@ def configuration_editor(
                     "text-lg font-semibold text-white"
                 )
                 ui.label(
-                    "A copy will be downloaded by your browser. Choose its save location there."
+                    "A copy will be downloaded to your browser's default location. " \
+                    "Check your browser settings to manually choose the save location."
                 ).classes("text-sm text-[#9fb2b8]")
                 save_name = ui.input("File Name").props("outlined dark").classes("w-full")
                 save_status = ui.label("").classes("text-sm text-red-400")
@@ -595,7 +596,7 @@ def configuration_editor(
             return
 
         ui.notify(
-            f"Downloading '{file_name}'. Choose the save location in your browser.",
+            f"Downloading '{file_name}'.",
             type="positive",
         )
         discard_and_load()
