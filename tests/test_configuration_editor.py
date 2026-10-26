@@ -213,6 +213,71 @@ def test_selecting_another_config_without_edits_loads_without_warning(
     run_editor_simulation(action)
 
 
+def test_generation_limit_edit_prompts_before_loading_another_config(
+    editor_controller, monkeypatch
+):
+    editor_controller.save_configuration("other")
+    monkeypatch.setattr(editor_controller, "list_names", lambda: ["demo", "other"])
+
+    async def action(user, _mark_unsaved):
+        await load_demo_config(user)
+        await user.should_see("Editing: demo")
+        user.find("Global settings").click()
+        user.find(kind=ui.number, content="Generation limit").clear().type("25")
+        await user.should_see("Draft - not saved")
+
+        draft = editor_controller.configuration
+        user.find("Load configuration").click()
+        show_server_selector(user)
+        user.find(kind=ui.select, content="Select Configuration").click()
+        user.find("other").click()
+        await user.should_see("Unsaved changes")
+        assert editor_controller.configuration is draft
+        assert editor_controller.configuration.limit == 10
+        with user.client:
+            limit_field = next(
+                iter(
+                    ElementFilter(
+                        kind=ui.number, content="Generation limit"
+                    )
+                )
+            )
+            assert limit_field.value == 25
+
+        click_open_dialog_button(user, "Cancel")
+        await user.should_see("Editing: demo")
+        assert editor_controller.configuration is draft
+
+    run_editor_simulation(action)
+
+
+def test_save_and_load_includes_pending_generation_limit(
+    editor_controller, monkeypatch
+):
+    editor_controller.save_configuration("other")
+    monkeypatch.setattr(editor_controller, "list_names", lambda: ["demo", "other"])
+
+    async def action(user, _mark_unsaved):
+        await load_demo_config(user)
+        await user.should_see("Editing: demo")
+        user.find("Global settings").click()
+        user.find(kind=ui.number, content="Generation limit").clear().type("25")
+
+        user.find("Load configuration").click()
+        show_server_selector(user)
+        user.find(kind=ui.select, content="Select Configuration").click()
+        user.find("other").click()
+        await user.should_see("Unsaved changes")
+        click_open_dialog_button(user, "Save Configuration")
+
+        download = await user.download.next()
+        assert download.status_code == 200
+        assert json.loads(download.content)["limit"] == 25
+        await user.should_see("Loaded 'other'.")
+
+    run_editor_simulation(action)
+
+
 @pytest.mark.parametrize("suffix", ["json", "JSON", "JsOn"])
 def test_uploaded_name_strips_json_suffix_before_saving(editor_controller, monkeypatch, suffix):
     content = editor_controller.configuration.model_dump_json().encode()

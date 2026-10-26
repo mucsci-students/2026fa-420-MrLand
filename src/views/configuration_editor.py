@@ -67,6 +67,7 @@ def configuration_editor(
         "redo_button": None,
         "combination_progress": 0,
         "combination_unlocked": False,
+        "flush_pending_settings": lambda: True,
     }
     undo_history: list[ConfigurationMemento] = []
     redo_history: list[ConfigurationMemento] = []
@@ -196,7 +197,10 @@ def configuration_editor(
             ui.label(f"Editing: {state['name']}").classes("text-xl font-semibold text-white")
             state["status_badge"] = ui.badge(
                 "Draft saved" if state["saved"] else "Draft - not saved"
-            ).props(f"color={'green' if state['saved'] else 'orange'}")
+            ).props(
+                f"color={'green' if state['saved'] else 'orange'} "
+                "id=configuration-draft-status"
+            )
 
         current_problems = controller.validate_configuration()
         with ui.card().classes("w-full border border-[#29404b] bg-[#182630] p-4"):
@@ -275,7 +279,11 @@ def configuration_editor(
             class_patterns_gui(class_patterns_list, on_change=apply_config_change)
         with ui.column().classes(panel_classes) as global_settings_panel:
             if hasattr(config, "limit") and hasattr(config, "optimizer_flags"):
-                global_settings_gui(config, on_change=apply_config_change)
+                state["flush_pending_settings"] = global_settings_gui(
+                    config,
+                    on_change=apply_config_change,
+                    on_pending_change=lambda: set_saved_status(False),
+                )
             else:
                 ui.label("Global settings are unavailable for this draft.").classes(
                     "text-sm text-[#9fb2b8]"
@@ -326,6 +334,8 @@ def configuration_editor(
             return
         if not state["name"]:
             ui.notify("Give the configuration a name before saving.", type="negative")
+            return
+        if not state["flush_pending_settings"]():
             return
         file_name = (save_name.value or "").strip()
         if not file_name:
@@ -581,7 +591,8 @@ def configuration_editor(
         if state["config"] is None or not config_name:
             ui.notify("No named configuration is open to save.", type="negative")
             return
-        unsaved_load_dialog.close()
+        if not state["flush_pending_settings"]():
+            return
         try:
             file_name = download_configuration(f"{config_name}.json")
         except ConfigValidationError as exc:
@@ -594,6 +605,7 @@ def configuration_editor(
             ui.notify(f"Unable to save configuration: {exc}", type="negative")
             return
 
+        unsaved_load_dialog.close()
         ui.notify(
             f"Downloading '{file_name}'. Choose the save location in your browser.",
             type="positive",

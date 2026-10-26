@@ -31,6 +31,13 @@ def build_app() -> None:
                     : window.matchMedia('(prefers-color-scheme: light)').matches
                         ? 'light'
                         : 'dark';
+            window.addEventListener('beforeunload', event => {
+                const status = document.getElementById('configuration-draft-status');
+                if (status?.textContent.trim() === 'Draft - not saved') {
+                    event.preventDefault();
+                    event.returnValue = '';
+                }
+            });
         </script>
         <style>
             /* Shared dark-theme tokens and base component styling. */
@@ -297,6 +304,9 @@ def build_app() -> None:
         editor_refresh: Callable[[], None]
         viewer_refresh: Callable[[], None]
         unlock_assistant: Callable[[], None] = lambda: None
+        active_tab = {"value": "configuration"}
+        pending_tab = {"value": None}
+        rejected_tab = {"value": None}
 
         def request_assistant_unlock() -> None:
             unlock_assistant()
@@ -310,9 +320,66 @@ def build_app() -> None:
             with ui.tab_panel("viewer"):
                 viewer_refresh = schedule_viewer()
 
-        tabs.on_value_change(
-            lambda event: viewer_refresh() if event.value == "viewer" else None
-        )
+        def on_tab_change(event) -> None:
+            next_tab = event.value
+            if next_tab == active_tab["value"]:
+                return
+            if next_tab == pending_tab["value"]:
+                return
+            if next_tab == rejected_tab["value"]:
+                rejected_tab["value"] = None
+                tabs.value = active_tab["value"]
+                return
+            if (
+                active_tab["value"] == "configuration"
+                and not editor_is_saved()
+            ):
+                pending_tab["value"] = next_tab
+                rejected_tab["value"] = next_tab
+                unsaved_navigation_dialog.open()
+                return
+            active_tab["value"] = next_tab
+            if next_tab == "viewer":
+                viewer_refresh()
+
+        def leave_editor_without_saving() -> None:
+            next_tab = pending_tab["value"]
+            pending_tab["value"] = None
+            rejected_tab["value"] = None
+            unsaved_navigation_dialog.close()
+            if next_tab is None:
+                return
+            active_tab["value"] = next_tab
+            if next_tab == "viewer":
+                viewer_refresh()
+
+        def stay_in_configuration() -> None:
+            rejected_tab["value"] = pending_tab["value"]
+            pending_tab["value"] = None
+            unsaved_navigation_dialog.close()
+            tabs.value = active_tab["value"]
+
+        with ui.dialog() as unsaved_navigation_dialog, ui.card().classes(
+            "border border-[#29404b] bg-[#182630]"
+        ):
+            ui.label("Unsaved configuration").classes(
+                "text-lg font-semibold text-white"
+            )
+            ui.label(
+                "Your configuration has unsaved changes. Leave this page "
+                "without saving?"
+            ).classes("text-sm text-[#9fb2b8]")
+            with ui.row().classes("mt-4 w-full justify-end gap-2"):
+                ui.button(
+                    "Stay in Configuration",
+                    on_click=stay_in_configuration,
+                ).props("flat")
+                ui.button(
+                    "Leave without saving",
+                    on_click=leave_editor_without_saving,
+                ).props("unelevated color=negative")
+
+        tabs.on_value_change(on_tab_change)
 
     unlock_assistant = scheduler_ai_assistant(
         controller, editor_refresh, editor_is_saved
