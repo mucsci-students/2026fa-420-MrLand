@@ -238,6 +238,10 @@ def build_app() -> None:
                     background-color: var(--surface) !important;
                     color: var(--app-foreground) !important;
                 }
+                html[data-theme="light"] .configuration-load-upload.q-uploader--bordered,
+                html[data-theme="light"] .schedule-load-upload.q-uploader--bordered {
+                    border-color: var(--border-strong) !important;
+                }
                 html[data-theme="light"] .configuration-load-upload .q-uploader__header .q-btn,
                 html[data-theme="light"] .schedule-load-upload .q-uploader__header .q-btn {
                     background-color: var(--accent-color) !important;
