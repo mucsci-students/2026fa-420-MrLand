@@ -20,6 +20,7 @@ from scheduler.config import (
     CourseConfig,
     FacultyConfig,
     LabConfig,
+    Meeting,
     RoomConfig,
     TimeBlock,
 )
@@ -28,6 +29,7 @@ from src.controllers.schedule_generator_controller import (
 )
 from src.models.configuration_model import (
     ConfigService,
+    ConfigValidationError,
     create_draft_config,
     validate_config,
 )
@@ -59,11 +61,19 @@ class SchedulerAgentState:
         config: CombinedConfig | None = None,
         save_configuration: Callable[[str], None] | None = None,
         schedule_generator: Any | None = None,
+        confirm_action: Callable[[str], bool] | None = None,
+        configuration_exists: Callable[[str], bool] | None = None,
     ):
         self.config = config if config is not None else empty_scheduler_config()
         self.has_active_configuration = config is not None
         self._save_configuration = save_configuration
         self._schedule_generator = schedule_generator or schedule_generator_controller
+        self._confirm_action = confirm_action
+        self._configuration_exists = configuration_exists or ConfigService().exists
+
+    @staticmethod
+    def _result(success: bool, message: str, **details: Any) -> dict[str, Any]:
+        return {"success": success, "message": message, **details}
 
     # Return the standard prompt shown when no configuration is active.
     @staticmethod
@@ -74,56 +84,64 @@ class SchedulerAgentState:
         )
 
     # Report whether the agent can currently access a configuration.
-    def get_active_configuration_status(self) -> str:
+    def get_active_configuration_status(self) -> dict[str, Any]:
         if not self.has_active_configuration:
-            return self.configuration_required_message()
-        return "A scheduler configuration is active."
+            return self._result(False, self.configuration_required_message())
+        return self._result(True, "A scheduler configuration is active.")
 
     # Format a configuration collection for the assistant.
-    def _list_items(self, items: list[Any], *, label: str) -> str:
+    def _list_items(self, items: list[Any], *, label: str) -> dict[str, Any]:
         if not items:
-            return f"No {label} found."
-        return "\n".join(item.model_dump_json() for item in items)
+            return self._result(True, f"No {label} found.", items=[])
+        return self._result(
+            True,
+            f"Found {len(items)} {label}.",
+            items=[item.model_dump(mode="json") for item in items],
+        )
 
     # Add a room using the assistant's configuration defaults.
     def add_room(
         self,
         *,
         name: str,
-        capacity: int = 0,
+        capacity: int = 1,
         features: list[str] | None = None,
-    ) -> str:
+    ) -> dict[str, Any]:
         if any(room.name == name for room in self.config.config.rooms):
-            return f"Room {name} already exists."
-        self.config.config.rooms.append(
-            RoomConfig(
+            return self._result(False, f"Room {name} already exists.")
+        try:
+            room = RoomConfig(
                 name=name,
                 capacity=capacity,
                 features=features or [],
                 times=None,
             )
-        )
-        return f"Room {name} added successfully."
+        except (ValidationError, TypeError, ValueError) as error:
+            return self._result(False, f"Could not add room {name}: {error}")
+        self.config.config.rooms.append(room)
+        return self._result(True, f"Room {name} added successfully.")
 
     # Add a lab using the assistant's configuration defaults.
     def add_lab(
         self,
         *,
         name: str,
-        capacity: int = 0,
+        capacity: int = 1,
         features: list[str] | None = None,
-    ) -> str:
+    ) -> dict[str, Any]:
         if any(lab.name == name for lab in self.config.config.labs):
-            return f"Lab {name} already exists."
-        self.config.config.labs.append(
-            LabConfig(
+            return self._result(False, f"Lab {name} already exists.")
+        try:
+            lab = LabConfig(
                 name=name,
                 capacity=capacity,
                 features=features or [],
                 times=None,
             )
-        )
-        return f"Lab {name} added successfully."
+        except (ValidationError, TypeError, ValueError) as error:
+            return self._result(False, f"Could not add lab {name}: {error}")
+        self.config.config.labs.append(lab)
+        return self._result(True, f"Lab {name} added successfully.")
 
     # Add a faculty member with empty availability and preferences.
     def add_faculty(
@@ -134,11 +152,11 @@ class SchedulerAgentState:
         maximum_days: int = 5,
         minimum_credits: int = 0,
         unique_course_limit: int = 3,
-    ) -> str:
+    ) -> dict[str, Any]:
         if any(faculty.name == name for faculty in self.config.config.faculty):
-            return f"Faculty member {name} already exists."
-        self.config.config.faculty.append(
-            FacultyConfig(
+            return self._result(False, f"Faculty member {name} already exists.")
+        try:
+            member = FacultyConfig(
                 name=name,
                 maximum_credits=maximum_credits,
                 maximum_days=maximum_days,
@@ -150,8 +168,10 @@ class SchedulerAgentState:
                 lab_preferences={},
                 mandatory_days=[],
             )
-        )
-        return f"Faculty member {name} added successfully."
+        except (ValidationError, TypeError, ValueError) as error:
+            return self._result(False, f"Could not add faculty member {name}: {error}")
+        self.config.config.faculty.append(member)
+        return self._result(True, f"Faculty member {name} added successfully.")
 
     # Add a course section with the supplied scheduler constraints.
     def add_course(
@@ -160,7 +180,7 @@ class SchedulerAgentState:
         course_id: str,
         section_id: str | None = None,
         credits: int = 3,
-        capacity: int = 0,
+        capacity: int = 1,
         room: list[str] | None = None,
         lab: list[str] | None = None,
         conflicts: list[str] | None = None,
@@ -169,17 +189,18 @@ class SchedulerAgentState:
         required_room_features: list[str] | None = None,
         required_lab_features: list[str] | None = None,
         reserve_room_during_lab: bool = False,
-    ) -> str:
+    ) -> dict[str, Any]:
         if any(
             course.course_id == course_id and course.section_id == section_id
             for course in self.config.config.courses
         ):
-            return (
-                f"Course {course_id} section {section_id or 'default'} already exists."
+            return self._result(
+                False,
+                f"Course {course_id} section {section_id or 'default'} already exists.",
             )
 
-        self.config.config.courses.append(
-            CourseConfig(
+        try:
+            course = CourseConfig(
                 course_id=course_id,
                 section_id=section_id,
                 credits=credits,
@@ -193,8 +214,10 @@ class SchedulerAgentState:
                 required_lab_features=required_lab_features or [],
                 reserve_room_during_lab=reserve_room_during_lab,
             )
-        )
-        return f"Course {course_id} added successfully."
+        except (ValidationError, TypeError, ValueError) as error:
+            return self._result(False, f"Could not add course {course_id}: {error}")
+        self.config.config.courses.append(course)
+        return self._result(True, f"Course {course_id} added successfully.")
 
     # Return all configured rooms in JSON form.
     def get_rooms(self) -> str:
@@ -213,16 +236,17 @@ class SchedulerAgentState:
         return self._list_items(self.config.config.courses, label="courses")
 
     # Summarize the counts of configured scheduling resources.
-    def get_config_summary(self) -> str:
-        return (
+    def get_config_summary(self) -> dict[str, Any]:
+        summary = (
             f"Rooms: {len(self.config.config.rooms)}\n"
             f"Labs: {len(self.config.config.labs)}\n"
             f"Courses: {len(self.config.config.courses)}\n"
             f"Faculty: {len(self.config.config.faculty)}"
         )
+        return self._result(True, summary)
 
     # Serialize the full configuration or one supported configuration area.
-    def inspect_configuration(self, area: str = "all") -> str:
+    def inspect_configuration(self, area: str = "all") -> dict[str, Any]:
         payload = self.config.model_dump(mode="json")
         areas = {
             "rooms": payload["config"]["rooms"],
@@ -230,6 +254,17 @@ class SchedulerAgentState:
             "courses": payload["config"]["courses"],
             "faculty": payload["config"]["faculty"],
             "class_patterns": payload["time_slot_config"]["classes"],
+            "meetings": [
+                {
+                    "class_pattern_index": pattern_index,
+                    "class_pattern_credits": pattern["credits"],
+                    **meeting,
+                }
+                for pattern_index, pattern in enumerate(
+                    payload["time_slot_config"]["classes"]
+                )
+                for meeting in pattern["meetings"]
+            ],
             "time_blocks": payload["time_slot_config"]["times"],
             "global_settings": {
                 "limit": payload["limit"],
@@ -243,8 +278,12 @@ class SchedulerAgentState:
         elif area in areas:
             result = areas[area]
         else:
-            return f"Unknown configuration area '{area}'."
-        return json.dumps(result, indent=2, default=str)
+            return self._result(False, f"Unknown configuration area '{area}'.")
+        return self._result(
+            True,
+            f"Inspected configuration area '{area}'.",
+            data=result,
+        )
 
     # Create a typed item or a weekday's time-block set.
     def create_configuration_item(
@@ -253,34 +292,57 @@ class SchedulerAgentState:
         area: str,
         item: dict[str, Any],
         item_key: str | None = None,
-    ) -> str:
+    ) -> dict[str, Any]:
         try:
-            if area in {"rooms", "labs", "courses", "faculty", "class_patterns"}:
+            if area in {
+                "rooms", "labs", "courses", "faculty", "class_patterns"
+            }:
                 collection = self._item_collection(area)
                 parsed = self._parse_item(area, item)
                 key = self._item_identity(area, parsed)
                 if area != "class_patterns" and any(
                     self._item_identity(area, current) == key for current in collection
                 ):
-                    return f"A {area.rstrip('s')} item with key '{key}' already exists."
+                    return self._result(
+                        False,
+                        f"A {area.rstrip('s')} item with key '{key}' already exists.",
+                    )
                 collection.append(parsed)
+            elif area == "meetings":
+                pattern = self._find_pattern(item_key)
+                parsed = Meeting.model_validate(item)
+                if any(existing.day == parsed.day for existing in pattern.meetings):
+                    return self._result(
+                        False,
+                        f"Pattern {item_key} already has a meeting on {parsed.day}.",
+                    )
+                pattern.meetings.append(parsed)
             elif area == "time_blocks":
                 if not item_key:
-                    return "A weekday item_key is required for time_blocks."
+                    return self._result(
+                        False, "A weekday item_key is required for time_blocks."
+                    )
                 day = item_key.upper()
+                if day not in {"MON", "TUE", "WED", "THU", "FRI"}:
+                    return self._result(False, f"Unknown weekday '{item_key}'.")
                 if day in self.config.time_slot_config.times:
-                    return f"Time blocks for {day} already exist."
+                    return self._result(False, f"Time blocks for {day} already exist.")
                 blocks = item.get("blocks")
                 if not isinstance(blocks, list):
-                    return "time_blocks item must include a 'blocks' list."
+                    return self._result(
+                        False, "time_blocks item must include a 'blocks' list."
+                    )
                 self.config.time_slot_config.times[day] = [
                     TimeBlock.model_validate(block) for block in blocks
                 ]
             else:
-                return f"Items cannot be created in configuration area '{area}'."
+                return self._result(
+                    False, f"Items cannot be created in configuration area '{area}'."
+                )
         except (ValidationError, TypeError, ValueError) as error:
-            return f"Could not create {area} item: {error}"
-        return f"Created {area} item '{item_key or key}'."
+            return self._result(False, f"Could not create {area} item: {error}")
+        created_key = item_key or (key if "key" in locals() else "")
+        return self._result(True, f"Created {area} item '{created_key}'.")
 
     # Merge changed fields into an existing configuration item.
     def update_configuration_item(
@@ -289,25 +351,55 @@ class SchedulerAgentState:
         area: str,
         item_key: str | None,
         item: dict[str, Any],
-    ) -> str:
+    ) -> dict[str, Any]:
         if not item_key:
-            return "An item_key is required to update a configuration item."
+            return self._result(
+                False, "An item_key is required to update a configuration item."
+            )
         try:
             if area == "time_blocks":
                 day = item_key.upper()
+                if day not in {"MON", "TUE", "WED", "THU", "FRI"}:
+                    return self._result(False, f"Unknown weekday '{item_key}'.")
                 if day not in self.config.time_slot_config.times:
-                    return f"No time blocks found for {day}."
+                    return self._result(False, f"No time blocks found for {day}.")
                 blocks = item.get("blocks")
                 if not isinstance(blocks, list):
-                    return "time_blocks item must include a 'blocks' list."
+                    return self._result(
+                        False, "time_blocks item must include a 'blocks' list."
+                    )
                 self.config.time_slot_config.times[day] = [
                     TimeBlock.model_validate(block) for block in blocks
                 ]
+            elif area == "meetings":
+                pattern_key, day = self._meeting_key(item_key)
+                pattern = self._find_pattern(pattern_key)
+                index = next(
+                    (i for i, meeting in enumerate(pattern.meetings) if meeting.day == day),
+                    None,
+                )
+                if index is None:
+                    return self._result(
+                        False, f"No meeting found for pattern {pattern_key} on {day}."
+                    )
+                values = pattern.meetings[index].model_dump(mode="json")
+                values.update(item)
+                updated_meeting = Meeting.model_validate(values)
+                if any(
+                    other_index != index and meeting.day == updated_meeting.day
+                    for other_index, meeting in enumerate(pattern.meetings)
+                ):
+                    return self._result(
+                        False,
+                        f"Pattern {pattern_key} already has a meeting on "
+                        f"{updated_meeting.day}.",
+                    )
+                pattern.meetings[index] = updated_meeting
             elif area in {"rooms", "labs", "courses", "faculty", "class_patterns"}:
                 collection = self._item_collection(area)
                 index = self._find_item_index(area, collection, item_key)
                 if isinstance(index, str):
-                    return index
+                    return self._result(False, index)
                 existing = collection[index]
                 values = existing.model_dump(mode="json")
                 values.update(item)
@@ -320,29 +412,79 @@ class SchedulerAgentState:
                         for position, current in enumerate(collection)
                     ):
                         collection[index] = existing
-                        return f"A {area.rstrip('s')} item with key '{new_key}' already exists."
+                        return self._result(
+                            False,
+                            f"A {area.rstrip('s')} item with key '{new_key}' already exists.",
+                        )
             else:
-                return f"Items cannot be updated in configuration area '{area}'."
+                return self._result(
+                    False, f"Items cannot be updated in configuration area '{area}'."
+                )
         except (ValidationError, TypeError, ValueError) as error:
-            return f"Could not update {area} item '{item_key}': {error}"
-        return f"Updated {area} item '{item_key}'."
+            return self._result(
+                False, f"Could not update {area} item '{item_key}': {error}"
+            )
+        return self._result(True, f"Updated {area} item '{item_key}'.")
 
     # Delete a keyed configuration item or a weekday's time blocks.
-    def delete_configuration_item(self, *, area: str, item_key: str) -> str:
+    def delete_configuration_item(self, *, area: str, item_key: str) -> dict[str, Any]:
         if area == "time_blocks":
             day = item_key.upper()
+            if day not in {"MON", "TUE", "WED", "THU", "FRI"}:
+                return self._result(False, f"Unknown weekday '{item_key}'.")
             if day not in self.config.time_slot_config.times:
-                return f"No time blocks found for {day}."
+                return self._result(False, f"No time blocks found for {day}.")
             del self.config.time_slot_config.times[day]
+        elif area == "meetings":
+            try:
+                pattern_key, day = self._meeting_key(item_key)
+                pattern = self._find_pattern(pattern_key)
+            except ValueError as error:
+                return self._result(False, str(error))
+            index = next(
+                (i for i, meeting in enumerate(pattern.meetings) if meeting.day == day),
+                None,
+            )
+            if index is None:
+                return self._result(
+                    False, f"No meeting found for pattern {pattern_key} on {day}."
+                )
+            if len(pattern.meetings) == 1:
+                return self._result(
+                    False,
+                    "Cannot delete the only meeting in a class pattern; "
+                    "delete the class pattern instead.",
+                )
+            del pattern.meetings[index]
         elif area in {"rooms", "labs", "courses", "faculty", "class_patterns"}:
             collection = self._item_collection(area)
             index = self._find_item_index(area, collection, item_key)
             if isinstance(index, str):
-                return index
+                return self._result(False, index)
             del collection[index]
         else:
-            return f"Items cannot be deleted from configuration area '{area}'."
-        return f"Deleted {area} item '{item_key}'."
+            return self._result(
+                False, f"Items cannot be deleted from configuration area '{area}'."
+            )
+        return self._result(True, f"Deleted {area} item '{item_key}'.")
+
+    def _find_pattern(self, pattern_key: str | None) -> ClassPattern:
+        if not pattern_key:
+            raise ValueError("A class-pattern index is required.")
+        try:
+            index = int(pattern_key)
+        except ValueError as error:
+            raise ValueError("Class-pattern key must be its zero-based index.") from error
+        if not 0 <= index < len(self.config.time_slot_config.classes):
+            raise ValueError(f"No class pattern found at index {index}.")
+        return self.config.time_slot_config.classes[index]
+
+    @staticmethod
+    def _meeting_key(item_key: str) -> tuple[str, str]:
+        if "::" not in item_key:
+            raise ValueError("Meeting item_key must be CLASS_PATTERN_INDEX::DAY.")
+        pattern_key, day = item_key.rsplit("::", 1)
+        return pattern_key, day.upper()
 
     # Apply provided global and time-slot settings.
     def update_configuration_settings(
@@ -352,7 +494,13 @@ class SchedulerAgentState:
         optimizer_flags: list[str] | None = None,
         max_time_gap: int | None = None,
         min_time_overlap: int | None = None,
-    ) -> str:
+    ) -> dict[str, Any]:
+        if limit is not None and limit <= 0:
+            return self._result(False, "limit must be a positive integer.")
+        if max_time_gap is not None and max_time_gap < 0:
+            return self._result(False, "max_time_gap cannot be negative.")
+        if min_time_overlap is not None and min_time_overlap < 0:
+            return self._result(False, "min_time_overlap cannot be negative.")
         changed: list[str] = []
         if limit is not None:
             object.__setattr__(self.config, "limit", limit)
@@ -371,52 +519,103 @@ class SchedulerAgentState:
             )
             changed.append("min_time_overlap")
         if not changed:
-            return "No settings were provided to update."
-        return f"Updated global settings: {', '.join(changed)}."
+            return self._result(False, "No settings were provided to update.")
+        return self._result(
+            True, f"Updated global settings: {', '.join(changed)}."
+        )
 
     # Format validation problems for the active configuration.
-    def validate_current_config(self) -> str:
+    def validate_current_config(self) -> dict[str, Any]:
         problems = validate_config(self.config)
         if not problems:
-            return "The current configuration is valid."
+            return self._result(True, "The current configuration is valid.")
         lines = [f"Validation issues ({len(problems)}):"]
         for problem in problems:
             item = problem.item or "overall configuration"
             lines.append(f"- {problem.area}: {item} -> {problem.message}")
-        return "\n".join(lines)
+        return self._result(
+            False,
+            "\n".join(lines),
+            errors=[
+                {"area": problem.area, "item": problem.item, "message": problem.message}
+                for problem in problems
+            ],
+        )
 
     # Validate and save the active configuration through the app callback.
-    def save_current_config(self, config_name: str) -> str:
+    def save_current_config(self, config_name: str) -> dict[str, Any]:
         problems = validate_config(self.config)
         if problems:
-            return self.validate_current_config()
+            return self._result(
+                False,
+                "Configuration was not saved because validation failed.",
+                errors=[
+                    {"area": problem.area, "item": problem.item, "message": problem.message}
+                    for problem in problems
+                ],
+            )
         try:
+            if self._configuration_exists(config_name):
+                if self._confirm_action is None or not self._confirm_action(
+                    f"Replace the saved configuration '{config_name}.json'?"
+                ):
+                    return self._result(
+                        False, "Save cancelled; the existing file was not changed."
+                    )
             if self._save_configuration is not None:
                 self._save_configuration(config_name)
             else:
                 ConfigService().save(self.config, config_name)
-        except (OSError, ValueError) as error:
-            return f"Could not save configuration '{config_name}': {error}"
-        return f"Configuration saved as '{config_name}.json'."
+        except (ConfigValidationError, OSError, ValueError) as error:
+            if isinstance(error, ConfigValidationError):
+                return self._result(
+                    False,
+                    "Configuration was not saved because validation failed.",
+                    errors=[
+                        {
+                            "area": problem.area,
+                            "item": problem.item,
+                            "message": problem.message,
+                        }
+                        for problem in error.problems
+                    ],
+                )
+            return self._result(
+                False, f"Could not save configuration '{config_name}': {error}"
+            )
+        return self._result(
+            True,
+            f"Configuration saved as '{config_name}.json'.",
+            action="saved",
+        )
 
     # Generate from the active config and direct results to the viewer.
-    def generate_schedules(self) -> str:
+    def generate_schedules(self) -> dict[str, Any]:
         problems = validate_config(self.config)
         if problems:
-            return "Cannot generate schedules until the configuration is valid.\n" + (
-                self.validate_current_config()
+            return self._result(
+                False,
+                "Cannot generate schedules until the configuration is valid.",
+                errors=[
+                    {"area": problem.area, "item": problem.item, "message": problem.message}
+                    for problem in problems
+                ],
             )
         state, error = self._schedule_generator.generate_active_configuration(
             self.config
         )
         if error:
-            return f"Schedule generation failed: {error}"
+            return self._result(False, f"Schedule generation failed: {error}")
 
         if state is None or state.generated == 0:
-            return "No valid schedules could be generated."
-        return (
+            return self._result(False, "No valid schedules could be generated.")
+        return self._result(
+            True,
             f"Schedule generation complete. Generated {state.generated} schedule(s), "
-            f"{state.valid} valid. View generated schedules in the Schedule Viewer tab."
+            f"{state.valid} valid. View generated schedules in the Schedule Viewer tab.",
+            action="generated",
+            generated=state.generated,
+            valid=state.valid,
         )
 
     # Resolve a supported area to its mutable configuration collection.
@@ -493,7 +692,7 @@ class SchedulerAgentState:
 
 class AddRoomArgs(BaseModel):
     name: str = Field(description="Room name, such as 'Room 101'")
-    capacity: int = Field(default=0, description="Room seating capacity")
+    capacity: int = Field(default=1, description="Room seating capacity")
     features: list[str] | None = Field(
         default=None,
         description="Optional room features, such as whiteboard or projector",
@@ -502,7 +701,7 @@ class AddRoomArgs(BaseModel):
 
 class AddLabArgs(BaseModel):
     name: str = Field(description="Lab name, such as 'Lab 1'")
-    capacity: int = Field(default=0, description="Lab capacity")
+    capacity: int = Field(default=1, description="Lab capacity")
     features: list[str] | None = Field(
         default=None, description="Optional lab features"
     )
@@ -522,7 +721,7 @@ class AddCourseArgs(BaseModel):
     course_id: str = Field(description="Course ID, such as 'CS 101'")
     section_id: str | None = Field(default=None, description="Optional section ID")
     credits: int = Field(default=3, description="Course credit count")
-    capacity: int = Field(default=0, description="Seat capacity")
+    capacity: int = Field(default=1, description="Seat capacity")
     room: list[str] | None = Field(
         default=None, description="List of room names the course can use"
     )
@@ -555,6 +754,7 @@ class InspectConfigurationArgs(BaseModel):
         "courses",
         "faculty",
         "class_patterns",
+        "meetings",
         "time_blocks",
         "global_settings",
     ] = Field(default="all", description="Configuration area to inspect")
@@ -562,13 +762,15 @@ class InspectConfigurationArgs(BaseModel):
 
 class ConfigurationItemArgs(BaseModel):
     area: Literal[
-        "rooms", "labs", "courses", "faculty", "class_patterns", "time_blocks"
+        "rooms", "labs", "courses", "faculty", "class_patterns", "meetings",
+        "time_blocks"
     ] = Field(description="Configuration area containing the item")
     item_key: str | None = Field(
         default=None,
         description=(
             "Existing item key for update/delete; weekday for time_blocks; "
-            "course keys can use COURSE_ID::SECTION_ID"
+            "course keys can use COURSE_ID::SECTION_ID; meetings use "
+            "CLASS_PATTERN_INDEX::DAY; create meetings with the class-pattern index"
         ),
     )
     item: dict[str, Any] = Field(
@@ -578,18 +780,22 @@ class ConfigurationItemArgs(BaseModel):
 
 class DeleteConfigurationItemArgs(BaseModel):
     area: Literal[
-        "rooms", "labs", "courses", "faculty", "class_patterns", "time_blocks"
+        "rooms", "labs", "courses", "faculty", "class_patterns", "meetings",
+        "time_blocks"
     ] = Field(description="Configuration area containing the item")
     item_key: str = Field(
         description=(
             "Item name, course ID or COURSE_ID::SECTION_ID, zero-based pattern "
             "index, or weekday for time_blocks"
+            "; meetings use CLASS_PATTERN_INDEX::DAY"
         )
     )
 
 
 class ConfigurationSettingsArgs(BaseModel):
-    limit: int | None = Field(default=None, description="Maximum schedules to generate")
+    limit: int | None = Field(
+        default=None, description="Positive maximum schedules to generate"
+    )
     optimizer_flags: list[str] | None = Field(
         default=None, description="Scheduler optimization flags"
     )
@@ -608,20 +814,38 @@ class SaveConfigurationArgs(BaseModel):
 # Register assistant tools with configuration and change-validation guards.
 def get_tool_list(
     state: SchedulerAgentState,
-    apply_change: Callable[[Callable[[], str]], tuple[bool, list[Any]]] | None = None,
+    apply_change: Callable[[Callable[[], Any]], tuple[bool, list[Any]]] | None = None,
     save_configuration: Callable[[str], None] | None = None,
+    on_tool_result: Callable[[dict[str, Any]], None] | None = None,
 ) -> list[StructuredTool]:
     if save_configuration is not None:
         state._save_configuration = save_configuration
 
     # Apply edits through the configuration controller when available.
-    def mutation_tool(operation: Callable[..., str]) -> Callable[..., str]:
-        def guarded_operation(**arguments: Any) -> str:
+    def report(result: dict[str, Any]) -> dict[str, Any]:
+        if on_tool_result is not None:
+            on_tool_result(result)
+        return result
+
+    def mutation_tool(
+        operation: Callable[..., dict[str, Any]],
+        *,
+        needs_confirmation: bool = False,
+    ) -> Callable[..., dict[str, Any]]:
+        def guarded_operation(**arguments: Any) -> dict[str, Any]:
             if not state.has_active_configuration:
-                return state.configuration_required_message()
+                return report(state._result(False, state.configuration_required_message()))
+            if needs_confirmation:
+                key = arguments["item_key"]
+                if state._confirm_action is None or not state._confirm_action(
+                    f"Delete {arguments['area']} item '{key}'?"
+                ):
+                    return report(
+                        state._result(False, "Deletion cancelled; no item was changed.")
+                    )
             if apply_change is None:
-                return operation(**arguments)
-            result: list[str] = []
+                return report(operation(**arguments))
+            result: list[dict[str, Any]] = []
             accepted, problems = apply_change(
                 lambda: result.append(operation(**arguments))
             )
@@ -630,29 +854,71 @@ def get_tool_list(
                     f"- {problem.area}: {problem.item or 'overall'}: {problem.message}"
                     for problem in problems
                 )
-                return f"Change rejected by scheduler validation:\n{details}"
-            message = result[0]
+                return report(
+                    state._result(
+                        False,
+                        f"Change rejected by scheduler validation:\n{details}",
+                        errors=[
+                            {
+                                "area": problem.area,
+                                "item": problem.item,
+                                "message": problem.message,
+                            }
+                            for problem in problems
+                        ],
+                    )
+                )
+            outcome = result[0]
+            if not outcome["success"]:
+                return report(outcome)
             if problems:
                 details = "\n".join(
                     f"- {problem.area}: {problem.item or 'overall'}: "
                     f"{problem.message}"
                     for problem in problems
                 )
-                message += f"\nThe draft still has validation issues:\n{details}"
-            return message
+                outcome = {
+                    **outcome,
+                    "message": outcome["message"]
+                    + f"\nThe draft still has validation issues:\n{details}",
+                    "warnings": [
+                        {
+                            "area": problem.area,
+                            "item": problem.item,
+                            "message": problem.message,
+                        }
+                        for problem in problems
+                    ],
+                }
+            return report(outcome)
 
         return guarded_operation
 
     # Block configuration operations when no active config is attached.
-    def configuration_tool(operation: Callable[..., str]) -> Callable[..., str]:
-        def guarded_operation(**arguments: Any) -> str:
+    def configuration_tool(
+        operation: Callable[..., dict[str, Any]]
+    ) -> Callable[..., dict[str, Any]]:
+        def guarded_operation(**arguments: Any) -> dict[str, Any]:
             if not state.has_active_configuration:
-                return state.configuration_required_message()
-            return operation(**arguments)
+                return report(
+                    state._result(False, state.configuration_required_message())
+                )
+            outcome = operation(**arguments)
+            if outcome.get("action") == "saved" and on_tool_result is not None:
+                on_tool_result(outcome)
+            else:
+                report(outcome)
+            return outcome
 
         return guarded_operation
 
-    return [
+    def validation_error(error: list[Any]) -> str:
+        result = report(
+            state._result(False, f"Invalid tool arguments: {error}")
+        )
+        return json.dumps(result, default=str)
+
+    tools = [
         StructuredTool.from_function(
             name="add_room",
             func=mutation_tool(state.add_room),
@@ -722,7 +988,7 @@ def get_tool_list(
         StructuredTool.from_function(
             name="create_configuration_item",
             func=mutation_tool(state.create_configuration_item),
-            description="Create a room, lab, course, faculty member, class pattern, or weekday time-block set.",
+            description="Create a room, lab, course, faculty member, class pattern, meeting, or weekday time-block set.",
             args_schema=ConfigurationItemArgs,
         ),
         StructuredTool.from_function(
@@ -733,7 +999,7 @@ def get_tool_list(
         ),
         StructuredTool.from_function(
             name="delete_configuration_item",
-            func=mutation_tool(state.delete_configuration_item),
+            func=mutation_tool(state.delete_configuration_item, needs_confirmation=True),
             description="Delete an item from a supported configuration area.",
             args_schema=DeleteConfigurationItemArgs,
         ),
@@ -762,6 +1028,10 @@ def get_tool_list(
             args_schema={},
         ),
     ]
+    return [
+        tool.model_copy(update={"handle_validation_error": validation_error})
+        for tool in tools
+    ]
 
 
 # Build the scheduler agent, model, tools, and behavior instructions.
@@ -769,10 +1039,17 @@ def build_scheduler_agent(
     *,
     config: CombinedConfig | None = None,
     model: Any | None = None,
-    apply_change: Callable[[Callable[[], str]], tuple[bool, list[Any]]] | None = None,
+    apply_change: Callable[[Callable[[], Any]], tuple[bool, list[Any]]] | None = None,
     save_configuration: Callable[[str], None] | None = None,
+    confirm_action: Callable[[str], bool] | None = None,
+    on_tool_result: Callable[[dict[str, Any]], None] | None = None,
+    configuration_exists: Callable[[str], bool] | None = None,
 ) -> Any:
-    state = SchedulerAgentState(config=config)
+    state = SchedulerAgentState(
+        config=config,
+        confirm_action=confirm_action,
+        configuration_exists=configuration_exists,
+    )
     if model is None:
         api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key:
@@ -805,6 +1082,7 @@ def build_scheduler_agent(
             state,
             apply_change=apply_change,
             save_configuration=save_configuration,
+            on_tool_result=on_tool_result,
         ),
         system_prompt=(
             "You are the assistant for the MrLand course scheduler. Use the "
@@ -816,6 +1094,11 @@ def build_scheduler_agent(
             "report validation problems. Save only when the user explicitly asks "
             "you to save, and only claim success if the save tool succeeds. "
             "Generate schedules only from a valid active configuration. "
+            "Ask for explicit user confirmation before deleting an item or "
+            "replacing a saved configuration; the application will show a "
+            "confirmation dialog and cancel the operation if it is declined. "
+            "Treat each user request as one transaction: if any requested "
+            "operation fails, do not claim partial success. "
             "When schedules are generated, do not reproduce schedule rows; "
             "report the count and direct the user to the Schedule Viewer tab. "
             + configuration_context
@@ -829,13 +1112,19 @@ def invoke_scheduler_agent(
     config: CombinedConfig,
     query: str,
     history: list[Any] | None = None,
-    apply_change: Callable[[Callable[[], str]], tuple[bool, list[Any]]] | None = None,
+    apply_change: Callable[[Callable[[], Any]], tuple[bool, list[Any]]] | None = None,
     save_configuration: Callable[[str], None] | None = None,
+    confirm_action: Callable[[str], bool] | None = None,
+    on_tool_result: Callable[[dict[str, Any]], None] | None = None,
+    configuration_exists: Callable[[str], bool] | None = None,
 ) -> dict[str, Any]:
     agent = build_scheduler_agent(
         config=config,
         apply_change=apply_change,
         save_configuration=save_configuration,
+        confirm_action=confirm_action,
+        on_tool_result=on_tool_result,
+        configuration_exists=configuration_exists,
     )
     result = agent.invoke({"messages": [*(history or []), HumanMessage(content=query)]})
     return result

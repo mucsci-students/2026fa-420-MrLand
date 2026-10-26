@@ -29,6 +29,22 @@ from src.views.time_blocks_gui import time_blocks_gui
 controller = ConfigurationController()
 PANEL_COMBINATION = ("Rooms", "Time blocks", "Faculty", "Faculty")
 
+
+class ConfigurationEditorRefresh:
+    """Refresh the editor while exposing whether its current draft is saved."""
+
+    def __init__(
+        self,
+        refresh: Callable[..., None],
+        is_saved: Callable[[], bool],
+    ) -> None:
+        self._refresh = refresh
+        self.is_saved = is_saved
+
+    def __call__(self, *, saved: bool = False) -> None:
+        self._refresh(saved=saved)
+
+
 # Return the uploaded file name and contents.
 async def read_upload(event) -> tuple[str, bytes]:
     if hasattr(event, "file"):  # NiceGUI 3.x
@@ -36,7 +52,9 @@ async def read_upload(event) -> tuple[str, bytes]:
     return event.name, event.content.read()  # NiceGUI 2.x
 
 
-def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
+def configuration_editor(
+    on_unlock: Callable[[], None],
+) -> ConfigurationEditorRefresh:
     """Build the editor workspace and coordinate configuration lifecycle actions."""
     # Keep the selected draft and save state shared by the editor callbacks.
     state = {
@@ -694,9 +712,11 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
             return
         show_problems("Validate configuration", problems)
 
-    def refresh_after_ai_change() -> None:
+    def refresh_after_ai_change(*, saved: bool = False) -> None:
         state["config"] = controller.configuration
-        set_saved_status(False)
+        set_saved_status(saved)
         editor_body.refresh()
 
-    return refresh_after_ai_change
+    return ConfigurationEditorRefresh(
+        refresh_after_ai_change, lambda: bool(state["saved"])
+    )

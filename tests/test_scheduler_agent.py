@@ -25,9 +25,10 @@ def test_scheduler_tools_edit_the_active_configuration_through_controller():
         {"name": "Room 101", "capacity": 30, "features": ["projector"]}
     )
 
-    assert result.startswith("Room Room 101 added successfully.")
+    assert result["success"]
+    assert result["message"].startswith("Room Room 101 added successfully.")
     assert config.config.rooms[0].name == "Room 101"
-    assert "Room 101" in tools["get_rooms"].invoke({})
+    assert tools["get_rooms"].invoke({})["items"][0]["name"] == "Room 101"
 
 
 def test_add_tools_preserve_case_sensitive_duplicate_checks():
@@ -60,8 +61,9 @@ def test_scheduler_tool_reports_controller_rejection_without_mutating():
 
     result = add_room.invoke({"name": "Room 101"})
 
-    assert "Change rejected by scheduler validation" in result
-    assert "Rejected for test" in result
+    assert result["success"] is False
+    assert "Change rejected by scheduler validation" in result["message"]
+    assert "Rejected for test" in result["message"]
     assert config.config.rooms == []
 
 
@@ -96,9 +98,9 @@ def test_configuration_tools_require_an_active_config_without_one():
     }
 
     for name, arguments in calls.items():
-        assert required in tools[name].invoke(arguments), name
+        assert required in tools[name].invoke(arguments)["message"], name
 
-    assert required in tools["get_active_configuration_status"].invoke({})
+    assert required in tools["get_active_configuration_status"].invoke({})["message"]
 
 
 def test_scheduler_tools_inspect_and_manage_all_configuration_areas():
@@ -111,8 +113,9 @@ def test_scheduler_tools_inspect_and_manage_all_configuration_areas():
             "item": {"name": "Room 101", "capacity": 30, "features": ["projector"]},
         }
     )
-    assert "Created rooms item" in created
-    assert json.loads(tools["inspect_configuration"].invoke({"area": "rooms"})) == [
+    assert created["success"]
+    assert "Created rooms item" in created["message"]
+    assert tools["inspect_configuration"].invoke({"area": "rooms"})["data"] == [
         {"name": "Room 101", "capacity": 30, "features": ["projector"], "times": None}
     ]
 
@@ -123,13 +126,24 @@ def test_scheduler_tools_inspect_and_manage_all_configuration_areas():
             "item": {"capacity": 40},
         }
     )
-    assert "Updated rooms item" in updated
+    assert updated["success"]
+    assert "Updated rooms item" in updated["message"]
     assert config.config.rooms[0].capacity == 40
 
     deleted = tools["delete_configuration_item"].invoke(
         {"area": "rooms", "item_key": "Room 101"}
     )
-    assert "Deleted rooms item" in deleted
+    assert deleted["success"] is False
+    assert "confirmation" in deleted["message"].lower() or "cancelled" in deleted["message"].lower()
+    assert len(config.config.rooms) == 1
+    tools = _tools(
+        SchedulerAgentState(config, confirm_action=lambda _question: True)
+    )
+    deleted = tools["delete_configuration_item"].invoke(
+        {"area": "rooms", "item_key": "Room 101"}
+    )
+    assert deleted["success"]
+    assert "Deleted rooms item" in deleted["message"]
     assert config.config.rooms == []
 
 
@@ -144,7 +158,8 @@ def test_scheduler_tools_update_settings_and_time_blocks():
             "item": {"blocks": [{"start": "09:00", "spacing": 30, "end": "12:00"}]},
         }
     )
-    assert "Created time_blocks item" in result
+    assert result["success"]
+    assert "Created time_blocks item" in result["message"]
     assert config.time_slot_config.times["MON"][0].start == "09:00"
 
     tools["update_configuration_settings"].invoke(
@@ -154,6 +169,103 @@ def test_scheduler_tools_update_settings_and_time_blocks():
     assert config.time_slot_config.max_time_gap == 20
 
 
+def test_meeting_tools_create_update_inspect_and_confirm_delete():
+    config = ConfigurationController().new_configuration()
+    tools = _tools(SchedulerAgentState(config, confirm_action=lambda _question: True))
+
+    pattern = tools["create_configuration_item"].invoke(
+        {
+            "area": "class_patterns",
+            "item": {
+                "credits": 3,
+                "meetings": [{"day": "MON", "duration": 50}],
+            },
+        }
+    )
+    assert pattern["success"]
+
+    created = tools["create_configuration_item"].invoke(
+        {
+            "area": "meetings",
+            "item_key": "0",
+            "item": {"day": "WED", "duration": 50, "delivery": "online"},
+        }
+    )
+    assert created["success"]
+
+    updated = tools["update_configuration_item"].invoke(
+        {
+            "area": "meetings",
+            "item_key": "0::WED",
+            "item": {"duration": 75},
+        }
+    )
+    assert updated["success"]
+    assert config.time_slot_config.classes[0].meetings[1].duration == 75
+
+    inspected = tools["inspect_configuration"].invoke({"area": "meetings"})
+    assert inspected["success"]
+    assert inspected["data"][1]["class_pattern_index"] == 0
+    assert inspected["data"][1]["duration"] == 75
+
+    deleted = tools["delete_configuration_item"].invoke(
+        {"area": "meetings", "item_key": "0::WED"}
+    )
+    assert deleted["success"]
+    assert len(config.time_slot_config.classes[0].meetings) == 1
+
+
+def test_overwriting_saved_configuration_requires_confirmation(monkeypatch):
+    import src.ai.scheduler_agent as scheduler_agent
+
+    config = ConfigurationController().new_configuration()
+    saved_names = []
+    monkeypatch.setattr(scheduler_agent, "validate_config", lambda _config: [])
+    tools = _tools(
+        SchedulerAgentState(
+            config,
+            save_configuration=saved_names.append,
+            configuration_exists=lambda _name: True,
+            confirm_action=lambda _question: False,
+        )
+    )
+
+    result = tools["save_configuration"].invoke({"config_name": "Fall 2026"})
+
+    assert result["success"] is False
+    assert "cancelled" in result["message"].lower()
+    assert saved_names == []
+
+
+def test_global_settings_validate_before_mutating_any_setting():
+    config = ConfigurationController().new_configuration()
+    tools = _tools(SchedulerAgentState(config))
+
+    result = tools["update_configuration_settings"].invoke(
+        {"limit": 5, "max_time_gap": -1}
+    )
+
+    assert result["success"] is False
+    assert config.limit == 10
+    assert config.time_slot_config.max_time_gap == 30
+
+
+def test_invalid_tool_arguments_return_structured_failure():
+    config = ConfigurationController().new_configuration()
+    reported = []
+    tools = _tools(
+        SchedulerAgentState(config),
+        on_tool_result=reported.append,
+    )
+
+    result = tools["update_configuration_settings"].invoke({"limit": "not-a-number"})
+
+    parsed = json.loads(result)
+    assert parsed["success"] is False
+    assert "Invalid tool arguments" in parsed["message"]
+    assert reported[0]["success"] is False
+
+
 def test_save_tool_uses_the_application_save_callback(monkeypatch):
     import src.ai.scheduler_agent as scheduler_agent
 
@@ -161,13 +273,14 @@ def test_save_tool_uses_the_application_save_callback(monkeypatch):
     saved_names = []
     monkeypatch.setattr(scheduler_agent, "validate_config", lambda _config: [])
     tools = _tools(
-        SchedulerAgentState(config),
+        SchedulerAgentState(config, configuration_exists=lambda _name: False),
         save_configuration=saved_names.append,
     )
 
     result = tools["save_configuration"].invoke({"config_name": "Fall 2026"})
 
-    assert result == "Configuration saved as 'Fall 2026.json'."
+    assert result["success"]
+    assert result["message"] == "Configuration saved as 'Fall 2026.json'."
     assert saved_names == ["Fall 2026"]
 
 
@@ -208,8 +321,9 @@ def test_generate_schedules_uses_the_active_configuration(monkeypatch):
     result = state.generate_schedules()
     viewer = ScheduleController(generator=generator)
 
-    assert "Generated 1 schedule(s), 1 valid." in result
-    assert "Schedule Viewer tab" in result
-    assert "CS 101.01" not in result
+    assert result["success"]
+    assert "Generated 1 schedule(s), 1 valid." in result["message"]
+    assert "Schedule Viewer tab" in result["message"]
+    assert "CS 101.01" not in result["message"]
     assert viewer.sync_generated()
     assert viewer.current.records[0]["course"] == "CS 101.01"

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from concurrent.futures import Future, TimeoutError
 import os
 from collections.abc import Callable
 from typing import Any
@@ -15,6 +16,7 @@ from src.controllers.configuration_controller import ConfigurationController
 from src.controllers.schedule_generator_controller import (
     schedule_generator_controller,
 )
+from src.models.configuration_model import ConfigValidationError
 from src.views.schedule_generation_progress import ScheduleGenerationProgress
 
 
@@ -54,7 +56,8 @@ def give_duck(on_click: Callable[[], None]) -> Any:
 
 def scheduler_ai_assistant(
     controller: ConfigurationController,
-    refresh_configuration: Callable[[], None],
+    refresh_configuration: Callable[..., None],
+    configuration_is_saved: Callable[[], bool],
 ) -> Callable[[], None]:
     state: dict[str, Any] = {
         "config": None,
@@ -138,13 +141,59 @@ def scheduler_ai_assistant(
         progress_monitor = asyncio.create_task(monitor_schedule_generation())
 
         apply_ai_change = None
+        request_memento = (
+            controller.create_memento() if config is not None else None
+        )
+        tool_results: list[dict[str, Any]] = []
+        saved_during_request = False
+        pending_save_names: list[str] = []
         if config is not None:
             def apply_ai_change(mutation):
-                before = config.model_dump(mode="json")
-                accepted, problems = controller.apply_change(mutation)
-                if accepted and config.model_dump(mode="json") != before:
+                changed = []
+
+                def tracked_mutation():
+                    before = config.model_dump(mode="json")
+                    result = mutation()
+                    changed.append(config.model_dump(mode="json") != before)
+                    return result
+
+                accepted, problems = controller.apply_change(tracked_mutation)
+                if accepted and changed and changed[0]:
                     accepted_mutations.append(True)
                 return accepted, problems
+
+        loop = asyncio.get_running_loop()
+
+        def confirm_ai_action(question: str) -> bool:
+            answer: Future[bool] = Future()
+
+            async def show_confirmation() -> None:
+                confirmation_state["future"] = answer
+                confirmation_prompt.set_text(question)
+                confirmation_dialog.open()
+
+            asyncio.run_coroutine_threadsafe(
+                show_confirmation(), loop
+            ).result(timeout=10)
+            try:
+                return answer.result(timeout=120)
+            except TimeoutError:
+                async def close_confirmation() -> None:
+                    confirmation_dialog.close()
+                    confirmation_state["future"] = None
+
+                asyncio.run_coroutine_threadsafe(
+                    close_confirmation(), loop
+                ).result(timeout=10)
+                return False
+
+        def record_tool_result(result: dict[str, Any]) -> None:
+            tool_results.append(result)
+
+        def save_ai_configuration(config_name: str) -> None:
+            if pending_save_names and pending_save_names[-1] != config_name:
+                raise ValueError("A request can save to only one configuration name.")
+            pending_save_names.append(config_name)
 
         try:
             result = await asyncio.to_thread(
@@ -153,25 +202,76 @@ def scheduler_ai_assistant(
                 query=query,
                 history=state["history"],
                 apply_change=apply_ai_change,
-                save_configuration=(
-                    controller.save_configuration if config is not None else None
-                ),
+                save_configuration=save_ai_configuration if config is not None else None,
+                confirm_action=confirm_ai_action,
+                on_tool_result=record_tool_result,
+                configuration_exists=controller.config_service.exists,
             )
+            failed_actions = [
+                outcome for outcome in tool_results if not outcome.get("success", False)
+            ]
+            save_error = None
+            if not failed_actions and pending_save_names:
+                try:
+                    controller.save_configuration(pending_save_names[-1])
+                    saved_during_request = True
+                except (ConfigValidationError, OSError, ValueError) as exc:
+                    save_error = exc
+                    failed_actions.append(
+                        {
+                            "message": f"Configuration was not saved: {exc}",
+                            "success": False,
+                        }
+                    )
+            if failed_actions and request_memento is not None:
+                controller.restore_memento(request_memento)
+                refresh_configuration(saved=configuration_is_saved())
+                accepted_mutations.clear()
+                failed_messages = "\n".join(
+                    f"- {outcome['message']}" for outcome in failed_actions
+                )
+                response = (
+                    "The request could not be completed:\n"
+                    f"{failed_messages}\n"
+                    "No changes from this request were kept; the configuration "
+                    "was restored to its state before the request."
+                )
+                if save_error is not None:
+                    response += "\nThe existing saved file was not changed."
+            else:
+                response = next(
+                    (
+                        message.text
+                        for message in reversed(result["messages"])
+                        if getattr(message, "type", None) == "ai"
+                        and getattr(message, "text", None)
+                    ),
+                    "The assistant did not return a text response.",
+                )
+                if accepted_mutations:
+                    if saved_during_request:
+                        response += "\nConfiguration changes are applied and saved to disk."
+                    else:
+                        response += (
+                            "\nConfiguration changes are applied in the Configuration "
+                            "Editor but are not saved to disk."
+                        )
+                    refresh_configuration(saved=saved_during_request)
+                elif saved_during_request:
+                    response += "\nThe configuration was saved to disk."
+                    refresh_configuration(saved=True)
             state["history"] = result["messages"]
-            response = next(
-                (
-                    message.text
-                    for message in reversed(result["messages"])
-                    if getattr(message, "type", None) == "ai"
-                    and getattr(message, "text", None)
-                ),
-                "The assistant did not return a text response.",
-            )
             state["messages"][-1] = ("assistant", response)
-            if accepted_mutations:
-                refresh_configuration()
         except Exception as exc:
+            if request_memento is not None:
+                controller.restore_memento(request_memento)
+                refresh_configuration(saved=configuration_is_saved())
             message = friendly_error_message(exc)
+            if accepted_mutations:
+                message += (
+                    "\nNo changes from this request were kept; the configuration "
+                    "was restored to its state before the request."
+                )
             state["messages"][-1] = ("assistant", message)
             ui.notify(message, type="negative")
         finally:
@@ -240,6 +340,30 @@ def scheduler_ai_assistant(
                 .props("unelevated round")
                 .classes("bg-[#75e6da] text-[#101820]")
             )
+
+        confirmation_state: dict[str, Future[bool] | None] = {"future": None}
+        with ui.dialog() as confirmation_dialog, ui.card().classes(
+            "w-[min(28rem,calc(100vw-2rem))] border border-[#29404b] bg-[#182630]"
+        ):
+            confirmation_prompt = ui.label().classes(
+                "whitespace-pre-wrap text-[#d8e7e8]"
+            )
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button(
+                    "Cancel",
+                    on_click=lambda: resolve_confirmation(False),
+                ).props("flat")
+                ui.button(
+                    "Confirm",
+                    on_click=lambda: resolve_confirmation(True),
+                ).props("unelevated color=negative")
+
+    def resolve_confirmation(approved: bool) -> None:
+        pending = confirmation_state["future"]
+        if pending is not None and not pending.done():
+            pending.set_result(approved)
+        confirmation_state["future"] = None
+        confirmation_dialog.close()
 
     assistant_panel.set_visibility(False)
     assistant_launcher, assistant_hat = _create_duck_launcher(
