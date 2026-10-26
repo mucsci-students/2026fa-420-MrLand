@@ -37,8 +37,10 @@ This project is a schedule-planning application for creating and managing course
   - Review schedule details and exported results
 - **Scheduler AI Assistant**
   - Use the floating chat box from any GUI screen to inspect or edit the active configuration in natural language
-  - AI edits pass through the same configuration validation as manual edits and remain unsaved until saved in the editor
-    - Requires `OPENAI_API_KEY` in a `.env` file (see AI assistant setup below); model requests may incur API charges
+  - Inspect and manage rooms, labs, courses, faculty, class patterns, meetings, time blocks, and global settings; validate and generate schedules with defined scheduler tools
+  - A failed multi-operation request is rolled back; delete and overwrite actions require confirmation
+  - The chat reports whether edits are applied to the editor or saved to disk; generated results appear in the Schedule Viewer
+  - Requires `OPENAI_API_KEY` in a `.env` file (see AI assistant setup below); model requests may incur API charges
 
 - **Domain Management**
   - Add, modify, view, and delete faculty, courses, rooms, labs, class patterns, and time blocks

@@ -30,23 +30,47 @@ controller = ConfigurationController()
 PANEL_COMBINATION = ("Rooms", "Time blocks", "Faculty", "Faculty")
 
 
-def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
+class ConfigurationEditorRefresh:
+    """Refresh the editor while exposing whether its current draft is saved."""
+
+    def __init__(
+        self,
+        refresh: Callable[..., None],
+        is_saved: Callable[[], bool],
+    ) -> None:
+        self._refresh = refresh
+        self.is_saved = is_saved
+
+    def __call__(self, *, saved: bool = False) -> None:
+        self._refresh(saved=saved)
+
+
+# Return the uploaded file name and contents.
+async def read_upload(event) -> tuple[str, bytes]:
+    if hasattr(event, "file"):  # NiceGUI 3.x
+        return event.file.name, await event.file.read()
+    return event.name, event.content.read()  # NiceGUI 2.x
+
+
+def configuration_editor(
+    on_unlock: Callable[[], None],
+) -> ConfigurationEditorRefresh:
     """Build the editor workspace and coordinate configuration lifecycle actions."""
     # Keep the selected draft and save state shared by the editor callbacks.
     state = {
         "config": None,
         "name": None,
         "saved": False,
+        "pending_load": None,
         "status_badge": None,
         "undo_button": None,
         "redo_button": None,
-    }
-    undo_history: list[ConfigurationMemento] = []
-    redo_history: list[ConfigurationMemento] = []
         "combination_progress": 0,
         "combination_unlocked": False,
     }
-
+    undo_history: list[ConfigurationMemento] = []
+    redo_history: list[ConfigurationMemento] = []
+    
     # Update the saved indicator after a draft change or successful save.
     def set_saved_status(saved: bool) -> None:
         state["saved"] = saved
@@ -289,7 +313,13 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
                 state["combination_unlocked"] = True
                 on_unlock()
 
-    # Persist the active draft and report validation or storage errors.
+    # Download the active draft and report validation or browser errors.
+    def download_configuration(file_name: str) -> str:
+        content, file_name, media_type = controller.export_configuration(file_name)
+        ui.download(content, filename=file_name, media_type=media_type)
+        set_saved_status(True)
+        return file_name
+
     def save_current_config() -> None:
         if state["config"] is None:
             ui.notify("No configuration is open to save.", type="negative")
@@ -305,7 +335,7 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
             save_status.set_text("Enter a file name without a folder path.")
             return
         try:
-            content, file_name, media_type = controller.export_configuration(file_name)
+            file_name = download_configuration(file_name)
         except ConfigValidationError as exc:
             show_problems("Can't save yet", exc.problems)
             return
@@ -316,8 +346,6 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
             ui.notify(f"Unable to save configuration: {exc}", type="negative")
             return
 
-        ui.download(content, filename=file_name, media_type=media_type)
-        set_saved_status(True)
         save_dialog.close()
         ui.notify(
             f"Downloading '{file_name}'. Choose the save location in your browser.",
@@ -331,6 +359,7 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
             "Edit the Schedule Configuration File",
         )
 
+        # dialog for saving a config
         with ui.dialog() as save_dialog:
             with ui.card().classes(
                 "border border-[#29404b] bg-[#182630] w-[480px] gap-3"
@@ -350,6 +379,64 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
                         icon="download",
                         on_click=save_current_config,
                     ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
+        
+        # Upload a configuration file from the user's computer.
+        async def handle_config_upload(event) -> None:
+            try:
+                file_name, content = await read_upload(event)
+
+                if not file_name.lower().endswith(".json"):
+                    ui.notify("Please select a .json file.", type="negative")
+                    return
+
+                loaded_config = controller.load_uploaded_configuration(content)
+
+                state["config"] = loaded_config
+                state["name"] = file_name[:-5]
+                clear_history()
+                set_saved_status(False)
+                editor_body.refresh()
+
+                load_dialog.close()
+                ui.notify(f"Loaded '{file_name}'.", type="positive")
+
+            except ConfigValidationError as exc:
+                show_problems("Invalid configuration file", exc.problems)
+            except (ValueError, ConfigLoadError) as exc:
+                ui.notify(f"Unable to load configuration: {exc}", type="negative")
+            except Exception as exc:
+                ui.notify(f"Unable to load configuration: {exc}", type="negative")
+            finally:
+                config_upload.reset()
+
+        # Dialog for uploading a configuration from the user's computer.
+        with ui.dialog() as load_dialog:
+            with ui.card().classes(
+                "w-[480px] max-w-full border border-[#29404b] bg-[#182630] gap-4"
+            ):
+                ui.label("Load Configuration").classes(
+                    "text-lg font-semibold text-white"
+                )
+                ui.label(
+                    "Select a JSON configuration file from your computer."
+                ).classes("text-sm text-[#9fb2b8]")
+
+                config_upload = ui.upload(
+                    label="Choose configuration file",
+                    auto_upload=True,
+                    on_upload=handle_config_upload,
+                    max_files=1,
+                ).props("accept=.json").classes("w-full")
+
+                with ui.row().classes("w-full justify-end"):
+                    ui.button(
+                        "Cancel",
+                        on_click=load_dialog.close,
+                    ).props("flat")
+
+        def open_load_dialog() -> None:
+            config_upload.reset()
+            load_dialog.open()
 
         def open_save_dialog() -> None:
             if state["config"] is None:
@@ -367,8 +454,8 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
             ui.button(
                 "Load configuration",
                 icon="folder_open",
-                on_click=lambda: toggle_load_select(),
-            ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
+                on_click=lambda: request_load_select(),
+            ).props("outline").classes("bg-[#75e6da] text-[#101820]")
             ui.button(
                 "Create configuration",
                 icon="add",
@@ -407,6 +494,23 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
                 "unelevated color=negative"
             )
 
+    with ui.dialog() as unsaved_load_dialog, ui.card().classes(
+        "border border-[#29404b] bg-[#182630]"
+    ):
+        ui.label("Unsaved changes").classes("text-lg font-semibold text-white")
+        ui.label(
+            "Loading another configuration will overwrite your work unless you save it."
+        ).classes("text-sm text-[#9fb2b8]")
+        with ui.row().classes("mt-4 w-full justify-end gap-2"):
+            ui.button("Cancel", on_click=lambda: cancel_load()).props("flat")
+            ui.button("Save Configuration", on_click=lambda: save_and_load()).props(
+                "unelevated"
+            ).classes("bg-[#75e6da] text-[#101820]")
+            ui.button(
+                "Discard and Load",
+                on_click=lambda: discard_and_load(),
+            ).props("unelevated color=negative")
+
     # Collect and validate the name for a newly created configuration.
     with ui.dialog() as create_dialog, ui.card().classes("border border-[#29404b] bg-[#182630]"):
         ui.label("Create new configuration").classes("text-lg font-semibold text-white")
@@ -438,20 +542,73 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
     def refresh_load_options() -> None:
         load_select.set_options(controller.list_names(), value=None)
 
+    # Show the refreshed choices without changing the selector's current visibility.
+    def show_load_select() -> None:
+        refresh_load_options()
+        load_select.set_visibility(True)
+        load_select.run_method("showPopup")
+
     # Toggle the load selector and display its current options immediately.
     def toggle_load_select() -> None:
         if load_select.visible:
             load_select.set_visibility(False)
             return
-        refresh_load_options()
-        load_select.set_visibility(True)
-        load_select.run_method("showPopup")  # opens the list right away
+        show_load_select()
+
+    # Protect an edited draft before opening the configuration upload dialog.
+    def request_load_select() -> None:
+        if state["config"] is not None and not state["saved"]:
+            unsaved_load_dialog.open()
+            return
+        open_load_dialog()
+
+    def cancel_load() -> None:
+        state["pending_load"] = None
+        load_select.value = None
+        unsaved_load_dialog.close()
+
+    def discard_and_load() -> None:
+        unsaved_load_dialog.close()
+        pending_name = state["pending_load"]
+        state["pending_load"] = None
+        if pending_name:
+            on_select_change(pending_name, confirmed=True)
+        else:
+            open_load_dialog()
+
+    def save_and_load() -> None:
+        config_name = state["name"]
+        if state["config"] is None or not config_name:
+            ui.notify("No named configuration is open to save.", type="negative")
+            return
+        unsaved_load_dialog.close()
+        try:
+            file_name = download_configuration(f"{config_name}.json")
+        except ConfigValidationError as exc:
+            show_problems("Can't save yet", exc.problems)
+            return
+        except ValueError as exc:
+            ui.notify(str(exc), type="negative")
+            return
+        except Exception as exc:  # pragma: no cover - UI guard
+            ui.notify(f"Unable to save configuration: {exc}", type="negative")
+            return
+
+        ui.notify(
+            f"Downloading '{file_name}'. Choose the save location in your browser.",
+            type="positive",
+        )
+        discard_and_load()
 
     # Load a selected configuration, hiding the selector after success.
-    def on_select_change(name: str | None) -> None:
+    def on_select_change(name: str | None, *, confirmed: bool = False) -> None:
         if not name:
             return
         if name != state["name"]:
+            if state["config"] is not None and not state["saved"] and not confirmed:
+                state["pending_load"] = name
+                unsaved_load_dialog.open()
+                return
             confirm_load(name)
         # Hide again only if the load worked (or it was already open).
         if state["name"] == name:
@@ -555,9 +712,11 @@ def configuration_editor(on_unlock: Callable[[], None]) -> Callable[[], None]:
             return
         show_problems("Validate configuration", problems)
 
-    def refresh_after_ai_change() -> None:
+    def refresh_after_ai_change(*, saved: bool = False) -> None:
         state["config"] = controller.configuration
-        set_saved_status(False)
+        set_saved_status(saved)
         editor_body.refresh()
 
-    return refresh_after_ai_change
+    return ConfigurationEditorRefresh(
+        refresh_after_ai_change, lambda: bool(state["saved"])
+    )

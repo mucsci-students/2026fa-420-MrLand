@@ -9,6 +9,7 @@ from src.controllers.schedule_generator_controller import (
 )
 from src.models.schedule_generator_model import ScheduleGenerationState
 from src.models.configuration_repository import ConfigLoadError
+from src.views.schedule_generation_progress import ScheduleGenerationProgress
 
 
 def schedule_generator() -> None:
@@ -199,26 +200,9 @@ def schedule_generator() -> None:
 
     config_select.on_value_change(load_selected_config)
 
-    progress_container = ui.column().classes(
+    progress_display = ScheduleGenerationProgress(
         "w-full max-w-2xl gap-2 mt-6"
     )
-    progress_container.visible = False
-    with progress_container:
-        progress_label = ui.label("Starting scheduler...").classes(
-            "text-sm text-gray-300"
-        )
-        progress = ui.linear_progress(value=0).classes("w-full")
-        progress_percentage = ui.label("0%").classes(
-            "text-sm text-gray-300"
-        )
-        progress_status = ui.label(
-            "Generated 0 of 0 schedules"
-        ).classes("text-sm text-gray-400")
-        with ui.row().classes("items-center gap-2"):
-            spinner = ui.spinner(size="24px")
-            spinner_label = ui.label(
-                "Z3 is searching for schedules..."
-            ).classes("text-sm text-gray-400")
 
     result_container = ui.column().classes(
         "w-full max-w-2xl mt-6"
@@ -257,35 +241,16 @@ def schedule_generator() -> None:
         if not state.running and not state.finished:
             return
 
-        percentage = 0
-        if state.requested > 0:
-            percentage = min(
-                state.generated / state.requested * 100,
-                100,
-            )
-        progress.value = percentage / 100
-        progress_percentage.text = f"{percentage:.0f}%"
-        progress_label.text = state.message
-        if state.requested > 0:
-            progress_status.text = (
-                f"Generated {state.generated} of "
-                f"{state.requested} schedules"
-            )
-
-        if state.running:
-            progress_container.visible = True
-            spinner.visible = True
-            spinner_label.text = "Z3 is searching for schedules..."
+        progress_result = progress_display.update(state)
+        if progress_result == "running":
             return
 
-        spinner.visible = False
         if not state.finished or completion_rendered:
             return
         completion_rendered = True
         progress_timer.cancel()
 
         if state.error:
-            progress_label.text = "Schedule generation failed."
             with result_container:
                 ui.label(
                     "An error occurred while generating "
@@ -294,20 +259,10 @@ def schedule_generator() -> None:
             return
 
         if state.generated == 0:
-            progress.value = 0
-            progress_percentage.text = "0%"
-            progress_label.text = "No valid schedules could be generated."
             if state.diagnosis is not None:
                 render_diagnosis(state.diagnosis)
             return
 
-        progress.value = 1
-        progress_percentage.text = "100%"
-        progress_label.text = "Schedule generation complete."
-        progress_status.text = (
-            f"Generated {state.generated} of "
-            f"{state.requested} requested schedules"
-        )
         with result_container:
             ui.label("Scheduler ran successfully.").classes(
                 "text-green-400 text-lg font-semibold"
@@ -318,10 +273,6 @@ def schedule_generator() -> None:
             ui.label(f"Valid schedules: {state.valid}").classes(
                 "text-gray-300"
             )
-            ui.label(
-                "View the generated schedules in the "
-                "Schedule Viewer tab."
-            ).classes("text-gray-400 mt-2")
     progress_timer = ui.timer(
         0.2,
         update_progress,
@@ -360,24 +311,19 @@ def schedule_generator() -> None:
         if requested is None:
             return
 
-        progress_container.visible = True
-        progress.value = 0
-        progress_percentage.text = "0%"
         if generation_limit_override.value is not None and str(
             generation_limit_override.value
         ).strip():
-            progress_label.text = (
+            starting_message = (
                 f"Starting scheduler for '{config_select.value}' with "
                 f"temporary limit override of {requested}..."
             )
         else:
-            progress_label.text = (
+            starting_message = (
                 f"Starting scheduler for '{config_select.value}' using "
                 f"configured limit of {requested}..."
             )
-        progress_status.text = f"Generated 0 of {requested} schedules"
-        spinner.visible = True
-        spinner_label.text = "Z3 is searching for schedules..."
+        progress_display.start(requested, starting_message)
         progress_timer.active = True
 
     ui.button(
