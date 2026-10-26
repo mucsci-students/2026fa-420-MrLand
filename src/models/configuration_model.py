@@ -7,7 +7,6 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TypeVar
 
 from jsonschema import Draft202012Validator, FormatChecker
 from pydantic import ValidationError
@@ -21,7 +20,6 @@ from src.models.configuration_repository import (
     save_config,
 )
 
-T = TypeVar("T")
 _CONFIG_SCHEMA_PATH = (
     Path(__file__).resolve().parents[1] / "schemas" / "combined-config.schema.json"
 )
@@ -155,7 +153,7 @@ def validate_config(config: CombinedConfig) -> list[ValidationProblem]:
     return problems
 
 
-def apply_configuration_change(
+def apply_configuration_change[T](
     config: CombinedConfig,
     mutation: Callable[[], T],
     *,

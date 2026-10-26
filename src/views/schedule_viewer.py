@@ -140,75 +140,77 @@ def schedule_viewer() -> None:
         # Load dialog
         # ---------------------------------------------------------
 
-        with ui.dialog() as load_dialog:
-            with ui.card().classes("bg-[#101820] border border-[#29404b] w-[480px] gap-3"):
-                ui.label("Load Schedule").classes("text-lg font-semibold text-white")
-                ui.label("Choose a saved schedule from the schedules folder.").classes(
-                    "text-sm text-gray-400"
+        with ui.dialog() as load_dialog, ui.card().classes(
+            "bg-[#101820] border border-[#29404b] w-[480px] gap-3"
+        ):
+            ui.label("Load Schedule").classes("text-lg font-semibold text-white")
+            ui.label("Choose a saved schedule from the schedules folder.").classes(
+                "text-sm text-gray-400"
+            )
+
+            saved_file_select = (
+                ui.select(
+                    [],
+                    label="Saved schedules",
+                    with_input=True,
                 )
+                .props("outlined dark")
+                .classes("schedule-dropdown w-full")
+            )
 
-                saved_file_select = (
-                    ui.select(
-                        [],
-                        label="Saved schedules",
-                        with_input=True,
-                    )
-                    .props("outlined dark")
-                    .classes("schedule-dropdown w-full")
+            load_status = ui.label("").classes("text-sm text-red-400")
+
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button("Cancel", on_click=load_dialog.close).props("flat")
+                load_button = ui.button("Load", icon="upload_file")
+
+            ui.separator().classes("bg-[#29404b]")
+            ui.label("Or upload a CSV or JSON schedule from your computer.").classes(
+                "text-sm text-gray-400"
+            )
+
+            upload = (
+                ui.upload(
+                    auto_upload=True,
+                    max_files=1,
                 )
-
-                load_status = ui.label("").classes("text-sm text-red-400")
-
-                with ui.row().classes("w-full justify-end gap-2"):
-                    ui.button("Cancel", on_click=load_dialog.close).props("flat")
-                    load_button = ui.button("Load", icon="upload_file")
-
-                ui.separator().classes("bg-[#29404b]")
-                ui.label("Or upload a CSV or JSON schedule from your computer.").classes(
-                    "text-sm text-gray-400"
-                )
-
-                upload = (
-                    ui.upload(
-                        auto_upload=True,
-                        max_files=1,
-                    )
-                    .props("accept=.csv,.json dark flat bordered")
-                    .classes("w-full")
-                )
+                .props("accept=.csv,.json dark flat bordered")
+                .classes("w-full")
+            )
 
         # ---------------------------------------------------------
         # Export dialog
         # ---------------------------------------------------------
 
-        with ui.dialog() as export_dialog:
-            with ui.card().classes("bg-[#101820] border border-[#29404b] w-[480px] gap-3"):
-                ui.label("Export Schedule").classes("text-lg font-semibold text-white")
-                export_description = ui.label("").classes("text-sm text-gray-400")
+        with ui.dialog() as export_dialog, ui.card().classes(
+            "bg-[#101820] border border-[#29404b] w-[480px] gap-3"
+        ):
+            ui.label("Export Schedule").classes("text-lg font-semibold text-white")
+            export_description = ui.label("").classes("text-sm text-gray-400")
 
-                export_format = (
-                    ui.select(
-                        {"csv": "CSV", "json": "JSON"},
-                        value="csv",
-                        label="File Format",
-                    )
-                    .props("outlined dark")
-                    .classes("schedule-dropdown w-full")
+            export_format = (
+                ui.select(
+                    {"csv": "CSV", "json": "JSON"},
+                    value="csv",
+                    label="File Format",
                 )
+                .props("outlined dark")
+                .classes("schedule-dropdown w-full")
+            )
 
-                export_name = (
-                    ui.input(
-                        label="File Name",
-                    )
-                    .props("outlined dark")
-                    .classes("schedule-dropdown w-full")
+            export_name = (
+                ui.input(
+                    label="File Name",
                 )
+                .props("outlined dark")
+                .classes("schedule-dropdown w-full")
+            )
 
-                export_status = ui.label("").classes("text-sm text-red-400")
+            export_status = ui.label("").classes("text-sm text-red-400")
 
-                with ui.row().classes("w-full justify-end gap-2"):
-                    ui.button("Cancel", on_click=export_dialog.close).props("flat")
-                    export_button = ui.button("Export", icon="download")
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button("Cancel", on_click=export_dialog.close).props("flat")
+                export_button = ui.button("Export", icon="download")
 
         # ---------------------------------------------------------
         # Schedule controls

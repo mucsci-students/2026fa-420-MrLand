@@ -254,19 +254,17 @@ def build_app() -> None:
     with (
         ui.header()
         .props("data-theme-region=header")
-        .classes("border-b border-[#29404b] bg-[#101820] px-6 py-4")
+        .classes("border-b border-[#29404b] bg-[#101820] px-6 py-4"),
+        ui.row().classes("w-full items-center justify-between"),
     ):
-        with ui.row().classes("w-full items-center justify-between"):
-            with ui.row().classes("items-center gap-3"):
-                ui.icon("calendar_month", size="32px").classes("text-[#75e6da]")
-                with ui.column().classes("gap-0"):
-                    ui.label("Scheduler").classes("text-lg font-semibold text-white")
-            toggle_button = (
-                ui.button("Dark Mode", icon="contrast", on_click=toggle_theme)
-                .props("unelevated aria-label=Toggle color theme")
-                .classes("bg-[#75e6da] text-[#101820]")
-            )
-            ui.context.client.on_connect(sync_theme_label)
+        ui.icon("calendar_month", size="32px").classes("text-[#75e6da]")
+        ui.label("Scheduler").classes("text-lg font-semibold text-white")
+        toggle_button = (
+            ui.button("Dark Mode", icon="contrast", on_click=toggle_theme)
+            .props("unelevated aria-label=Toggle color theme")
+            .classes("bg-[#75e6da] text-[#101820]")
+        )
+        ui.context.client.on_connect(sync_theme_label)
 
     # Main tabbed area containing configuration, generation, and schedule views.
     with (

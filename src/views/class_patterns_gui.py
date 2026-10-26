@@ -26,11 +26,9 @@ def class_patterns_gui(
     pattern_list = ui.column().classes("w-full gap-1")
 
     with ui.row().classes("w-full flex-wrap items-center gap-2"):
-        add_button = (
-            ui.button("Add new class pattern", icon="add", on_click=lambda: show_form())
-            .props("unelevated")
+        ui.button("Add new class pattern", icon="add", on_click=lambda: show_form()) \
+            .props("unelevated") \
             .classes("bg-[#75e6da] text-[#101820]")
-        )
 
     # Pattern fields and a draft editor for the pattern's individual meetings.
     with ui.column().classes(

@@ -37,11 +37,9 @@ def labs_gui(
     lab_list = ui.column().classes("w-full gap-1")
 
     with ui.row().classes("w-full flex-wrap items-center gap-2"):
-        add_button = (
-            ui.button("Add new lab", icon="add", on_click=lambda: show_form())
-            .props("unelevated")
+        ui.button("Add new lab", icon="add", on_click=lambda: show_form()) \
+            .props("unelevated") \
             .classes("bg-[#75e6da] text-[#101820]")
-        )
 
     # Form fields and callbacks for creating or editing a lab.
     with ui.column().classes(
