@@ -88,6 +88,8 @@ class ScheduleGeneratorModel:
         config_name: str,
         limit_override: int | None,
         optimizer_override: list[str] | None,
+        max_time_gap_override: int | None = None,
+        min_time_overlap_override: int | None = None,
     ) -> None:
         """Generate schedules and publish progress without touching the UI."""
         try:
@@ -96,6 +98,16 @@ class ScheduleGeneratorModel:
                 message=f"Loading configuration '{config_name}'...",
             )
             full_config = self.load_config(config_name)
+            if limit_override is not None:
+                full_config.limit = limit_override
+            if optimizer_override is not None:
+                full_config.optimizer_flags = optimizer_override
+            if max_time_gap_override is not None:
+                full_config.time_slot_config.max_time_gap = max_time_gap_override
+            if min_time_overlap_override is not None:
+                full_config.time_slot_config.min_time_overlap = (
+                    min_time_overlap_override
+                )
         except Exception as error:
             self.update_state(
                 error=str(error),
@@ -104,11 +116,6 @@ class ScheduleGeneratorModel:
                 running=False,
             )
             return
-
-        if limit_override is not None:
-            full_config.limit = limit_override
-        if optimizer_override is not None:
-            full_config.optimizer_flags = optimizer_override
         self.generate_configuration(config_name, full_config)
 
     def generate_configuration(self, config_name: str, config: Any) -> None:

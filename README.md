@@ -64,7 +64,6 @@ This project is a schedule-planning application for creating and managing course
 .
 ├── LICENSE
 ├── README.md
-├── pytest.ini
 ├── pyproject.toml
 ├── uv.lock
 ├── src
@@ -87,10 +86,8 @@ This project is a schedule-planning application for creating and managing course
 │   │   ├── settings_operations_controller.py
 │   │   ├── schedule_generator_controller.py
 │   │   ├── schedule_controller.py
-│   │   ├── run_scheduler_controller.py
 │   │   └── ...
 │   ├── models/
-│   │   ├── configuration.py
 │   │   ├── configuration_model.py
 │   │   ├── configuration_repository.py
 │   │   ├── schedule_generator_model.py
@@ -98,8 +95,6 @@ This project is a schedule-planning application for creating and managing course
 │   ├── views/
 │   │   ├── common.py
 │   │   ├── configuration_editor.py
-│   │   ├── legacy_schedule.py
-│   │   ├── navmenu.py
 │   │   ├── gui.py
 │   │   ├── schedule_generator.py
 │   │   ├── schedule_viewer.py
@@ -111,8 +106,6 @@ This project is a schedule-planning application for creating and managing course
 │   ├── test_rooms.py
 │   ├── test_class_patterns.py
 │   ├── test_time_blocks.py
-│   ├── tests_conflicts.py
-│   ├── test_run_scheduler.py
 │   └── ...
 └── .venv/
 ```
@@ -120,8 +113,8 @@ This project is a schedule-planning application for creating and managing course
 Application implementations are organized into MVC packages. Configuration
 validation and persistence live in `models`, domain actions in `controllers`,
 and user interfaces in `views`. The former services implementations have been
-moved into those MVC packages. Use the `mrland-cli` and `mrland-gui` project
-commands to launch the respective interfaces.
+moved into those MVC packages. Use the `mrland-gui` project command to launch the
+application.
 
 ---
 
@@ -145,7 +138,7 @@ git clone https://github.com/mucsci-students/2026fa-420-MrLand.git
 cd 2026fa-420-MrLand
 ```
 
-2. Launch the GUI or CLI from the project directory. `uv run` creates and
+2. Launch the GUI from the project directory. `uv run` creates and
    synchronizes the environment from `pyproject.toml`, installing dependencies
    if needed.
 
@@ -157,11 +150,6 @@ cd 2026fa-420-MrLand
    Open the GUI in your browser at:
    ```text
    http://localhost:8080
-   ```
-
-   Or start the interactive CLI:
-   ```bash
-   uv run mrland-cli
    ```
 
    Or run the tests

@@ -53,22 +53,29 @@ class ScheduleGeneratorController:
         config_name: str | None,
         limit_override_value: object,
         optimizer_override: list[str] | None,
+        max_time_gap_override_value: object = None,
+        min_time_overlap_override_value: object = None,
     ) -> tuple[int | None, str | None]:
         if self.model.state_snapshot().running:
             return None, "Generation is already in progress. Please wait for it to finish."
         if not config_name:
             return None, "Please select a configuration."
 
-        limit_override = None
-        if limit_override_value is not None and str(limit_override_value).strip():
-            try:
-                limit_override = int(limit_override_value)
-                if limit_override <= 0:
-                    raise ValueError
-            except (TypeError, ValueError):
-                return None, (
-                    "Temporary generation limit must be a positive whole number."
-                )
+        limit_override, error = self._parse_positive_integer_override(
+            limit_override_value, "generation limit"
+        )
+        if error:
+            return None, error
+        max_time_gap_override, error = self._parse_positive_integer_override(
+            max_time_gap_override_value, "maximum time gap"
+        )
+        if error:
+            return None, error
+        min_time_overlap_override, error = self._parse_positive_integer_override(
+            min_time_overlap_override_value, "minimum time overlap"
+        )
+        if error:
+            return None, error
 
         try:
             config = self.model.load_config(config_name)
@@ -79,13 +86,46 @@ class ScheduleGeneratorController:
         if not self.model.begin_generation(config_name, requested):
             return None, None
 
+        generation_args = (
+            config_name,
+            limit_override,
+            optimizer_override,
+        )
+        if (
+            max_time_gap_override is not None
+            or min_time_overlap_override is not None
+        ):
+            generation_args += (
+                max_time_gap_override,
+                min_time_overlap_override,
+            )
+
         worker = threading.Thread(
             target=self.model.generate,
-            args=(config_name, limit_override, optimizer_override),
+            args=generation_args,
             daemon=True,
         )
         worker.start()
         return requested, None
+
+    @staticmethod
+    def _parse_positive_integer_override(
+        value: object, setting_name: str
+    ) -> tuple[int | None, str | None]:
+        if value is None or not str(value).strip():
+            return None, None
+
+        error_message = (
+            f"Temporary {setting_name} must be a positive whole number."
+        )
+        try:
+            parsed_value = int(value)
+        except (OverflowError, TypeError, ValueError):
+            return None, error_message
+
+        if parsed_value <= 0:
+            return None, error_message
+        return parsed_value, None
 
 
 schedule_generator_controller = ScheduleGeneratorController()
