@@ -36,7 +36,7 @@ def build_app() -> None:
             /* Shared dark-theme tokens and base component styling. */
             :root {
                 --app-background: #101820;
-                --app-foreground: #d8e7e8;
+                --app-foreground: #b8c9cb;
                 --text-primary: #ffffff;
                 --text-muted: #9fb2b8;
                 --accent-color: #75e6da;
@@ -73,6 +73,14 @@ def build_app() -> None:
             .q-field__label, .q-field__native, .q-field__input, .q-placeholder,
             .q-select__dropdown-icon, .q-table th, .q-table td,
             .q-expansion-item__toggle-icon { color: var(--app-foreground) !important; }
+            html[data-theme="dark"] .q-menu {
+                background: var(--surface) !important;
+                color: var(--app-foreground) !important;
+            }
+            html[data-theme="dark"] .q-menu .q-item,
+            html[data-theme="dark"] .q-menu .q-item__label {
+                color: var(--app-foreground) !important;
+            }
             .configuration-panel { color: var(--app-foreground); }
             .configuration-panel .q-checkbox__label { color: var(--app-foreground) !important; }
             .mandatory-days .q-chip--selected { background: var(--app-foreground) !important; }

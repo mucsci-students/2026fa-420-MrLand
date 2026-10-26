@@ -241,7 +241,9 @@ def schedule_viewer() -> Callable[[], None]:
                 {},
                 value=None,
                 label="Schedule",
-            ).props("outlined").classes("schedule-dropdown").style(
+            ).props(
+                "outlined dark"
+            ).classes("schedule-dropdown").style(
                 "min-width: 320px;"
             )
 
