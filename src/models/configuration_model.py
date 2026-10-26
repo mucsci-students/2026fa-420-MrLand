@@ -1,6 +1,6 @@
 """Configuration validation, change management, and application-level persistence API.
 
-Used by: GUI and CLI."""
+Used by: GUI."""
 
 from dataclasses import dataclass
 import copy

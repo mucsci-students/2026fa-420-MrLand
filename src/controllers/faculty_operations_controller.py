@@ -1,6 +1,6 @@
 """Faculty creation, editing, and interactive management operations.
 
-Used by: GUI and CLI."""
+Used by: GUI."""
 
 from scheduler.config import FacultyConfig
 

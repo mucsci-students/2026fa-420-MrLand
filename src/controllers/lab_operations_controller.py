@@ -1,6 +1,6 @@
 """Lab creation, editing, and interactive management operations.
 
-Used by: GUI and CLI."""
+Used by: GUI."""
 
 import re
 
