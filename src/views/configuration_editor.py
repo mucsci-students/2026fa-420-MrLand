@@ -369,7 +369,7 @@ def configuration_editor(
                 )
                 ui.label(
                     "A copy will be downloaded to your browser's default location. " \
-                    "Check your settings to manually choose the save location."
+                    "Check your browser settings to manually choose the save location."
                 ).classes("text-sm text-[#9fb2b8]")
                 save_name = ui.input("File Name").props("outlined dark").classes("w-full")
                 save_status = ui.label("").classes("text-sm text-red-400")

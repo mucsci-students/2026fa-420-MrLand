@@ -491,7 +491,8 @@ def schedule_viewer() -> Callable[[], None]:
             if entry is None:
                 return
             export_description.text = (
-                f"Export '{entry.label}' as a file downloaded by your browser."
+                f"Download '{entry.label}' to your browser's default location. " \
+                f"Check your browser settings to manually choose the save location."
             )
             export_name.value = controller.default_export_file_name(
                 export_format.value
