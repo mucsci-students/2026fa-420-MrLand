@@ -13,7 +13,7 @@ def _tools(state, **kwargs):
     }
 
 
-def test_scheduler_tools_edit_the_active_configuration_through_controller():
+def test_general_create_tool_edits_the_active_configuration_through_controller():
     controller = ConfigurationController()
     config = controller.new_configuration()
     tools = _tools(
@@ -21,30 +21,62 @@ def test_scheduler_tools_edit_the_active_configuration_through_controller():
         apply_change=controller.apply_change,
     )
 
-    result = tools["add_room"].invoke(
-        {"name": "Room 101", "capacity": 30, "features": ["projector"]}
+    result = tools["create_configuration_item"].invoke(
+        {
+            "area": "rooms",
+            "item": {
+                "name": "Room 101",
+                "capacity": 30,
+                "features": ["projector"],
+            },
+        }
     )
 
     assert result["success"]
-    assert result["message"].startswith("Room Room 101 added successfully.")
+    assert result["message"].startswith("Created rooms item")
     assert config.config.rooms[0].name == "Room 101"
     assert tools["get_rooms"].invoke({})["items"][0]["name"] == "Room 101"
 
 
-def test_add_tools_preserve_case_sensitive_duplicate_checks():
+def test_general_create_tool_preserves_case_sensitive_duplicate_checks():
     config = ConfigurationController().new_configuration()
     tools = _tools(SchedulerAgentState(config))
 
-    tools["add_room"].invoke({"name": "Room 101", "capacity": 30})
-    tools["add_room"].invoke({"name": "room 101", "capacity": 30})
-    tools["add_lab"].invoke({"name": "Lab 1", "capacity": 30})
-    tools["add_lab"].invoke({"name": "lab 1", "capacity": 30})
-    tools["add_faculty"].invoke({"name": "Dr. Smith"})
-    tools["add_faculty"].invoke({"name": "dr. smith"})
+    for area, item in (
+        ("rooms", {"name": "Room 101", "capacity": 30}),
+        ("rooms", {"name": "room 101", "capacity": 30}),
+        ("labs", {"name": "Lab 1", "capacity": 30}),
+        ("labs", {"name": "lab 1", "capacity": 30}),
+        ("faculty", {"name": "Dr. Smith"}),
+        ("faculty", {"name": "dr. smith"}),
+    ):
+        result = tools["create_configuration_item"].invoke(
+            {"area": area, "item": item}
+        )
+        assert result["success"]
 
     assert len(config.config.rooms) == 2
     assert len(config.config.labs) == 2
     assert len(config.config.faculty) == 2
+
+
+def test_general_create_tool_keeps_defaults_for_all_item_types():
+    config = ConfigurationController().new_configuration()
+    tools = _tools(SchedulerAgentState(config))
+    create = tools["create_configuration_item"]
+
+    course = create.invoke(
+        {"area": "courses", "item": {"course_id": "CS 101"}}
+    )
+    faculty = create.invoke(
+        {"area": "faculty", "item": {"name": "Dr. Smith"}}
+    )
+
+    assert course["success"]
+    assert config.config.courses[0].credits == 3
+    assert config.config.courses[0].faculty is None
+    assert faculty["success"]
+    assert config.config.faculty[0].maximum_credits == 12
 
 
 def test_scheduler_tool_reports_controller_rejection_without_mutating():
@@ -53,13 +85,13 @@ def test_scheduler_tool_reports_controller_rejection_without_mutating():
     def reject_change(mutation):
         return False, [ValidationProblem("Rooms", "Room 101", "Rejected for test")]
 
-    tools = get_tool_list(
+    tools = _tools(
         SchedulerAgentState(config),
         apply_change=reject_change,
     )
-    add_room = next(tool for tool in tools if tool.name == "add_room")
-
-    result = add_room.invoke({"name": "Room 101"})
+    result = tools["create_configuration_item"].invoke(
+        {"area": "rooms", "item": {"name": "Room 101", "capacity": 30}}
+    )
 
     assert result["success"] is False
     assert "Change rejected by scheduler validation" in result["message"]
@@ -71,10 +103,6 @@ def test_configuration_tools_require_an_active_config_without_one():
     tools = _tools(SchedulerAgentState())
     required = "Please create or load a configuration"
     calls = {
-        "add_room": {"name": "Room 101"},
-        "add_lab": {"name": "Lab 1"},
-        "add_faculty": {"name": "Dr. Smith"},
-        "add_course": {"course_id": "CS 101"},
         "get_rooms": {},
         "get_labs": {},
         "get_faculty": {},
@@ -97,6 +125,7 @@ def test_configuration_tools_require_an_active_config_without_one():
         "generate_schedules": {},
     }
 
+    assert not {"add_room", "add_lab", "add_faculty", "add_course"} & tools.keys()
     for name, arguments in calls.items():
         assert required in tools[name].invoke(arguments)["message"], name
 
@@ -216,11 +245,11 @@ def test_meeting_tools_create_update_inspect_and_confirm_delete():
 
 
 def test_overwriting_saved_configuration_requires_confirmation(monkeypatch):
-    import src.ai.scheduler_agent as scheduler_agent
+    import src.ai.agent_tools as agent_tools
 
     config = ConfigurationController().new_configuration()
     saved_names = []
-    monkeypatch.setattr(scheduler_agent, "validate_config", lambda _config: [])
+    monkeypatch.setattr(agent_tools, "validate_config", lambda _config: [])
     tools = _tools(
         SchedulerAgentState(
             config,
@@ -267,11 +296,11 @@ def test_invalid_tool_arguments_return_structured_failure():
 
 
 def test_save_tool_uses_the_application_save_callback(monkeypatch):
-    import src.ai.scheduler_agent as scheduler_agent
+    import src.ai.agent_tools as agent_tools
 
     config = ConfigurationController().new_configuration()
     saved_names = []
-    monkeypatch.setattr(scheduler_agent, "validate_config", lambda _config: [])
+    monkeypatch.setattr(agent_tools, "validate_config", lambda _config: [])
     tools = _tools(
         SchedulerAgentState(config, configuration_exists=lambda _name: False),
         save_configuration=saved_names.append,
@@ -285,7 +314,7 @@ def test_save_tool_uses_the_application_save_callback(monkeypatch):
 
 
 def test_generate_schedules_uses_the_active_configuration(monkeypatch):
-    import src.ai.scheduler_agent as scheduler_agent
+    import src.ai.agent_tools as agent_tools
     import src.models.schedule_generator_model as schedule_generator_model
 
     from src.controllers.schedule_controller import ScheduleController
@@ -314,7 +343,7 @@ def test_generate_schedules_uses_the_active_configuration(monkeypatch):
             return SimpleNamespace(is_valid=True)
 
     monkeypatch.setattr(schedule_generator_model, "Scheduler", FakeScheduler)
-    monkeypatch.setattr(scheduler_agent, "validate_config", lambda _config: [])
+    monkeypatch.setattr(agent_tools, "validate_config", lambda _config: [])
     generator = ScheduleGeneratorController(ScheduleGeneratorModel())
     state = SchedulerAgentState(config, schedule_generator=generator)
 
