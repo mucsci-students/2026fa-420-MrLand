@@ -162,6 +162,9 @@ def build_app() -> None:
                 html[data-theme="light"] .text-gray-400 {
                     color: var(--text-muted) !important;
                 }
+                html[data-theme="light"] .text-green-400 {
+                    color: #15803d !important;
+                }
                 html[data-theme="light"] [class~="text-[#75e6da]"],
                 html[data-theme="light"] .text-primary {
                     color: var(--accent-color) !important;
