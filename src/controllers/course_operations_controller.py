@@ -1,6 +1,6 @@
 """Course creation, editing, and interactive management operations.
 
-Used by: GUI and CLI."""
+Used by: GUI."""
 
 # File name: course.py
 # Primary Author: Dylan Groff
