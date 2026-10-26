@@ -426,7 +426,7 @@ def configuration_editor(
                     auto_upload=True,
                     on_upload=handle_config_upload,
                     max_files=1,
-                ).props("accept=.json").classes("w-full")
+                ).props("accept=.json").classes("w-full configuration-load-upload")
 
                 with ui.row().classes("w-full justify-end"):
                     ui.button(

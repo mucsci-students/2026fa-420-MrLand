@@ -222,8 +222,17 @@ def build_app() -> None:
                 html[data-theme="light"] .q-menu .q-item:hover {
                     background-color: var(--surface-hover) !important;
                 }
-                html[data-theme="light"] .q-menu .q-item--active {
+                html[data-theme="light"] .q-menu .q-item--active,
+                html[data-theme="light"] .q-menu .q-item--selected {
                     background-color: var(--surface-accent) !important;
+                    color: var(--accent-color) !important;
+                }
+                html[data-theme="light"] .configuration-load-upload .q-uploader__header {
+                    background-color: var(--accent-color) !important;
+                }
+                html[data-theme="light"] .configuration-load-upload .q-uploader__header .q-btn {
+                    background-color: var(--accent-color) !important;
+                    color: #ffffff !important;
                 }
             }
         </style>
