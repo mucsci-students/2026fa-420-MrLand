@@ -25,6 +25,7 @@ class ScheduleGenerationState:
     valid: int = 0
     message: str = ""
     diagnosis: Any | None = None
+    generation_id: int = 0
 
 
 class ScheduleGeneratorModel:
@@ -34,6 +35,7 @@ class ScheduleGeneratorModel:
         self._lock = threading.Lock()
         self._state = ScheduleGenerationState()
         self._generated_schedules: list[ScheduleResult] = []
+        self._generation_id = 0
 
     @property
     def generated_schedules(self) -> list[ScheduleResult]:
@@ -65,8 +67,10 @@ class ScheduleGeneratorModel:
             if self._state.running:
                 return False
 
+            self._generation_id += 1
             self._generated_schedules.clear()
             self._state = ScheduleGenerationState(
+                generation_id=self._generation_id,
                 running=True,
                 config_name=config_name,
                 requested=requested,
@@ -92,19 +96,32 @@ class ScheduleGeneratorModel:
                 message=f"Loading configuration '{config_name}'...",
             )
             full_config = self.load_config(config_name)
-
-            if limit_override is not None:
-                full_config.limit = limit_override
-            if optimizer_override is not None:
-                full_config.optimizer_flags = optimizer_override
-
-            limit = full_config.limit
+        except Exception as error:
             self.update_state(
+                error=str(error),
+                message="Schedule generation failed.",
+                finished=True,
+                running=False,
+            )
+            return
+
+        if limit_override is not None:
+            full_config.limit = limit_override
+        if optimizer_override is not None:
+            full_config.optimizer_flags = optimizer_override
+        self.generate_configuration(config_name, full_config)
+
+    def generate_configuration(self, config_name: str, config: Any) -> None:
+        """Generate from an in-memory config and publish results to viewers."""
+        try:
+            limit = config.limit
+            self.update_state(
+                config_name=config_name,
                 requested=limit,
                 message="Starting Z3 scheduler...",
             )
 
-            scheduler = Scheduler(full_config)
+            scheduler = Scheduler(config)
             self.update_state(message="Generating schedules...")
             generated = []
 
@@ -142,7 +159,7 @@ class ScheduleGeneratorModel:
                     ScheduleResult(
                         config_name=config_name,
                         schedule=schedule,
-                        config=full_config,
+                        config=config,
                     )
                     for schedule in generated
                 )

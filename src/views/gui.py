@@ -36,7 +36,7 @@ def build_app() -> None:
             /* Shared dark-theme tokens and base component styling. */
             :root {
                 --app-background: #101820;
-                --app-foreground: #d8e7e8;
+                --app-foreground: #b8c9cb;
                 --text-primary: #ffffff;
                 --text-muted: #9fb2b8;
                 --accent-color: #75e6da;
@@ -73,6 +73,14 @@ def build_app() -> None:
             .q-field__label, .q-field__native, .q-field__input, .q-placeholder,
             .q-select__dropdown-icon, .q-table th, .q-table td,
             .q-expansion-item__toggle-icon { color: var(--app-foreground) !important; }
+            html[data-theme="dark"] .q-menu {
+                background: var(--surface) !important;
+                color: var(--app-foreground) !important;
+            }
+            html[data-theme="dark"] .q-menu .q-item,
+            html[data-theme="dark"] .q-menu .q-item__label {
+                color: var(--app-foreground) !important;
+            }
             .configuration-panel { color: var(--app-foreground); }
             .configuration-panel .q-checkbox__label { color: var(--app-foreground) !important; }
             .mandatory-days .q-chip--selected { background: var(--app-foreground) !important; }
@@ -107,7 +115,8 @@ def build_app() -> None:
             html[data-theme="light"] [class~="text-[#75e6da]"] {
                 color: var(--accent-color) !important;
             }
-            html[data-theme="light"] [class~="bg-[#101820]"] {
+            html[data-theme="light"] [class~="bg-[#101820]"],
+            html[data-theme="light"] [class~="bg-[#203b42]"] {
                 background-color: var(--app-background) !important;
             }
             html[data-theme="light"] [class~="bg-[#17232b]"],
@@ -286,6 +295,7 @@ def build_app() -> None:
             ui.tab("viewer", label="Schedule Viewer", icon="calendar_view_week")
 
         editor_refresh: Callable[[], None]
+        viewer_refresh: Callable[[], None]
         unlock_assistant: Callable[[], None] = lambda: None
 
         def request_assistant_unlock() -> None:
@@ -294,12 +304,19 @@ def build_app() -> None:
         with ui.tab_panels(tabs, value="configuration").classes("w-full bg-transparent pt-8"):
             with ui.tab_panel("configuration"):
                 editor_refresh = configuration_editor(request_assistant_unlock)
+                editor_is_saved = editor_refresh.is_saved
             with ui.tab_panel("generator"):
                 schedule_generator()
             with ui.tab_panel("viewer"):
-                schedule_viewer()
+                viewer_refresh = schedule_viewer()
 
-    unlock_assistant = scheduler_ai_assistant(controller, editor_refresh)
+        tabs.on_value_change(
+            lambda event: viewer_refresh() if event.value == "viewer" else None
+        )
+
+    unlock_assistant = scheduler_ai_assistant(
+        controller, editor_refresh, editor_is_saved
+    )
 
 
 def main() -> None:

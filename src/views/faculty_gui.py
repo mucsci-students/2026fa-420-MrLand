@@ -253,7 +253,7 @@ def faculty_gui(
                 "unelevated"
             ).classes("bg-[#75e6da] text-[#101820]")
             update_button = ui.button(
-                "Save changes", icon="save", on_click=update_member
+                "Apply changes", icon="save", on_click=update_member
             ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
             update_button.set_visibility(False)
             cancel_button = ui.button("Cancel", on_click=reset_form).props(

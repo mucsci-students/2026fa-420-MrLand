@@ -6,6 +6,7 @@ import copy
 from collections.abc import Callable
 from pathlib import Path
 from dataclasses import dataclass
+from threading import RLock
 from typing import TypeVar
 
 from scheduler.config import CombinedConfig
@@ -34,6 +35,7 @@ class ConfigurationController:
         self.config_service = ConfigService()
         self.configuration: CombinedConfig | None = None
         self._has_valid_configuration = False
+        self._lock = RLock()
 
     def create_memento(self) -> ConfigurationMemento:
         '''
@@ -44,19 +46,21 @@ class ConfigurationController:
 
         Raises: ValueError on 'No Config Open'
         '''
-        if self.configuration is None:
-            raise ValueError("No configuration has been created or loaded.")
-        
-        return ConfigurationMemento(
-            copy.deepcopy(self.configuration),
-            self._has_valid_configuration,
-        )
+        with self._lock:
+            if self.configuration is None:
+                raise ValueError("No configuration has been created or loaded.")
+
+            return ConfigurationMemento(
+                copy.deepcopy(self.configuration),
+                self._has_valid_configuration,
+            )
 
     def restore_memento(self, memento: ConfigurationMemento) -> None:
         '''Replace the open config with the saved snapshot'''
 
-        self.configuration = copy.deepcopy(memento.configuration)
-        self._has_valid_configuration = memento.has_valid_configuration
+        with self._lock:
+            self.configuration = copy.deepcopy(memento.configuration)
+            self._has_valid_configuration = memento.has_valid_configuration
 
     def new_configuration(self) -> CombinedConfig:
         '''
@@ -64,10 +68,11 @@ class ConfigurationController:
 
         Returns: the new empty draft
         '''
-        self.configuration = create_draft_config()
-        self._has_valid_configuration = False
+        with self._lock:
+            self.configuration = create_draft_config()
+            self._has_valid_configuration = False
 
-        return self.configuration
+            return self.configuration
 
     def save_configuration(self, config_name: str) -> None:
         '''
@@ -75,15 +80,16 @@ class ConfigurationController:
         raises ConfigValidationError (with the list of problems) instead of
         writing an invalid file. Raises ValueError if nothing is open.
         '''
-        if self.configuration is None:
-            raise ValueError("No configuration has been created.")
-        
-        problems = self.validate_configuration()
+        with self._lock:
+            if self.configuration is None:
+                raise ValueError("No configuration has been created.")
 
-        if problems:
-            raise ConfigValidationError(problems)
-        
-        self.config_service.save(self.configuration, config_name)
+            problems = self.validate_configuration()
+
+            if problems:
+                raise ConfigValidationError(problems)
+
+            self.config_service.save(self.configuration, config_name)
 
     def export_configuration(self, file_name: str) -> tuple[bytes, str, str]:
         """
@@ -91,24 +97,25 @@ class ConfigurationController:
         Return validated configuration JSON and download metadata.
         """
 
-        if self.configuration is None:
-            raise ValueError("No configuration has been created.")
-        
-        problems = self.validate_configuration()
+        with self._lock:
+            if self.configuration is None:
+                raise ValueError("No configuration has been created.")
 
-        if problems:
-            raise ConfigValidationError(problems)
+            problems = self.validate_configuration()
 
-        file_name = Path(file_name.strip()).name
+            if problems:
+                raise ConfigValidationError(problems)
 
-        if not file_name or file_name.startswith("."):
-            raise ValueError("Please enter a valid file name.")
-        
-        if Path(file_name).suffix.lower() != ".json":
-            file_name = f"{file_name}.json"
+            file_name = Path(file_name.strip()).name
 
-        content = self.configuration.model_dump_json(indent=4).encode("utf-8")
-        return content, file_name, "application/json"
+            if not file_name or file_name.startswith("."):
+                raise ValueError("Please enter a valid file name.")
+
+            if Path(file_name).suffix.lower() != ".json":
+                file_name = f"{file_name}.json"
+
+            content = self.configuration.model_dump_json(indent=4).encode("utf-8")
+            return content, file_name, "application/json"
     
     def load_configuration(self, config_name: str) -> CombinedConfig:
 
@@ -124,9 +131,19 @@ class ConfigurationController:
         Returns Loaded Config
         '''
 
-        self.configuration = self.config_service.load(config_name)
-        self._has_valid_configuration = True
-        return self.configuration
+        with self._lock:
+            self.configuration = self.config_service.load(config_name)
+            self._has_valid_configuration = True
+            return self.configuration
+    
+    
+    # Load and validate a configuration from an uploaded JSON file
+    def load_uploaded_configuration(self, content: bytes) -> CombinedConfig:
+        configuration = self.config_service.load_uploaded(content)
+        with self._lock:
+            self.configuration = configuration
+            self._has_valid_configuration = True
+            return self.configuration
 
     def list_names(self) -> list[str]:
         return self.config_service.list_names()
@@ -143,10 +160,11 @@ class ConfigurationController:
         Raises:
         ValueError: No config is open 
         '''
-        if self.configuration is None:
-            raise ValueError("No configuration has been created or loaded.")
-        
-        return validate_config(self.configuration)
+        with self._lock:
+            if self.configuration is None:
+                raise ValueError("No configuration has been created or loaded.")
+
+            return validate_config(self.configuration)
 
     def apply_change(
         self, mutation: Callable[[], T]
@@ -163,16 +181,17 @@ class ConfigurationController:
         Raises: 
         ValueError - No config is open
         '''
-        if self.configuration is None:
-            raise ValueError("No configuration has been created or loaded.")
+        with self._lock:
+            if self.configuration is None:
+                raise ValueError("No configuration has been created or loaded.")
 
-        accepted, problems, _ = apply_configuration_change(
-            self.configuration,
-            mutation,
-            has_valid_baseline=self._has_valid_configuration,
-        )
+            accepted, problems, _ = apply_configuration_change(
+                self.configuration,
+                mutation,
+                has_valid_baseline=self._has_valid_configuration,
+            )
 
-        if not problems:
-            self._has_valid_configuration = True
+            if not problems:
+                self._has_valid_configuration = True
 
-        return accepted, problems
+            return accepted, problems
