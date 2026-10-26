@@ -296,6 +296,7 @@ def build_app() -> None:
         with ui.tab_panels(tabs, value="configuration").classes("w-full bg-transparent pt-8"):
             with ui.tab_panel("configuration"):
                 editor_refresh = configuration_editor(request_assistant_unlock)
+                editor_is_saved = editor_refresh.is_saved
             with ui.tab_panel("generator"):
                 schedule_generator()
             with ui.tab_panel("viewer"):
@@ -305,7 +306,9 @@ def build_app() -> None:
             lambda event: viewer_refresh() if event.value == "viewer" else None
         )
 
-    unlock_assistant = scheduler_ai_assistant(controller, editor_refresh)
+    unlock_assistant = scheduler_ai_assistant(
+        controller, editor_refresh, editor_is_saved
+    )
 
 
 def main() -> None:
