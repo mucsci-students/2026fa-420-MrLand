@@ -84,6 +84,8 @@ class ScheduleGeneratorModel:
         config_name: str,
         limit_override: int | None,
         optimizer_override: list[str] | None,
+        max_time_gap_override: int | None = None,
+        min_time_overlap_override: int | None = None,
     ) -> None:
         """Generate schedules and publish progress without touching the UI."""
         try:
@@ -97,6 +99,12 @@ class ScheduleGeneratorModel:
                 full_config.limit = limit_override
             if optimizer_override is not None:
                 full_config.optimizer_flags = optimizer_override
+            if max_time_gap_override is not None:
+                full_config.time_slot_config.max_time_gap = max_time_gap_override
+            if min_time_overlap_override is not None:
+                full_config.time_slot_config.min_time_overlap = (
+                    min_time_overlap_override
+                )
 
             limit = full_config.limit
             self.update_state(

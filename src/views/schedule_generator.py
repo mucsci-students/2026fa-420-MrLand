@@ -47,6 +47,36 @@ def schedule_generator() -> None:
         "The generation limit saved in the selected configuration."
     ).classes("text-sm text-gray-400")
 
+    ui.label("Time Slot Settings").classes(
+        "text-lg font-semibold text-white mt-4"
+    )
+    configured_max_time_gap = ui.input(
+        label="Configured Maximum Time Gap (minutes)",
+        value="",
+    ).classes("w-full max-w-xl").props("dark outlined readonly")
+    configured_min_time_overlap = ui.input(
+        label="Configured Minimum Time Overlap (minutes)",
+        value="",
+    ).classes("w-full max-w-xl").props("dark outlined readonly")
+    ui.label(
+        "The time-slot settings saved in the selected configuration."
+    ).classes("text-sm text-gray-400")
+
+    max_time_gap_override = ui.input(
+        label="Temporary Maximum Time Gap Override (minutes)",
+        value="",
+        placeholder="Leave blank to use configured value",
+    ).classes("w-full max-w-xl mt-2").props("dark outlined")
+    min_time_overlap_override = ui.input(
+        label="Temporary Minimum Time Overlap Override (minutes)",
+        value="",
+        placeholder="Leave blank to use configured value",
+    ).classes("w-full max-w-xl").props("dark outlined")
+    ui.label(
+        "Optional. These apply only to the current generation and do not "
+        "change the saved configuration."
+    ).classes("text-sm text-gray-400 mb-6")
+
     generation_limit_override = ui.input(
         label="Temporary Generation Limit Override",
         value="",
@@ -120,9 +150,13 @@ def schedule_generator() -> None:
         config_load_error.text = ""
         config_load_error.visible = False
         configured_limit.value = ""
+        configured_max_time_gap.value = ""
+        configured_min_time_overlap.value = ""
         for checkbox in configured_optimizer_checkboxes.values():
             checkbox.value = False
         generation_limit_override.value = ""
+        max_time_gap_override.value = ""
+        min_time_overlap_override.value = ""
         optimizer_override_enabled.value = False
         for checkbox in temporary_optimizer_checkboxes.values():
             checkbox.value = False
@@ -143,6 +177,12 @@ def schedule_generator() -> None:
             return
 
         configured_limit.value = str(config.limit)
+        configured_max_time_gap.value = str(
+            config.time_slot_config.max_time_gap
+        )
+        configured_min_time_overlap.value = str(
+            config.time_slot_config.min_time_overlap
+        )
         configured_flags = {flag.value for flag in config.optimizer_flags}
         for value, checkbox in configured_optimizer_checkboxes.items():
             checkbox.value = value in configured_flags
@@ -150,6 +190,8 @@ def schedule_generator() -> None:
         config_load_error.text = ""
         config_load_error.visible = False
         generation_limit_override.value = ""
+        max_time_gap_override.value = ""
+        min_time_overlap_override.value = ""
         optimizer_override_enabled.value = False
         for checkbox in temporary_optimizer_checkboxes.values():
             checkbox.value = False
@@ -308,6 +350,8 @@ def schedule_generator() -> None:
             config_select.value,
             generation_limit_override.value,
             optimizer_override,
+            max_time_gap_override.value,
+            min_time_overlap_override.value,
         )
         if error:
             with result_container:
