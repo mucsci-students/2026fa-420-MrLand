@@ -524,7 +524,7 @@ def schedule_viewer() -> Callable[[], None]:
             ui.download(content, filename=file_name, media_type=media_type)
             export_dialog.close()
             ui.notify(
-                f"Exported {file_name}; your browser will download the file.",
+                f"Exporting {file_name};",
                 type="positive",
             )
 

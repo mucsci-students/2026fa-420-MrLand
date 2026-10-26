@@ -348,7 +348,7 @@ def configuration_editor(
 
         save_dialog.close()
         ui.notify(
-            f"Downloading '{file_name}'. Choose the save location in your browser.",
+            f"Downloading '{file_name}'.",
             type="positive",
         )
 
@@ -596,7 +596,7 @@ def configuration_editor(
             return
 
         ui.notify(
-            f"Downloading '{file_name}'. Choose the save location in your browser.",
+            f"Downloading '{file_name}'.",
             type="positive",
         )
         discard_and_load()
