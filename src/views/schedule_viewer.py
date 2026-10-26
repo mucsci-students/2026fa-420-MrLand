@@ -159,7 +159,9 @@ def schedule_viewer() -> Callable[[], None]:
                 upload = ui.upload(
                     auto_upload=True,
                     max_files=1,
-                ).props("accept=.csv,.json dark flat bordered").classes("w-full")
+                ).props("accept=.csv,.json dark flat bordered").classes(
+                    "w-full schedule-load-upload"
+                )
                 
                 with ui.row().classes("w-full justify-end"):
                     ui.button(
