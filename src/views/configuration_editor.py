@@ -61,13 +61,13 @@ def configuration_editor(
         "config": None,
         "name": None,
         "saved": False,
-        "pending_load": None,
         "status_badge": None,
         "undo_button": None,
         "redo_button": None,
         "combination_progress": 0,
         "combination_unlocked": False,
     }
+    load_generation = 0
     undo_history: list[ConfigurationMemento] = []
     redo_history: list[ConfigurationMemento] = []
     
@@ -383,8 +383,13 @@ def configuration_editor(
         
         # Upload a configuration file from the user's computer.
         async def handle_config_upload(event) -> None:
+            generation = load_generation
+            if not load_dialog.value:
+                return
             try:
                 file_name, content = await read_upload(event)
+                if generation != load_generation or not load_dialog.value:
+                    return
 
                 if not file_name.lower().endswith(".json"):
                     ui.notify("Please select a .json file.", type="negative")
@@ -408,7 +413,8 @@ def configuration_editor(
             except Exception as exc:
                 ui.notify(f"Unable to load configuration: {exc}", type="negative")
             finally:
-                config_upload.reset()
+                if generation == load_generation:
+                    config_upload.reset()
 
         # Dialog for uploading a configuration from the user's computer.
         with ui.dialog() as load_dialog:
@@ -432,10 +438,12 @@ def configuration_editor(
                 with ui.row().classes("w-full justify-end"):
                     ui.button(
                         "Cancel",
-                        on_click=load_dialog.close,
+                        on_click=lambda: cancel_load(),
                     ).props("flat")
 
         def open_load_dialog() -> None:
+            nonlocal load_generation
+            load_generation += 1
             config_upload.reset()
             load_dialog.open()
 
@@ -455,7 +463,7 @@ def configuration_editor(
             ui.button(
                 "Load configuration",
                 icon="folder_open",
-                on_click=lambda: request_load_select(),
+                on_click=lambda: request_load_upload(),
             ).props("outline").classes("bg-[#75e6da] text-[#101820]")
             ui.button(
                 "Create configuration",
@@ -472,14 +480,6 @@ def configuration_editor(
                 icon="fact_check",
                 on_click=lambda: validate_current_config(),
             ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
-
-        # Hidden selector is populated when the user chooses to load a config.
-        load_select = ui.select(
-            options=controller.list_names(),
-            label="Select Configuration",
-        ).classes("w-full max-w-xl").props("dark outlined")
-        load_select.set_visibility(False)
-        load_select.on_value_change(lambda e: on_select_change(e.value))
 
         editor_body()
 
@@ -539,43 +539,23 @@ def configuration_editor(
         name_input.error = None
         create_dialog.open()
 
-    # Refresh choices in the load selector from persisted configuration names.
-    def refresh_load_options() -> None:
-        load_select.set_options(controller.list_names(), value=None)
-
-    # Show the refreshed choices without changing the selector's current visibility.
-    def show_load_select() -> None:
-        refresh_load_options()
-        load_select.set_visibility(True)
-        load_select.run_method("showPopup")
-
-    # Toggle the load selector and display its current options immediately.
-    def toggle_load_select() -> None:
-        if load_select.visible:
-            load_select.set_visibility(False)
-            return
-        show_load_select()
-
     # Protect an edited draft before opening the configuration upload dialog.
-    def request_load_select() -> None:
+    def request_load_upload() -> None:
         if state["config"] is not None and not state["saved"]:
             unsaved_load_dialog.open()
             return
         open_load_dialog()
 
     def cancel_load() -> None:
-        state["pending_load"] = None
-        load_select.value = None
+        nonlocal load_generation
+        load_generation += 1
+        config_upload.reset()
+        load_dialog.close()
         unsaved_load_dialog.close()
 
     def discard_and_load() -> None:
         unsaved_load_dialog.close()
-        pending_name = state["pending_load"]
-        state["pending_load"] = None
-        if pending_name:
-            on_select_change(pending_name, confirmed=True)
-        else:
-            open_load_dialog()
+        open_load_dialog()
 
     def save_and_load() -> None:
         config_name = state["name"]
@@ -601,21 +581,6 @@ def configuration_editor(
         )
         discard_and_load()
 
-    # Load a selected configuration, hiding the selector after success.
-    def on_select_change(name: str | None, *, confirmed: bool = False) -> None:
-        if not name:
-            return
-        if name != state["name"]:
-            if state["config"] is not None and not state["saved"] and not confirmed:
-                state["pending_load"] = name
-                unsaved_load_dialog.open()
-                return
-            confirm_load(name)
-        # Hide again only if the load worked (or it was already open).
-        if state["name"] == name:
-            load_select.set_visibility(False)
-            load_select.value = None
-
     # Validate the requested name, create a draft, and refresh the editor.
     def confirm_create() -> None:
         try:
@@ -636,31 +601,6 @@ def configuration_editor(
         create_dialog.close()
         editor_body.refresh()
         ui.notify(f"Configuration '{name}' created. Add items, then save.", type="positive")
-
-    # Read a saved configuration into the editor and update its saved status.
-    def confirm_load(name: str | None) -> None:
-        config_name = (name or "").strip()
-        if not config_name:
-            ui.notify("Pick a configuration first.", type="negative")
-            return
-        try:
-            loaded_config = controller.load_configuration(config_name)
-        except FileNotFoundError:
-            ui.notify(f"Configuration '{config_name}' was not found.", type="negative")
-            return
-        except ConfigLoadError as exc:
-            ui.notify(f"'{config_name}' is not a valid configuration: {exc}", type="negative")
-            return
-        except Exception as exc:  # pragma: no cover - UI guard
-            ui.notify(f"Unable to load configuration: {exc}", type="negative")
-            return
-
-        state["config"] = loaded_config
-        state["name"] = config_name
-        clear_history()
-        set_saved_status(True)
-        editor_body.refresh()
-        ui.notify(f"Loaded '{config_name}'.", type="positive")
 
     # Dialog surface used to display validation results and rejected edits.
     with ui.dialog() as validate_dialog, ui.card().classes(
