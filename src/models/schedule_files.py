@@ -17,6 +17,7 @@ import io
 import json
 import re
 from pathlib import Path
+from typing import Protocol
 
 from src.models.schedule_result import ScheduleResult
 
@@ -81,6 +82,35 @@ def records_to_csv(records: list[dict[str, str]], extra: dict[str, str] | None =
 
 def records_to_json(records: list[dict[str, str]]) -> bytes:
     return json.dumps(records, indent=4).encode("utf-8")
+
+
+class ScheduleExportStrategy(Protocol):
+    """Serialize schedule records into one downloadable file format."""
+
+    def serialize(self, records: list[dict[str, str]]) -> bytes: ...
+
+
+class CsvScheduleExportStrategy:
+    def serialize(self, records: list[dict[str, str]]) -> bytes:
+        return records_to_csv(records)
+
+
+class JsonScheduleExportStrategy:
+    def serialize(self, records: list[dict[str, str]]) -> bytes:
+        return records_to_json(records)
+
+
+SCHEDULE_EXPORT_STRATEGIES: dict[str, ScheduleExportStrategy] = {
+    "csv": CsvScheduleExportStrategy(),
+    "json": JsonScheduleExportStrategy(),
+}
+
+
+def schedule_export_strategy(file_format: str) -> ScheduleExportStrategy:
+    try:
+        return SCHEDULE_EXPORT_STRATEGIES[file_format]
+    except KeyError as error:
+        raise ValueError("Please choose CSV or JSON.") from error
 
 
 # ---------------------------------------------------------------------------

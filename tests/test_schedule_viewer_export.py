@@ -35,6 +35,23 @@ def test_export_current_returns_download_data_without_writing_to_disk(tmp_path):
     assert list(tmp_path.iterdir()) == []
 
 
+def test_export_current_uses_selected_serialization_strategy(tmp_path):
+    records = [
+        {
+            "course": "CMSC 420",
+            "faculty": "Dr. Smith",
+            "room": "Room 101",
+            "lab": "",
+            "times": "MON 09:00-09:50",
+        }
+    ]
+    model = ScheduleViewerModel(directory=tmp_path)
+    entry = model.load_bytes("fall_schedule1.csv", records_to_csv(records))
+
+    assert model.serialize(entry, "csv") == records_to_csv(records)
+    assert json.loads(model.serialize(entry, "json")) == records
+
+
 def test_export_current_rejects_unsupported_format(tmp_path):
     model = ScheduleViewerModel(directory=tmp_path)
     model.load_bytes(
