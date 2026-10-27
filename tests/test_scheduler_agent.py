@@ -1,10 +1,35 @@
 import json
 from types import SimpleNamespace
 
+import src.ai.scheduler_agent as scheduler_agent
 from src.ai.scheduler_agent import SchedulerAgentState, get_tool_list
 from src.controllers.configuration_controller import ConfigurationController
 from src.models.configuration_model import ValidationProblem
 from src.views.configuration_editor import PANEL_COMBINATIONS
+
+
+def test_base_prompt_documents_tool_capabilities_and_behavior(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(
+        scheduler_agent,
+        "create_agent",
+        lambda **kwargs: captured.update(kwargs) or kwargs,
+    )
+
+    scheduler_agent.build_scheduler_agent(model=object())
+
+    prompt = captured["system_prompt"]
+    tool_names = {
+        tool.name
+        for tool in get_tool_list(SchedulerAgentState())
+    }
+    assert all(f"- {name}:" in prompt for name in tool_names)
+    assert "exact role" in prompt
+    assert "All configuration changes and supported application actions must be" in prompt
+    assert "scheduler library and its validation rules are authoritative" in prompt
+    assert "Explain unsupported requests clearly" in prompt
+    assert "ask a focused clarifying question" in prompt
+    assert "Report success only after the corresponding tool confirms success" in prompt
 
 
 def _tools(state, **kwargs):
