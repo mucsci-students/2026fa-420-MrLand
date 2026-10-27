@@ -34,6 +34,12 @@ class FakeModel:
 class FakeGenerator:
     def __init__(self, generated_schedules=None):
         self.generated_schedules = generated_schedules or []
+        self.clear_generated_schedules_calls = 0
+
+    def clear_generated_schedules(self):
+        self.clear_generated_schedules_calls += 1
+        self.generated_schedules.clear()
+        return True
 
 
 def make_entry(label, records):
@@ -165,3 +171,7 @@ class TestGeneratedScheduleSync:
 
         assert changed is True
         assert controller.model.generated_received == generated
+
+    def test_clear_generated_schedules_delegates_to_generator(self, controller):
+        assert controller.clear_generated_schedules() is True
+        assert controller.generator.clear_generated_schedules_calls == 1

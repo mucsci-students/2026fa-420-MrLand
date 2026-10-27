@@ -27,6 +27,10 @@ class ScheduleController:
         """Pull the generator's latest results. True if the viewer should redraw."""
         return self.model.set_generated(self.generator.generated_schedules)
 
+    def clear_generated_schedules(self) -> bool:
+        """Clear generated results without affecting schedules loaded from files."""
+        return self.generator.clear_generated_schedules()
+
     @property
     def has_schedules(self) -> bool:
         return bool(self.model.entries)

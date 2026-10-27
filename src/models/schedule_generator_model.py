@@ -46,6 +46,14 @@ class ScheduleGeneratorModel:
         with self._lock:
             return replace(self._state)
 
+    def clear_generated_schedules(self) -> bool:
+        """Clear published results unless a generation run is in progress."""
+        with self._lock:
+            if self._state.running:
+                return False
+            self._generated_schedules.clear()
+            return True
+
     def list_config_names(self) -> list[str]:
         config_directory = os.path.join("src", "configs")
         try:

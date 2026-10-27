@@ -22,6 +22,8 @@ class FakeGeneratorModel:
         self.generate_configuration_calls = []
         self.load_error = None
         self.generated_schedules = []
+        self.clear_generated_schedules_result = True
+        self.clear_generated_schedules_calls = 0
 
     def state_snapshot(self):
         return SimpleNamespace(
@@ -50,6 +52,12 @@ class FakeGeneratorModel:
 
     def generate_configuration(self, config_name, config):
         self.generate_configuration_calls.append((config_name, config))
+
+    def clear_generated_schedules(self):
+        self.clear_generated_schedules_calls += 1
+        if self.clear_generated_schedules_result:
+            self.generated_schedules.clear()
+        return self.clear_generated_schedules_result
 
 
 @pytest.fixture
@@ -246,3 +254,18 @@ class TestGenerateActiveConfiguration:
         assert error is None
         assert model.begin_calls == [("active", 5)]
         assert model.generate_configuration_calls == [("active", config)]
+
+
+class TestClearGeneratedSchedules:
+    def test_clears_generated_schedules(self, controller, model):
+        model.generated_schedules.append("old result")
+
+        assert controller.clear_generated_schedules() is True
+        assert model.generated_schedules == []
+        assert model.clear_generated_schedules_calls == 1
+
+    def test_reports_when_clear_is_rejected(self, controller, model):
+        model.clear_generated_schedules_result = False
+
+        assert controller.clear_generated_schedules() is False
+        assert model.clear_generated_schedules_calls == 1
