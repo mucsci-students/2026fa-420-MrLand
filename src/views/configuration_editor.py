@@ -27,7 +27,20 @@ from src.views.time_blocks_gui import time_blocks_gui
 
 
 controller = ConfigurationController()
-PANEL_COMBINATION = ("Rooms", "Time blocks", "Faculty", "Faculty")
+TOP_HAT_COMBINATION = ("Rooms", "Time blocks", "Faculty", "Faculty")
+BASEBALL_HAT_COMBINATION = ("Rooms", "Time blocks", "Faculty", "Class patterns")
+FLOWER_CROWN_COMBINATION = ("Global settings", "Labs", "Courses", "Labs")
+FLOWER_HAT_COMBINATION = ("Time blocks", "Rooms", "labs", "Courses")
+GRADUATION_CAP_COMBINATION = ("Courses", "Faculty", "Rooms", "Labs")
+RESCUE_HAT_COMBINATION = ("Global settings", "Faculty", "Faculty", "Rooms")
+PANEL_COMBINATIONS = (
+    ("top_hat", TOP_HAT_COMBINATION, "🎩"),
+    ("baseball_cap", BASEBALL_HAT_COMBINATION, "🧢"),
+    ("flower_crown", FLOWER_CROWN_COMBINATION, "👑"),
+    ("flower_hat", FLOWER_HAT_COMBINATION, "👒"),
+    ("graduation_cap", GRADUATION_CAP_COMBINATION, "🎓"),
+    ("rescue_hat", RESCUE_HAT_COMBINATION, "⛑️")
+)
 
 
 class ConfigurationEditorRefresh:
@@ -53,7 +66,7 @@ async def read_upload(event) -> tuple[str, bytes]:
 
 
 def configuration_editor(
-    on_unlock: Callable[[], None],
+    on_unlock: Callable[[str, str], None],
 ) -> ConfigurationEditorRefresh:
     """Build the editor workspace and coordinate configuration lifecycle actions."""
     # Keep the selected draft and save state shared by the editor callbacks.
@@ -64,10 +77,10 @@ def configuration_editor(
         "status_badge": None,
         "undo_button": None,
         "redo_button": None,
-        "combination_progress": 0,
-        "combination_unlocked": False,
         "flush_pending_settings": lambda: True,
     }
+    combination_progress = [0] * len(PANEL_COMBINATIONS)
+    completed_combinations: set[str] = set()
     load_generation = 0
     undo_history: list[ConfigurationMemento] = []
     redo_history: list[ConfigurationMemento] = []
@@ -310,16 +323,22 @@ def configuration_editor(
                 panel.set_visibility(page_name == action)
 
     # Download the active draft through the browser.
-            if state["combination_unlocked"]:
-                return
-            if action == PANEL_COMBINATION[state["combination_progress"]]:
-                state["combination_progress"] += 1
-            else:
-                state["combination_progress"] = int(action == PANEL_COMBINATION[0])
+            for index, (combination_name, combination, hat_emoji) in enumerate(
+                PANEL_COMBINATIONS
+            ):
+                if combination_name in completed_combinations:
+                    continue
+                progress = combination_progress[index]
+                if action == combination[progress]:
+                    progress += 1
+                else:
+                    progress = int(action == combination[0])
+                combination_progress[index] = progress
 
-            if state["combination_progress"] == len(PANEL_COMBINATION):
-                state["combination_unlocked"] = True
-                on_unlock()
+                if progress == len(combination):
+                    completed_combinations.add(combination_name)
+                    on_unlock(combination_name, hat_emoji)
+                    break
 
     # Download the active draft and report validation or browser errors.
     def download_configuration(file_name: str) -> str:

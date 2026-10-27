@@ -21,14 +21,14 @@ from src.views.schedule_generation_progress import ScheduleGenerationProgress
 
 
 def _create_duck_launcher(
-    on_click: Callable[[], None], *, with_hat: bool
+    on_click: Callable[[], None], *, with_hat: bool, hat_emoji: str = "🎩"
 ) -> tuple[Any, Any]:
     """Create a duck-emoji launcher, optionally adding a hat above it."""
     with ui.button(on_click=on_click).props("unelevated").classes(
         "bg-[#75e6da]"
     ) as launcher:
         ui.label("🦆").classes("text-3xl leading-none")
-        hat = ui.label("🎩").style(
+        hat = ui.label(hat_emoji).style(
             "position: absolute; top: -7px; left: 50%; "
             "transform: translateX(-50%); font-size: 20px; line-height: 1;"
         )
@@ -58,14 +58,13 @@ def scheduler_ai_assistant(
     controller: ConfigurationController,
     refresh_configuration: Callable[..., None],
     configuration_is_saved: Callable[[], bool],
-) -> Callable[[], None]:
+) -> Callable[[str, str], None]:
     state: dict[str, Any] = {
         "config": None,
         "history": [],
         "messages": [],
     }
     assistant_launcher: Any = None
-    assistant_unlocked = False
 
     @ui.refreshable
     def transcript() -> None:
@@ -295,11 +294,8 @@ def scheduler_ai_assistant(
         if assistant_launcher is not None:
             assistant_launcher.set_visibility(True)
 
-    def unlock_assistant() -> None:
-        nonlocal assistant_unlocked
-        if assistant_unlocked:
-            return
-        assistant_unlocked = True
+    def unlock_assistant(_combination_name: str, hat_emoji: str) -> None:
+        assistant_hat.set_text(hat_emoji)
         assistant_hat.set_visibility(True)
 
     with ui.card().classes(

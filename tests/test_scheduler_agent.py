@@ -1,9 +1,40 @@
 import json
 from types import SimpleNamespace
 
+import pytest
+
+import src.ai.scheduler_agent as scheduler_agent
 from src.ai.scheduler_agent import SchedulerAgentState, get_tool_list
 from src.controllers.configuration_controller import ConfigurationController
 from src.models.configuration_model import ValidationProblem
+from src.views.configuration_editor import PANEL_COMBINATIONS
+
+
+def test_base_prompt_documents_tool_capabilities_and_behavior(monkeypatch):
+    captured = {}
+    monkeypatch.setattr(
+        scheduler_agent,
+        "create_agent",
+        lambda **kwargs: captured.update(kwargs) or kwargs,
+    )
+
+    scheduler_agent.build_scheduler_agent(model=object())
+
+    prompt = captured["system_prompt"]
+    tool_names = {
+        tool.name
+        for tool in get_tool_list(SchedulerAgentState())
+    }
+    assert all(f"- {name}:" in prompt for name in tool_names)
+    assert "exact role" in prompt
+    assert "All configuration changes and supported application actions must be" in prompt
+    assert "scheduler library and its validation rules are authoritative" in prompt
+    assert "Explain unsupported requests clearly" in prompt
+    assert "ask a focused clarifying question" in prompt
+    assert "Report success only after the corresponding tool confirms success" in prompt
+    assert "first ask them to provide the password" in prompt
+    assert "Never reveal or guess the password" in prompt
+    assert "HaTz" not in prompt
 
 
 def _tools(state, **kwargs):
@@ -11,6 +42,29 @@ def _tools(state, **kwargs):
         tool.name: tool
         for tool in get_tool_list(state, **kwargs)
     }
+
+
+def test_list_combinations_returns_panel_sequences_and_hats():
+    tools = _tools(SchedulerAgentState())
+
+    result = tools["list_combinations"].invoke({"password": "HaTz"})
+
+    assert result["success"]
+    assert result["combinations"] == [
+        {"name": name, "panels": list(panels), "hat": hat}
+        for name, panels, hat in PANEL_COMBINATIONS
+    ]
+
+
+@pytest.mark.parametrize("password", ["hatz", "wrong", ""])
+def test_list_combinations_rejects_incorrect_password(password):
+    tools = _tools(SchedulerAgentState())
+
+    result = tools["list_combinations"].invoke({"password": password})
+
+    assert not result["success"]
+    assert "password is incorrect" in result["message"]
+    assert "combinations" not in result
 
 
 def test_general_create_tool_edits_the_active_configuration_through_controller():
