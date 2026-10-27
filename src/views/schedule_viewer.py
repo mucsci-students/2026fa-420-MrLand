@@ -192,6 +192,28 @@ def schedule_viewer() -> Callable[[], None]:
                     ui.button("Cancel", on_click=export_dialog.close).props("flat")
                     export_button = ui.button("Export", icon="download")
 
+        with ui.dialog() as export_all_dialog:
+            with ui.card().classes("bg-[#101820] border border-[#29404b] w-[480px] gap-3"):
+                ui.label("Export All Generated Schedules").classes(
+                    "text-lg font-semibold text-white"
+                )
+                ui.label(
+                    "Download every generated schedule together in one ZIP archive."
+                ).classes("text-sm text-gray-400")
+                export_all_format = ui.select(
+                    {"csv": "CSV", "json": "JSON"},
+                    value="csv",
+                    label="Schedule File Format",
+                ).props("outlined dark").classes("schedule-dropdown w-full")
+                export_all_status = ui.label("").classes("text-sm text-red-400")
+                with ui.row().classes("w-full justify-end gap-2"):
+                    ui.button(
+                        "Cancel", on_click=export_all_dialog.close
+                    ).props("flat")
+                    export_all_button = ui.button(
+                        "Export All", icon="folder_zip"
+                    )
+
         # ---------------------------------------------------------
         # Schedule controls
         # ---------------------------------------------------------
@@ -210,6 +232,12 @@ def schedule_viewer() -> Callable[[], None]:
                 "Export",
                 icon="file_download",
                 on_click=lambda: open_export_dialog(),
+            ).props("outline")
+
+            export_all_open_button = ui.button(
+                "Export All Generated",
+                icon="folder_zip",
+                on_click=lambda: open_export_all_dialog(),
             ).props("outline")
 
             # helper to reset filter values to default
@@ -416,6 +444,9 @@ def schedule_viewer() -> Callable[[], None]:
             empty_label.visible = not has_schedules
             schedule_select.set_enabled(has_schedules)
             export_open_button.set_enabled(has_schedules)
+            export_all_open_button.set_enabled(
+                controller.has_generated_schedules
+            )
             previous_button.set_enabled(controller.can_step(-1))
             next_button.set_enabled(controller.can_step(1))
 
@@ -500,6 +531,12 @@ def schedule_viewer() -> Callable[[], None]:
             export_status.text = ""
             export_dialog.open()
 
+        def open_export_all_dialog():
+            if not controller.has_generated_schedules:
+                return
+            export_all_status.text = ""
+            export_all_dialog.open()
+
         # Give the calendar fullscreen toolbar access to the existing export dialog.
         calendar_view.set_export_callback(open_export_dialog)
 
@@ -528,8 +565,26 @@ def schedule_viewer() -> Callable[[], None]:
                 type="positive",
             )
 
+        def on_export_all():
+            export, error = controller.export_all_generated(
+                export_all_format.value
+            )
+            if error or export is None:
+                export_all_status.text = (
+                    error or "Could not export generated schedules."
+                )
+                return
+            content, file_name, media_type = export
+            ui.download(content, filename=file_name, media_type=media_type)
+            export_all_dialog.close()
+            ui.notify(
+                f"Exporting all generated schedules as {file_name}.",
+                type="positive",
+            )
+
         export_format.on_value_change(on_export_format_changed)
         export_button.on_click(on_export)
+        export_all_button.on_click(on_export_all)
 
         # ---------------------------------------------------------
         # Dropdown events
