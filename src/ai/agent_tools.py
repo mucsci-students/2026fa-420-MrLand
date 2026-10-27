@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 import json
 from collections.abc import Callable
 from typing import Any, Literal
@@ -27,6 +28,8 @@ from src.models.configuration_model import (
     validate_config,
 )
 from src.views.configuration_editor import PANEL_COMBINATIONS
+
+COMBINATIONS_PASSWORD = "HaTz"
 
 try:
     from langchain_core.tools import StructuredTool
@@ -79,7 +82,15 @@ class SchedulerAgentState:
         return self._result(True, "A scheduler configuration is active.")
 
     # Describe the editor combinations the user can complete to change the duck hat.
-    def list_combinations(self) -> dict[str, Any]:
+    def list_combinations(self, password: str) -> dict[str, Any]:
+        if not hmac.compare_digest(
+            password.encode("utf-8"), COMBINATIONS_PASSWORD.encode("utf-8")
+        ):
+            return self._result(
+                False,
+                "The password is incorrect. Ask the user to try again; do not show "
+                "or guess the combinations.",
+            )
         combinations = [
             {
                 "name": name,
@@ -671,6 +682,12 @@ class SaveConfigurationArgs(BaseModel):
     config_name: str = Field(description="Name for the saved JSON configuration")
 
 
+class CombinationPasswordArgs(BaseModel):
+    password: str = Field(
+        description="Password provided by the user to authorize listing combinations"
+    )
+
+
 # Register assistant tools with configuration and change-validation guards.
 def get_tool_list(
     state: SchedulerAgentState,
@@ -773,10 +790,10 @@ def get_tool_list(
         return guarded_operation
 
     def informational_tool(
-        operation: Callable[[], dict[str, Any]]
-    ) -> Callable[[], dict[str, Any]]:
-        def reported_operation() -> dict[str, Any]:
-            return report(operation())
+        operation: Callable[..., dict[str, Any]]
+    ) -> Callable[..., dict[str, Any]]:
+        def reported_operation(**arguments: Any) -> dict[str, Any]:
+            return report(operation(**arguments))
 
         return reported_operation
 
@@ -880,11 +897,11 @@ def get_tool_list(
             func=informational_tool(state.list_combinations),
             description=(
                 "Show the user all available configuration-editor panel "
-                "combinations and the duck hat each combination unlocks. "
-                "Use this whenever the user asks about available combinations, "
-                "sequences, or hats."
+                "combinations and the duck hat each combination unlocks, only "
+                "after the user supplies the password. Ask the user for the "
+                "password before calling this tool; never disclose or guess it."
             ),
-            args_schema={},
+            args_schema=CombinationPasswordArgs,
         ),
     ]
     return [

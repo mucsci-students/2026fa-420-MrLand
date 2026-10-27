@@ -1,6 +1,8 @@
 import json
 from types import SimpleNamespace
 
+import pytest
+
 import src.ai.scheduler_agent as scheduler_agent
 from src.ai.scheduler_agent import SchedulerAgentState, get_tool_list
 from src.controllers.configuration_controller import ConfigurationController
@@ -30,6 +32,9 @@ def test_base_prompt_documents_tool_capabilities_and_behavior(monkeypatch):
     assert "Explain unsupported requests clearly" in prompt
     assert "ask a focused clarifying question" in prompt
     assert "Report success only after the corresponding tool confirms success" in prompt
+    assert "first ask them to provide the password" in prompt
+    assert "Never reveal or guess the password" in prompt
+    assert "HaTz" not in prompt
 
 
 def _tools(state, **kwargs):
@@ -42,13 +47,24 @@ def _tools(state, **kwargs):
 def test_list_combinations_returns_panel_sequences_and_hats():
     tools = _tools(SchedulerAgentState())
 
-    result = tools["list_combinations"].invoke({})
+    result = tools["list_combinations"].invoke({"password": "HaTz"})
 
     assert result["success"]
     assert result["combinations"] == [
         {"name": name, "panels": list(panels), "hat": hat}
         for name, panels, hat in PANEL_COMBINATIONS
     ]
+
+
+@pytest.mark.parametrize("password", ["hatz", "wrong", ""])
+def test_list_combinations_rejects_incorrect_password(password):
+    tools = _tools(SchedulerAgentState())
+
+    result = tools["list_combinations"].invoke({"password": password})
+
+    assert not result["success"]
+    assert "password is incorrect" in result["message"]
+    assert "combinations" not in result
 
 
 def test_general_create_tool_edits_the_active_configuration_through_controller():
