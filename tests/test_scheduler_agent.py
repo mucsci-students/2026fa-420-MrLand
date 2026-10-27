@@ -4,6 +4,7 @@ from types import SimpleNamespace
 from src.ai.scheduler_agent import SchedulerAgentState, get_tool_list
 from src.controllers.configuration_controller import ConfigurationController
 from src.models.configuration_model import ValidationProblem
+from src.views.configuration_editor import PANEL_COMBINATIONS
 
 
 def _tools(state, **kwargs):
@@ -11,6 +12,18 @@ def _tools(state, **kwargs):
         tool.name: tool
         for tool in get_tool_list(state, **kwargs)
     }
+
+
+def test_list_combinations_returns_panel_sequences_and_hats():
+    tools = _tools(SchedulerAgentState())
+
+    result = tools["list_combinations"].invoke({})
+
+    assert result["success"]
+    assert result["combinations"] == [
+        {"name": name, "panels": list(panels), "hat": hat}
+        for name, panels, hat in PANEL_COMBINATIONS
+    ]
 
 
 def test_general_create_tool_edits_the_active_configuration_through_controller():

@@ -303,13 +303,13 @@ def build_app() -> None:
 
         editor_refresh: Callable[[], None]
         viewer_refresh: Callable[[], None]
-        unlock_assistant: Callable[[], None] = lambda: None
+        unlock_assistant: Callable[[str, str], None] = lambda _name, _emoji: None
         active_tab = {"value": "configuration"}
         pending_tab = {"value": None}
         rejected_tab = {"value": None}
 
-        def request_assistant_unlock() -> None:
-            unlock_assistant()
+        def request_assistant_unlock(combination_name: str, hat_emoji: str) -> None:
+            unlock_assistant(combination_name, hat_emoji)
 
         with ui.tab_panels(tabs, value="configuration").classes("w-full bg-transparent pt-8"):
             with ui.tab_panel("configuration"):

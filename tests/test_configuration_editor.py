@@ -26,11 +26,11 @@ def editor_controller(monkeypatch, tmp_path):
     return test_controller
 
 
-def run_editor_simulation(action):
+def run_editor_simulation(action, on_unlock=None):
     refresh_callbacks = []
 
     def root():
-        refresh = editor.configuration_editor(lambda: None)
+        refresh = editor.configuration_editor(on_unlock or (lambda: None))
         refresh_callbacks.append(refresh)
 
     async def simulate():
@@ -39,6 +39,40 @@ def run_editor_simulation(action):
             await action(user, refresh_callbacks[0])
 
     asyncio.run(simulate())
+
+
+@pytest.mark.parametrize(
+    "combination_name,panels,hat_emoji", editor.PANEL_COMBINATIONS
+)
+def test_each_panel_combination_unlocks(
+    editor_controller, combination_name, panels, hat_emoji
+):
+    on_unlock = Mock()
+
+    async def action(user, _refresh):
+        await load_demo_config(user, editor_controller)
+        for panel in panels:
+            user.find(panel).click()
+        on_unlock.assert_called_once_with(combination_name, hat_emoji)
+
+    run_editor_simulation(action, on_unlock=on_unlock)
+
+
+def test_multiple_panel_combinations_unlock_in_one_session(editor_controller):
+    on_unlock = Mock()
+
+    async def action(user, _refresh):
+        await load_demo_config(user, editor_controller)
+        for combination_name, panels, hat_emoji in editor.PANEL_COMBINATIONS:
+            for panel in panels:
+                user.find(panel).click()
+
+        assert on_unlock.call_args_list == [
+            ((combination_name, hat_emoji), {})
+            for combination_name, _panels, hat_emoji in editor.PANEL_COMBINATIONS
+        ]
+
+    run_editor_simulation(action, on_unlock=on_unlock)
 
 
 async def load_demo_config(user, controller, mark_unsaved=None):
