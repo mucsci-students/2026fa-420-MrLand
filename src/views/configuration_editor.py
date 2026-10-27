@@ -671,5 +671,6 @@ def configuration_editor(
         editor_body.refresh()
 
     return ConfigurationEditorRefresh(
-        refresh_after_ai_change, lambda: bool(state["saved"])
+        refresh_after_ai_change,
+        lambda: state["config"] is None or bool(state["saved"]),
     )
