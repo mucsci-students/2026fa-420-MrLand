@@ -29,6 +29,9 @@ class ScheduleGeneratorController:
     def state_snapshot(self) -> ScheduleGenerationState:
         return self.model.state_snapshot()
 
+    def clear_generated_schedules(self) -> bool:
+        return self.model.clear_generated_schedules()
+
     def schedule_to_json(self, result, schedule_number: int) -> bytes:
         return self.model.schedule_to_json(result, schedule_number)
 

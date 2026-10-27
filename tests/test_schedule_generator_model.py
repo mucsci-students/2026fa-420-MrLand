@@ -93,6 +93,19 @@ class TestBeginGeneration:
 
         assert model.generated_schedules == []
 
+    def test_clear_generated_schedules_removes_results(self, model):
+        model._generated_schedules.append("old result")
+
+        assert model.clear_generated_schedules() is True
+        assert model.generated_schedules == []
+
+    def test_clear_generated_schedules_is_rejected_while_running(self, model):
+        model.begin_generation("test-config", 2)
+        model._generated_schedules.append("current result")
+
+        assert model.clear_generated_schedules() is False
+        assert model.generated_schedules == ["current result"]
+
     def test_generation_ids_increase(self, model):
         model.begin_generation("first", 1)
         first_id = model.state_snapshot().generation_id

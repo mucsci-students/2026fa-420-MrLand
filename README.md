@@ -10,6 +10,7 @@
 - Logan Kaufman
 - Dylan Groff
 - Micah Schafer
+- Sohil Ramani
 
 ---
 
@@ -35,6 +36,7 @@ This project is a schedule-planning application for creating and managing course
 - **Schedule Viewer**
   - Load generated schedules from disk
   - Review schedule details and exported results
+  - Clear generated results without removing schedules loaded from files
 - **Scheduler AI Assistant**
   - Use the floating chat box from any GUI screen to inspect or edit the active configuration in natural language
   - Inspect and manage rooms, labs, courses, faculty, class patterns, meetings, time blocks, and global settings; validate and generate schedules with defined scheduler tools

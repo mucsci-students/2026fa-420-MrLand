@@ -240,6 +240,12 @@ def schedule_viewer() -> Callable[[], None]:
                 on_click=lambda: open_export_all_dialog(),
             ).props("outline")
 
+            clear_generated_button = ui.button(
+                "Clear Generated Results",
+                icon="delete_sweep",
+                on_click=lambda: clear_generated_results(),
+            ).props("outline")
+
             # helper to reset filter values to default
             def reset_filters():
                 filter_select.set_value("None")
@@ -447,6 +453,9 @@ def schedule_viewer() -> Callable[[], None]:
             export_all_open_button.set_enabled(
                 controller.has_generated_schedules
             )
+            clear_generated_button.set_enabled(
+                controller.has_generated_schedules
+            )
             previous_button.set_enabled(controller.can_step(-1))
             next_button.set_enabled(controller.can_step(1))
 
@@ -462,6 +471,17 @@ def schedule_viewer() -> Callable[[], None]:
         def step_schedule(offset: int):
             controller.step(offset)
             show_selected_schedule()
+
+        def clear_generated_results():
+            if not controller.clear_generated_schedules():
+                ui.notify(
+                    "Cannot clear generated results while generation is in progress.",
+                    type="negative",
+                )
+                return
+            controller.sync_generated()
+            show_selected_schedule()
+            ui.notify("Generated results cleared.", type="positive")
 
         def check_for_generated_schedules():
             # The generator runs in the background; pick up its results
