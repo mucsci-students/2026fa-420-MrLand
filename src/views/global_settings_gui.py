@@ -2,6 +2,8 @@
 
 Used by: GUI."""
 
+from collections.abc import Callable
+
 from nicegui import ui
 from scheduler.config import CombinedConfig, OptimizerFlags
 
@@ -14,7 +16,8 @@ controller = SettingsController()
 def global_settings_gui(
     combined_config: CombinedConfig,
     on_change: ConfigurationChangeHandler | None = None,
-) -> None:
+    on_pending_change: Callable[[], None] | None = None,
+) -> Callable[[], bool]:
     """Build controls for the configuration's generation limit and optimizer flags."""
     ui.label("Global settings").classes("text-xl font-semibold text-white")
     ui.label("Configure schedule generation behavior.").classes(
@@ -31,6 +34,7 @@ def global_settings_gui(
         label="Optimizer flags",
     ).props("use-chips clearable").classes("w-full max-w-2xl")
     current_settings = ui.label().classes("text-sm text-[#9fb2b8]")
+    pending_settings = False
 
     # Keep the summary synchronized with the current configuration values.
     def refresh_summary() -> None:
@@ -42,12 +46,13 @@ def global_settings_gui(
             f"optimizer flags {active_flags}"
         )
 
-    # Validate the form and apply the new settings to the current draft.
-    def save_settings() -> None:
+    # Validate the form and apply pending settings to the current draft.
+    def apply_settings(*, notify: bool) -> bool:
+        nonlocal pending_settings
         value = generation_limit.value
         if value is None or not float(value).is_integer():
             ui.notify("Generation limit must be a whole number.", type="negative")
-            return
+            return False
         try:
             if not run_configuration_change(
                 on_change,
@@ -57,15 +62,36 @@ def global_settings_gui(
                     optimizer_flags.value or [],
                 ),
             ):
-                return
+                return False
         except (TypeError, ValueError) as exc:
             ui.notify(str(exc), type="negative")
-            return
+            return False
+        pending_settings = False
         refresh_summary()
-        ui.notify("Global settings saved to the current draft.", type="positive")
+        if notify:
+            ui.notify("Global settings saved to the current draft.", type="positive")
+        return True
+
+    def settings_changed() -> None:
+        nonlocal pending_settings
+        pending_settings = True
+        if on_pending_change is not None:
+            on_pending_change()
+
+    generation_limit.on_value_change(lambda _: settings_changed())
+    optimizer_flags.on_value_change(lambda _: settings_changed())
+
+    def save_settings() -> None:
+        apply_settings(notify=True)
+
+    def flush_pending_settings() -> bool:
+        if not pending_settings:
+            return True
+        return apply_settings(notify=False)
 
     # Restore the controller's default settings in both data and form controls.
     def reset_to_defaults() -> None:
+        nonlocal pending_settings
         if not run_configuration_change(
             on_change, lambda: controller.reset_settings(combined_config)
         ):
@@ -74,6 +100,7 @@ def global_settings_gui(
         optimizer_flags.value = [
             flag.value for flag in combined_config.optimizer_flags
         ]
+        pending_settings = False
         refresh_summary()
         ui.notify("Global settings reset to defaults.", type="positive")
 
@@ -86,3 +113,4 @@ def global_settings_gui(
         ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
 
     refresh_summary()
+    return flush_pending_settings
