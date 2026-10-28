@@ -2,14 +2,25 @@
 
 Used by: GUI."""
 
+from pathlib import Path
+
 from nicegui import ui
 
+from src.controllers.configuration_controller import ConfigurationController
 from src.controllers.schedule_generator_controller import (
     schedule_generator_controller as controller,
 )
-from src.models.schedule_generator_model import ScheduleGenerationState
+from src.models.configuration_model import ConfigValidationError
 from src.models.configuration_repository import ConfigLoadError
+from src.models.schedule_generator_model import ScheduleGenerationState
+from src.views.configuration_editor import controller as editor_controller
 from src.views.schedule_generation_progress import ScheduleGenerationProgress
+
+
+async def read_upload(event) -> tuple[str, bytes]:
+    if hasattr(event, "file"):
+        return event.file.name, await event.file.read()
+    return event.name, event.content.read()
 
 
 def schedule_generator() -> None:
@@ -18,24 +29,75 @@ def schedule_generator() -> None:
         "text-2xl font-semibold text-white"
     )
     ui.label(
-        "Generate schedules from a saved configuration."
+        "Generate schedules from a configuration file."
     ).classes("text-gray-400 mb-6")
 
     ui.label("Configuration").classes(
         "text-lg font-semibold text-white"
     )
-    config_select = ui.select(
-        options=controller.list_config_names(),
-        label="Select Configuration",
-    ).classes("w-full max-w-xl").props("dark outlined")
     config_load_error = ui.label("").classes("text-red-400")
     config_load_error.visible = False
-    config_select.on(
-        "popup-show",
-        lambda: config_select.set_options(
-            controller.list_config_names(), value=config_select.value
-        ),
+    config_name_label = ui.label("No configuration loaded.").classes(
+        "text-sm text-gray-400"
     )
+    config_loader = ConfigurationController()
+    selected_config = {"name": None, "config": None}
+
+    async def handle_config_upload(event) -> None:
+        try:
+            file_name, content = await read_upload(event)
+            if not file_name.lower().endswith(".json"):
+                ui.notify("Please select a .json file.", type="negative")
+                return
+
+            config = config_loader.load_uploaded_configuration(content)
+            config_name = Path(file_name).stem
+            selected_config["name"] = config_name
+            selected_config["config"] = config
+            show_config(config, f"Loaded: {config_name}")
+            config_load_error.text = ""
+            config_load_error.visible = False
+            load_dialog.close()
+            ui.notify(f"Loaded '{file_name}'.", type="positive")
+        except ConfigValidationError as error:
+            problems = "; ".join(
+                f"{problem.area}: {problem.message}"
+                for problem in error.problems
+            )
+            config_load_error.text = f"Invalid configuration file: {problems}"
+            config_load_error.visible = True
+        except (OSError, ValueError, ConfigLoadError) as error:
+            config_load_error.text = f"Unable to load configuration: {error}"
+            config_load_error.visible = True
+        finally:
+            config_upload.reset()
+
+    with ui.dialog() as load_dialog:
+        with ui.card().classes("w-[480px] max-w-full gap-4"):
+            ui.label("Load Configuration").classes(
+                "text-lg font-semibold text-white"
+            )
+            ui.label(
+                "Select a JSON configuration file from your computer."
+            ).classes("text-sm text-gray-400")
+            config_upload = ui.upload(
+                label="Choose configuration file",
+                auto_upload=True,
+                on_upload=handle_config_upload,
+                max_files=1,
+            ).props("accept=.json flat bordered").classes("w-full")
+            with ui.row().classes("w-full justify-end"):
+                ui.button("Cancel", on_click=load_dialog.close).props("flat")
+
+    load_button = ui.button(
+        "Load configuration",
+        icon="folder_open",
+        on_click=load_dialog.open,
+    ).props("outline").classes("mb-2")
+    use_current_config = ui.checkbox(
+        "Use current loaded configuration"
+    ).props("dark").classes("text-gray-300")
+    use_current_config.disable()
 
     ui.label("Generation Limit").classes(
         "text-lg font-semibold text-white mt-4"
@@ -45,8 +107,17 @@ def schedule_generator() -> None:
         value="",
     ).classes("w-full max-w-xl").props("dark outlined readonly")
     ui.label(
-        "The generation limit saved in the selected configuration."
+        "The generation limit saved in the loaded configuration."
     ).classes("text-sm text-gray-400")
+    generation_limit_override = ui.input(
+        label="Temporary Generation Limit Override",
+        value="",
+        placeholder="Leave blank to use configured limit",
+    ).classes("w-full max-w-xl mt-2").props("dark outlined")
+    ui.label(
+        "Optional. This only applies to the current generation "
+        "and does not change the saved configuration."
+    ).classes("text-sm text-gray-400 mb-6")
 
     generation_limit_override = ui.input(
         label="Temporary Generation Limit Override",
@@ -70,7 +141,7 @@ def schedule_generator() -> None:
         value="",
     ).classes("w-full max-w-xl").props("dark outlined readonly")
     ui.label(
-        "The time-slot settings saved in the selected configuration."
+        "The time-slot settings saved in the loaded configuration."
     ).classes("text-sm text-gray-400")
 
     max_time_gap_override = ui.input(
@@ -147,36 +218,8 @@ def schedule_generator() -> None:
         update_optimizer_override_state
     )
 
-    def reset_config_controls() -> None:
-        config_load_error.text = ""
-        config_load_error.visible = False
-        configured_limit.value = ""
-        configured_max_time_gap.value = ""
-        configured_min_time_overlap.value = ""
-        for checkbox in configured_optimizer_checkboxes.values():
-            checkbox.value = False
-        generation_limit_override.value = ""
-        max_time_gap_override.value = ""
-        min_time_overlap_override.value = ""
-        optimizer_override_enabled.value = False
-        for checkbox in temporary_optimizer_checkboxes.values():
-            checkbox.value = False
-        update_optimizer_override_state()
-
-    def load_selected_config() -> None:
-        config_name = config_select.value
-        if not config_name:
-            reset_config_controls()
-            return
-
-        try:
-            config = controller.load_config(config_name)
-        except (OSError, ValueError, ConfigLoadError) as error:
-            reset_config_controls()
-            config_load_error.text = f"Could not load configuration: {error}"
-            config_load_error.visible = True
-            return
-
+    def display_config(config, label: str) -> None:
+        config_name_label.text = label
         configured_limit.value = str(config.limit)
         configured_max_time_gap.value = str(
             config.time_slot_config.max_time_gap
@@ -188,8 +231,8 @@ def schedule_generator() -> None:
         for value, checkbox in configured_optimizer_checkboxes.items():
             checkbox.value = value in configured_flags
 
-        config_load_error.text = ""
-        config_load_error.visible = False
+    def show_config(config, label: str) -> None:
+        display_config(config, label)
         generation_limit_override.value = ""
         max_time_gap_override.value = ""
         min_time_overlap_override.value = ""
@@ -198,7 +241,46 @@ def schedule_generator() -> None:
             checkbox.value = False
         update_optimizer_override_state()
 
-    config_select.on_value_change(load_selected_config)
+    def handle_current_config_selection() -> None:
+        current_config = editor_controller.configuration
+        if use_current_config.value and current_config is not None:
+            load_button.disable()
+            show_config(
+                current_config, "Using current loaded configuration"
+            )
+        else:
+            load_button.enable()
+            if selected_config["config"] is not None:
+                show_config(
+                    selected_config["config"],
+                    f"Loaded: {selected_config['name']}",
+                )
+            else:
+                config_name_label.text = "No configuration loaded."
+                configured_limit.value = ""
+                configured_max_time_gap.value = ""
+                configured_min_time_overlap.value = ""
+                for checkbox in configured_optimizer_checkboxes.values():
+                    checkbox.value = False
+
+    def sync_current_config_availability() -> None:
+        if editor_controller.configuration is None:
+            was_selected = use_current_config.value
+            use_current_config.value = False
+            use_current_config.disable()
+            load_button.enable()
+            if was_selected:
+                handle_current_config_selection()
+        else:
+            use_current_config.enable()
+            if use_current_config.value:
+                load_button.disable()
+
+    use_current_config.on_value_change(
+        lambda _: handle_current_config_selection()
+    )
+    sync_current_config_availability()
+    ui.timer(1.0, sync_current_config_availability)
 
     progress_display = ScheduleGenerationProgress(
         "w-full max-w-2xl gap-2 mt-6"
@@ -298,11 +380,20 @@ def schedule_generator() -> None:
             ]
 
         requested, error = controller.start_generation(
-            config_select.value,
+            (
+                "current configuration"
+                if use_current_config.value
+                else selected_config["name"]
+            ),
             generation_limit_override.value,
             optimizer_override,
             max_time_gap_override.value,
             min_time_overlap_override.value,
+            (
+                editor_controller.configuration
+                if use_current_config.value
+                else selected_config["config"]
+            ),
         )
         if error:
             with result_container:
@@ -315,12 +406,12 @@ def schedule_generator() -> None:
             generation_limit_override.value
         ).strip():
             starting_message = (
-                f"Starting scheduler for '{config_select.value}' with "
+                f"Starting scheduler for '{selected_config['name']}' with "
                 f"temporary limit override of {requested}..."
             )
         else:
             starting_message = (
-                f"Starting scheduler for '{config_select.value}' using "
+                f"Starting scheduler for '{selected_config['name']}' using "
                 f"configured limit of {requested}..."
             )
         progress_display.start(requested, starting_message)
