@@ -89,7 +89,9 @@ def test_general_create_tool_edits_the_active_configuration_through_controller()
     assert result["success"]
     assert result["message"].startswith("Created rooms item")
     assert config.config.rooms[0].name == "Room 101"
-    assert tools["get_rooms"].invoke({})["items"][0]["name"] == "Room 101"
+    assert tools["inspect_configuration"].invoke({"area": "rooms"})["data"][0][
+        "name"
+    ] == "Room 101"
 
 
 def test_general_create_tool_preserves_case_sensitive_duplicate_checks():
@@ -157,10 +159,6 @@ def test_configuration_tools_require_an_active_config_without_one():
     tools = _tools(SchedulerAgentState())
     required = "Please create or load a configuration"
     calls = {
-        "get_rooms": {},
-        "get_labs": {},
-        "get_faculty": {},
-        "get_courses": {},
         "get_config_summary": {},
         "validate_current_config": {},
         "inspect_configuration": {"area": "all"},
@@ -180,6 +178,7 @@ def test_configuration_tools_require_an_active_config_without_one():
     }
 
     assert not {"add_room", "add_lab", "add_faculty", "add_course"} & tools.keys()
+    assert not {"get_rooms", "get_labs", "get_faculty", "get_courses"} & tools.keys()
     for name, arguments in calls.items():
         assert required in tools[name].invoke(arguments)["message"], name
 
