@@ -74,6 +74,7 @@ def configuration_editor(
         "config": None,
         "name": None,
         "saved": False,
+        "pending_forms": set(),
         "status_badge": None,
         "undo_button": None,
         "redo_button": None,
@@ -88,10 +89,21 @@ def configuration_editor(
     # Update the saved indicator after a draft change or successful save.
     def set_saved_status(saved: bool) -> None:
         state["saved"] = saved
+        refresh_saved_status()
+
+    def refresh_saved_status() -> None:
+        saved = state["saved"] and not state["pending_forms"]
         badge = state["status_badge"]
         if badge is not None:
             badge.set_text("Draft saved" if saved else "Draft - not saved")
             badge.props(f"color={'green' if saved else 'orange'}")
+
+    def update_pending_form(form_name: str, pending: bool) -> None:
+        if pending:
+            state["pending_forms"].add(form_name)
+        else:
+            state["pending_forms"].discard(form_name)
+        refresh_saved_status()
 
     def update_history_buttons() -> None:
         undo_button = state["undo_button"]
@@ -208,10 +220,11 @@ def configuration_editor(
 
         with ui.row().classes("items-center gap-3"):
             ui.label(f"Editing: {state['name']}").classes("text-xl font-semibold text-white")
+            saved = state["saved"] and not state["pending_forms"]
             state["status_badge"] = ui.badge(
-                "Draft saved" if state["saved"] else "Draft - not saved"
+                "Draft saved" if saved else "Draft - not saved"
             ).props(
-                f"color={'green' if state['saved'] else 'orange'} "
+                f"color={'green' if saved else 'orange'} "
                 "id=configuration-draft-status"
             )
 
@@ -279,17 +292,53 @@ def configuration_editor(
         class_patterns_list = getattr(time_slot_config, "classes", []) if time_slot_config is not None else []
 
         with ui.column().classes(panel_classes) as rooms_panel:
-            rooms_gui(rooms_list, on_change=apply_config_change)
+            rooms_gui(
+                rooms_list,
+                on_change=apply_config_change,
+                on_pending_change=lambda pending: update_pending_form(
+                    "rooms", pending
+                ),
+            )
         with ui.column().classes(panel_classes) as faculty_panel:
-            faculty_gui(faculty_list, on_change=apply_config_change)
+            faculty_gui(
+                faculty_list,
+                on_change=apply_config_change,
+                on_pending_change=lambda pending: update_pending_form(
+                    "faculty", pending
+                ),
+            )
         with ui.column().classes(panel_classes) as courses_panel:
-            courses_gui(courses_list, on_change=apply_config_change)
+            courses_gui(
+                courses_list,
+                on_change=apply_config_change,
+                on_pending_change=lambda pending: update_pending_form(
+                    "courses", pending
+                ),
+            )
         with ui.column().classes(panel_classes) as labs_panel:
-            labs_gui(labs_list, on_change=apply_config_change)
+            labs_gui(
+                labs_list,
+                on_change=apply_config_change,
+                on_pending_change=lambda pending: update_pending_form(
+                    "labs", pending
+                ),
+            )
         with ui.column().classes(panel_classes) as time_blocks_panel:
-            time_blocks_gui(time_blocks_list, on_change=apply_config_change)
+            time_blocks_gui(
+                time_blocks_list,
+                on_change=apply_config_change,
+                on_pending_change=lambda pending: update_pending_form(
+                    "time_blocks", pending
+                ),
+            )
         with ui.column().classes(panel_classes) as class_patterns_panel:
-            class_patterns_gui(class_patterns_list, on_change=apply_config_change)
+            class_patterns_gui(
+                class_patterns_list,
+                on_change=apply_config_change,
+                on_pending_change=lambda pending: update_pending_form(
+                    "class_patterns", pending
+                ),
+            )
         with ui.column().classes(panel_classes) as global_settings_panel:
             if hasattr(config, "limit") and hasattr(config, "optimizer_flags"):
                 state["flush_pending_settings"] = global_settings_gui(
@@ -428,8 +477,9 @@ def configuration_editor(
 
                 state["config"] = loaded_config
                 state["name"] = file_name[:-5]
+                state["pending_forms"].clear()
                 clear_history()
-                set_saved_status(False)
+                set_saved_status(True)
                 editor_body.refresh()
 
                 load_dialog.close()
@@ -572,7 +622,9 @@ def configuration_editor(
 
     # Protect an edited draft before opening the configuration upload dialog.
     def request_load_upload() -> None:
-        if state["config"] is not None and not state["saved"]:
+        if state["config"] is not None and not (
+            state["saved"] and not state["pending_forms"]
+        ):
             unsaved_load_dialog.open()
             return
         open_load_dialog()
@@ -629,6 +681,7 @@ def configuration_editor(
 
         state["config"] = config
         state["name"] = name
+        state["pending_forms"].clear()
         clear_history()
         set_saved_status(False)
         create_dialog.close()
@@ -693,5 +746,6 @@ def configuration_editor(
 
     return ConfigurationEditorRefresh(
         refresh_after_ai_change,
-        lambda: state["config"] is None or bool(state["saved"]),
+        lambda: state["config"] is None
+        or (bool(state["saved"]) and not state["pending_forms"]),
     )

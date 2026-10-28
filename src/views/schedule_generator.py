@@ -48,6 +48,16 @@ def schedule_generator() -> None:
         "The generation limit saved in the selected configuration."
     ).classes("text-sm text-gray-400")
 
+    generation_limit_override = ui.input(
+        label="Temporary Generation Limit Override",
+        value="",
+        placeholder="Leave blank to use configured limit",
+    ).classes("w-full max-w-xl mt-2").props("dark outlined")
+    ui.label(
+        "Optional. This only applies to the current generation "
+        "and does not change the saved configuration."
+    ).classes("text-sm text-gray-400 mb-6")
+
     ui.label("Time Slot Settings").classes(
         "text-lg font-semibold text-white mt-4"
     )
@@ -76,16 +86,6 @@ def schedule_generator() -> None:
     ui.label(
         "Optional. These apply only to the current generation and do not "
         "change the saved configuration."
-    ).classes("text-sm text-gray-400 mb-6")
-
-    generation_limit_override = ui.input(
-        label="Temporary Generation Limit Override",
-        value="",
-        placeholder="Leave blank to use configured limit",
-    ).classes("w-full max-w-xl mt-2").props("dark outlined")
-    ui.label(
-        "Optional. This only applies to the current generation "
-        "and does not change the saved configuration."
     ).classes("text-sm text-gray-400 mb-6")
 
     ui.label("Optimizer Options").classes(

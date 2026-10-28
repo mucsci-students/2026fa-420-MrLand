@@ -7,6 +7,8 @@ from nicegui import ui
 from src.controllers.faculty_controller import FacultyController
 from src.views.common import (
     ConfigurationChangeHandler,
+    PendingChangeHandler,
+    PendingFormChanges,
     parse_whole_number,
     run_crud_mutation,
 )
@@ -49,6 +51,7 @@ def _availability_text(times) -> str:
 def faculty_gui(
     faculty_members: list,
     on_change: ConfigurationChangeHandler | None = None,
+    on_pending_change: PendingChangeHandler | None = None,
 ) -> None:
     """Build the faculty editor, including its add, edit, and delete controls."""
     ui.label("Faculty").classes("text-xl font-semibold text-white")
@@ -107,6 +110,20 @@ def faculty_gui(
             list(DAYS), multiple=True, label="Mandatory teaching days"
         ).props("use-chips clearable").classes("mandatory-days w-full")
 
+        pending_changes = PendingFormChanges(form_container, on_pending_change)
+        pending_changes.watch(
+            name,
+            maximum_credits,
+            minimum_credits,
+            course_limit,
+            maximum_days,
+            *availability_fields.values(),
+            course_preferences,
+            room_preferences,
+            lab_preferences,
+            mandatory_days,
+        )
+
         editing_member = {"member": None}
 
         # Validate whole-number form fields against their allowed bounds.
@@ -142,19 +159,22 @@ def faculty_gui(
 
         # Reset the controls to defaults and open a new-faculty form.
         def show_form() -> None:
+            form_container.set_visibility(False)
+            pending_changes.clear()
             editing_member["member"] = None
             form_heading.set_text("Add New Faculty Member")
-            name.value = ""
-            maximum_credits.value = 12
-            minimum_credits.value = 3
-            course_limit.value = 3
-            maximum_days.value = 5
-            for field in availability_fields.values():
-                field.value = ""
-            course_preferences.value = ""
-            room_preferences.value = ""
-            lab_preferences.value = ""
-            mandatory_days.value = []
+            with pending_changes.suspend():
+                name.value = ""
+                maximum_credits.value = 12
+                minimum_credits.value = 3
+                course_limit.value = 3
+                maximum_days.value = 5
+                for field in availability_fields.values():
+                    field.value = ""
+                course_preferences.value = ""
+                room_preferences.value = ""
+                lab_preferences.value = ""
+                mandatory_days.value = []
             form_container.set_visibility(True)
             add_submit_button.set_visibility(True)
             update_button.set_visibility(False)
@@ -162,20 +182,22 @@ def faculty_gui(
 
         # Clear the controls and close the form after an action or cancellation.
         def reset_form() -> None:
+            form_container.set_visibility(False)
             editing_member["member"] = None
             form_heading.set_text("Add New Faculty Member")
-            name.value = ""
-            maximum_credits.value = 12
-            minimum_credits.value = 3
-            course_limit.value = 3
-            maximum_days.value = 5
-            for field in availability_fields.values():
-                field.value = ""
-            course_preferences.value = ""
-            room_preferences.value = ""
-            lab_preferences.value = ""
-            mandatory_days.value = []
-            form_container.set_visibility(False)
+            with pending_changes.suspend():
+                name.value = ""
+                maximum_credits.value = 12
+                minimum_credits.value = 3
+                course_limit.value = 3
+                maximum_days.value = 5
+                for field in availability_fields.values():
+                    field.value = ""
+                course_preferences.value = ""
+                room_preferences.value = ""
+                lab_preferences.value = ""
+                mandatory_days.value = []
+            pending_changes.clear()
             add_submit_button.set_visibility(True)
             update_button.set_visibility(False)
             cancel_button.set_visibility(False)
@@ -206,28 +228,32 @@ def faculty_gui(
 
         # Populate the form with a selected faculty member's current values.
         def begin_edit(member) -> None:
+            form_container.set_visibility(False)
+            pending_changes.clear()
             editing_member["member"] = member
             form_heading.set_text("Modifying Faculty Member")
-            name.value = member.name
-            maximum_credits.value = member.maximum_credits
-            minimum_credits.value = member.minimum_credits
-            course_limit.value = member.unique_course_limit
-            maximum_days.value = member.maximum_days
-            for day, field in availability_fields.items():
-                field.value = ", ".join(
-                    f"{item.start}-{item.end}"
-                    for item in member.times.get(day, [])
+            with pending_changes.suspend():
+                name.value = member.name
+                maximum_credits.value = member.maximum_credits
+                minimum_credits.value = member.minimum_credits
+                course_limit.value = member.unique_course_limit
+                maximum_days.value = member.maximum_days
+                for day, field in availability_fields.items():
+                    field.value = ", ".join(
+                        f"{item.start}-{item.end}"
+                        for item in member.times.get(day, [])
+                    )
+                course_preferences.value = ", ".join(
+                    f"{key}={score}"
+                    for key, score in member.course_preferences.items()
                 )
-            course_preferences.value = ", ".join(
-                f"{key}={score}" for key, score in member.course_preferences.items()
-            )
-            room_preferences.value = ", ".join(
-                f"{key}={score}" for key, score in member.room_preferences.items()
-            )
-            lab_preferences.value = ", ".join(
-                f"{key}={score}" for key, score in member.lab_preferences.items()
-            )
-            mandatory_days.value = sorted(member.mandatory_days)
+                room_preferences.value = ", ".join(
+                    f"{key}={score}" for key, score in member.room_preferences.items()
+                )
+                lab_preferences.value = ", ".join(
+                    f"{key}={score}" for key, score in member.lab_preferences.items()
+                )
+                mandatory_days.value = sorted(member.mandatory_days)
             form_container.set_visibility(True)
             add_submit_button.set_visibility(False)
             update_button.set_visibility(True)

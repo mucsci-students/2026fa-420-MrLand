@@ -1,10 +1,65 @@
 """Shared NiceGUI helpers for applying configuration changes."""
 
 from collections.abc import Callable
+from contextlib import contextmanager
+from typing import Any, Iterator
+
 from nicegui import ui
+from nicegui.element import Element
+from nicegui.elements.mixins.value_element import ValueElement
 
 
 ConfigurationChangeHandler = Callable[[Callable[[], object]], bool]
+PendingChangeHandler = Callable[[bool], None]
+
+
+class PendingFormChanges:
+    """Track edited form values that have not yet been applied."""
+
+    def __init__(
+        self,
+        form: Element,
+        on_change: PendingChangeHandler | None,
+    ) -> None:
+        self._form = form
+        self._on_change = on_change
+        self._pending = False
+        self._suspended = False
+
+    def watch(self, *fields: ValueElement[Any]) -> None:
+        for field in fields:
+            field.on_value_change(self._value_changed)
+
+    def mark_pending(self) -> None:
+        self._set_pending(True)
+
+    def clear(self) -> None:
+        self._set_pending(False)
+
+    @contextmanager
+    def suspend(self) -> Iterator[None]:
+        previous = self._suspended
+        self._suspended = True
+        try:
+            yield
+        finally:
+            self._suspended = previous
+
+    def _value_changed(self, event) -> None:
+        if (
+            self._suspended
+            or not self._form.visible
+            or event.value == event.previous_value
+        ):
+            return
+        self.mark_pending()
+
+    def _set_pending(self, pending: bool) -> None:
+        if self._pending == pending:
+            return
+        self._pending = pending
+        if self._on_change is not None:
+            self._on_change(pending)
 
 
 def run_configuration_change(
