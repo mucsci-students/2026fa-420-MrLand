@@ -7,6 +7,8 @@ from nicegui import ui
 from src.controllers.time_block_controller import TimeBlockController
 from src.views.common import (
     ConfigurationChangeHandler,
+    PendingChangeHandler,
+    PendingFormChanges,
     parse_whole_number,
     run_crud_mutation,
 )
@@ -19,6 +21,7 @@ DAYS = ("MON", "TUE", "WED", "THU", "FRI")
 def time_blocks_gui(
     times: dict,
     on_change: ConfigurationChangeHandler | None = None,
+    on_pending_change: PendingChangeHandler | None = None,
 ) -> None:
     """Build the time-block editor with create, edit, and delete actions."""
     ui.label("Time blocks").classes("text-xl font-semibold text-white")
@@ -48,6 +51,9 @@ def time_blocks_gui(
             )
             end = ui.input("End time").props("type=time").classes("w-40")
 
+        pending_changes = PendingFormChanges(form_container, on_pending_change)
+        pending_changes.watch(day, start, spacing, end)
+
         editing_block = {"day": None, "block": None}
 
         # Validate and collect the current form values for the controller.
@@ -59,13 +65,16 @@ def time_blocks_gui(
 
         # Prepare the form for adding a new time block.
         def show_form() -> None:
+            form_container.set_visibility(False)
+            pending_changes.clear()
             editing_block["day"] = None
             editing_block["block"] = None
             form_heading.set_text("Add New Time Block")
-            day.value = "MON"
-            start.value = ""
-            spacing.value = 30
-            end.value = ""
+            with pending_changes.suspend():
+                day.value = "MON"
+                start.value = ""
+                spacing.value = 30
+                end.value = ""
             form_container.set_visibility(True)
             add_submit_button.set_visibility(True)
             update_button.set_visibility(False)
@@ -73,14 +82,16 @@ def time_blocks_gui(
 
         # Clear the form and close it after an action or cancellation.
         def reset_form() -> None:
+            form_container.set_visibility(False)
             editing_block["day"] = None
             editing_block["block"] = None
             form_heading.set_text("Add New Time Block")
-            day.value = "MON"
-            start.value = ""
-            spacing.value = 30
-            end.value = ""
-            form_container.set_visibility(False)
+            with pending_changes.suspend():
+                day.value = "MON"
+                start.value = ""
+                spacing.value = 30
+                end.value = ""
+            pending_changes.clear()
             add_submit_button.set_visibility(True)
             update_button.set_visibility(False)
             cancel_button.set_visibility(False)
@@ -114,13 +125,16 @@ def time_blocks_gui(
 
         # Populate the form with the selected weekday and time block.
         def begin_edit(block_day, block) -> None:
+            form_container.set_visibility(False)
+            pending_changes.clear()
             editing_block["day"] = block_day
             editing_block["block"] = block
             form_heading.set_text("Modifying Time Block")
-            day.value = block_day
-            start.value = block.start
-            spacing.value = block.spacing
-            end.value = block.end
+            with pending_changes.suspend():
+                day.value = block_day
+                start.value = block.start
+                spacing.value = block.spacing
+                end.value = block.end
             form_container.set_visibility(True)
             add_submit_button.set_visibility(False)
             update_button.set_visibility(True)

@@ -5,7 +5,12 @@ Used by: GUI."""
 from nicegui import ui
 
 from src.controllers.room_controller import RoomController
-from src.views.common import ConfigurationChangeHandler, run_crud_mutation
+from src.views.common import (
+    ConfigurationChangeHandler,
+    PendingChangeHandler,
+    PendingFormChanges,
+    run_crud_mutation,
+)
 
 controller = RoomController()
 
@@ -25,6 +30,7 @@ def _availability_text(times) -> str:
 def rooms_gui(
     rooms: list,
     on_change: ConfigurationChangeHandler | None = None,
+    on_pending_change: PendingChangeHandler | None = None,
 ) -> None:
     """Build the room editor, including its add, edit, and delete controls."""
     ui.label("Rooms").classes("text-xl font-semibold text-white")
@@ -61,6 +67,15 @@ def rooms_gui(
                     f"{day} availability",
                     placeholder="09:00-12:00, 13:00-17:00",
                 ).classes("w-full")
+
+        pending_changes = PendingFormChanges(form_container, on_pending_change)
+        pending_changes.watch(
+            name,
+            capacity,
+            features,
+            unrestricted,
+            *availability_fields.values(),
+        )
 
         # Toggle day inputs when the room has restricted availability.
         def set_availability_enabled(event) -> None:
@@ -99,16 +114,19 @@ def rooms_gui(
 
         # Prepare the form for a new room and show its create controls.
         def show_form() -> None:
+            form_container.set_visibility(False)
+            pending_changes.clear()
             editing_room["room"] = None
             form_heading.set_text("Add New Room")
-            name.value = ""
-            capacity.value = 1
-            features.value = ""
-            unrestricted.value = True
-            for field in availability_fields.values():
-                field.value = ""
-            for field in availability_fields.values():
-                field.set_enabled(False)
+            with pending_changes.suspend():
+                name.value = ""
+                capacity.value = 1
+                features.value = ""
+                unrestricted.value = True
+                for field in availability_fields.values():
+                    field.value = ""
+                for field in availability_fields.values():
+                    field.set_enabled(False)
             form_container.set_visibility(True)
             add_submit_button.set_visibility(True)
             update_button.set_visibility(False)
@@ -116,16 +134,18 @@ def rooms_gui(
 
         # Clear the form and return it to its closed, create-ready state.
         def reset_form() -> None:
+            form_container.set_visibility(False)
             editing_room["room"] = None
             form_heading.set_text("Add New Room")
-            name.value = ""
-            capacity.value = 1
-            features.value = ""
-            unrestricted.value = True
-            for field in availability_fields.values():
-                field.value = ""
-                field.set_enabled(False)
-            form_container.set_visibility(False)
+            with pending_changes.suspend():
+                name.value = ""
+                capacity.value = 1
+                features.value = ""
+                unrestricted.value = True
+                for field in availability_fields.values():
+                    field.value = ""
+                    field.set_enabled(False)
+            pending_changes.clear()
             add_submit_button.set_visibility(True)
             update_button.set_visibility(False)
             cancel_button.set_visibility(False)
@@ -155,17 +175,20 @@ def rooms_gui(
 
         # Populate the form with a selected room's current values.
         def begin_edit(room) -> None:
+            form_container.set_visibility(False)
+            pending_changes.clear()
             editing_room["room"] = room
             form_heading.set_text("Modifying Room")
-            name.value = room.name
-            capacity.value = room.capacity
-            features.value = ", ".join(sorted(room.features))
-            unrestricted.value = room.times is None
-            for day, field in availability_fields.items():
-                field.value = ", ".join(
-                    f"{item.start}-{item.end}"
-                    for item in (room.times or {}).get(day, [])
-                )
+            with pending_changes.suspend():
+                name.value = room.name
+                capacity.value = room.capacity
+                features.value = ", ".join(sorted(room.features))
+                unrestricted.value = room.times is None
+                for day, field in availability_fields.items():
+                    field.value = ", ".join(
+                        f"{item.start}-{item.end}"
+                        for item in (room.times or {}).get(day, [])
+                    )
             form_container.set_visibility(True)
             add_submit_button.set_visibility(False)
             update_button.set_visibility(True)

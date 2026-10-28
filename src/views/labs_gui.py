@@ -5,7 +5,12 @@ Used by: GUI."""
 from nicegui import ui
 
 from src.controllers.lab_controller import LabController
-from src.views.common import ConfigurationChangeHandler, run_crud_mutation
+from src.views.common import (
+    ConfigurationChangeHandler,
+    PendingChangeHandler,
+    PendingFormChanges,
+    run_crud_mutation,
+)
 
 controller = LabController()
 
@@ -27,6 +32,7 @@ def _availability_text(times) -> str:
 def labs_gui(
     labs: list,
     on_change: ConfigurationChangeHandler | None = None,
+    on_pending_change: PendingChangeHandler | None = None,
 ) -> None:
     """Build the lab editor, including its add, edit, and delete controls."""
     ui.label("Labs").classes("text-xl font-semibold text-white")
@@ -63,6 +69,15 @@ def labs_gui(
                     f"{day} availability",
                     placeholder="09:00-12:00, 13:00-17:00",
                 ).classes("w-full")
+
+        pending_changes = PendingFormChanges(form_container, on_pending_change)
+        pending_changes.watch(
+            name,
+            capacity,
+            features,
+            unrestricted,
+            *availability_fields.values(),
+        )
 
         # Enable or disable the per-day inputs based on the availability option.
         def set_availability_enabled(enabled: bool) -> None:
@@ -104,15 +119,18 @@ def labs_gui(
 
         # Prepare the form for a new lab and show its create controls.
         def show_form() -> None:
+            form_container.set_visibility(False)
+            pending_changes.clear()
             editing_lab["lab"] = None
             form_heading.set_text("Add New Lab")
-            name.value = ""
-            capacity.value = 20
-            features.value = ""
-            unrestricted.value = True
-            set_availability_enabled(False)
-            for field in availability_fields.values():
-                field.value = ""
+            with pending_changes.suspend():
+                name.value = ""
+                capacity.value = 20
+                features.value = ""
+                unrestricted.value = True
+                set_availability_enabled(False)
+                for field in availability_fields.values():
+                    field.value = ""
             form_container.set_visibility(True)
             add_submit_button.set_visibility(True)
             update_button.set_visibility(False)
@@ -120,16 +138,18 @@ def labs_gui(
 
         # Clear the form and return it to its closed, create-ready state.
         def reset_form() -> None:
+            form_container.set_visibility(False)
             editing_lab["lab"] = None
             form_heading.set_text("Add New Lab")
-            name.value = ""
-            capacity.value = 20
-            features.value = ""
-            unrestricted.value = True
-            set_availability_enabled(False)
-            for field in availability_fields.values():
-                field.value = ""
-            form_container.set_visibility(False)
+            with pending_changes.suspend():
+                name.value = ""
+                capacity.value = 20
+                features.value = ""
+                unrestricted.value = True
+                set_availability_enabled(False)
+                for field in availability_fields.values():
+                    field.value = ""
+            pending_changes.clear()
             add_submit_button.set_visibility(True)
             update_button.set_visibility(False)
             cancel_button.set_visibility(False)
@@ -159,18 +179,21 @@ def labs_gui(
 
         # Populate the form with a selected lab's current values.
         def begin_edit(lab) -> None:
+            form_container.set_visibility(False)
+            pending_changes.clear()
             editing_lab["lab"] = lab
             form_heading.set_text("Modifying Lab")
-            name.value = lab.name
-            capacity.value = lab.capacity
-            features.value = ", ".join(sorted(lab.features))
-            unrestricted.value = lab.times is None
-            set_availability_enabled(lab.times is not None)
-            for day, field in availability_fields.items():
-                field.value = ", ".join(
-                    f"{item.start}-{item.end}"
-                    for item in (lab.times or {}).get(day, [])
-                )
+            with pending_changes.suspend():
+                name.value = lab.name
+                capacity.value = lab.capacity
+                features.value = ", ".join(sorted(lab.features))
+                unrestricted.value = lab.times is None
+                set_availability_enabled(lab.times is not None)
+                for day, field in availability_fields.items():
+                    field.value = ", ".join(
+                        f"{item.start}-{item.end}"
+                        for item in (lab.times or {}).get(day, [])
+                    )
             form_container.set_visibility(True)
             add_submit_button.set_visibility(False)
             update_button.set_visibility(True)

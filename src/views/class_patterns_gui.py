@@ -5,6 +5,8 @@ from nicegui import ui
 from src.controllers.class_pattern_controller import ClassPatternController
 from src.views.common import (
     ConfigurationChangeHandler,
+    PendingChangeHandler,
+    PendingFormChanges,
     parse_whole_number,
     run_crud_mutation,
 )
@@ -18,6 +20,7 @@ DELIVERY_MODES = ("in_person", "online")
 def class_patterns_gui(
     patterns: list,
     on_change: ConfigurationChangeHandler | None = None,
+    on_pending_change: PendingChangeHandler | None = None,
 ) -> None:
     """Build the class-pattern editor, including nested meeting management."""
 
@@ -63,6 +66,17 @@ def class_patterns_gui(
         meeting_drafts = []
         editing_pattern = {"pattern": None}
         editing_meeting = {"index": None}
+        pending_changes = PendingFormChanges(form_container, on_pending_change)
+        pending_changes.watch(
+            credits,
+            start_time,
+            disabled,
+            meeting_day,
+            meeting_start,
+            meeting_duration,
+            meeting_lab,
+            meeting_delivery,
+        )
         with ui.column().classes("w-full gap-2"):
             meeting_section_header = ui.row().classes("w-full items-center gap-2")
             with meeting_section_header:
@@ -92,11 +106,12 @@ def class_patterns_gui(
         # Clear the meeting controls and leave meeting-edit mode.
         def reset_meeting_form() -> None:
             editing_meeting["index"] = None
-            meeting_day.value = "MON"
-            meeting_start.value = ""
-            meeting_duration.value = 75
-            meeting_lab.value = False
-            meeting_delivery.value = "in_person"
+            with pending_changes.suspend():
+                meeting_day.value = "MON"
+                meeting_start.value = ""
+                meeting_duration.value = 75
+                meeting_lab.value = False
+                meeting_delivery.value = "in_person"
             add_meeting_button.set_text("Add meeting")
             cancel_meeting_edit_button.set_visibility(False)
             update_meeting_status()
@@ -139,6 +154,7 @@ def class_patterns_gui(
                 reset_meeting_form()
 
             meeting_drafts.pop(index)
+            pending_changes.mark_pending()
             refresh_drafts()
 
         def begin_edit_meeting(index: int) -> None:
@@ -150,11 +166,12 @@ def class_patterns_gui(
             
             meeting = meeting_drafts[index]
             editing_meeting["index"] = index
-            meeting_day.value = meeting["day"]
-            meeting_start.value = meeting["start_time"] or ""
-            meeting_duration.value = meeting["duration"]
-            meeting_lab.value = bool(meeting["lab"])
-            meeting_delivery.value = meeting["delivery"]
+            with pending_changes.suspend():
+                meeting_day.value = meeting["day"]
+                meeting_start.value = meeting["start_time"] or ""
+                meeting_duration.value = meeting["duration"]
+                meeting_lab.value = bool(meeting["lab"])
+                meeting_delivery.value = meeting["delivery"]
             add_meeting_button.set_text("Apply meeting changes")
             cancel_meeting_edit_button.set_visibility(True)
             update_meeting_status()
@@ -180,6 +197,8 @@ def class_patterns_gui(
             except (TypeError, ValueError) as exc:
                 ui.notify(str(exc), type="negative")
                 return
+
+            pending_changes.mark_pending()
             
             reset_meeting_form()
             refresh_drafts()
@@ -208,13 +227,16 @@ def class_patterns_gui(
 
             '''Reset the pattern and meeting controls for a new pattern.'''
 
+            form_container.set_visibility(False)
+            pending_changes.clear()
             editing_pattern["pattern"] = None
             form_heading.set_text("Add New Class Pattern")
-            credits.value = 3
-            start_time.value = ""
-            disabled.value = False
-            meeting_drafts.clear()
-            reset_meeting_form()
+            with pending_changes.suspend():
+                credits.value = 3
+                start_time.value = ""
+                disabled.value = False
+                meeting_drafts.clear()
+                reset_meeting_form()
             refresh_drafts()
             form_container.set_visibility(True)
             add_submit_button.set_visibility(True)
@@ -225,14 +247,16 @@ def class_patterns_gui(
 
             '''Clear the pattern and meeting drafts, then close the form.'''
 
+            form_container.set_visibility(False)
             editing_pattern["pattern"] = None
             form_heading.set_text("Add New Class Pattern")
-            credits.value = 3
-            start_time.value = ""
-            disabled.value = False
-            meeting_drafts.clear()
-            reset_meeting_form()
-            form_container.set_visibility(False)
+            with pending_changes.suspend():
+                credits.value = 3
+                start_time.value = ""
+                disabled.value = False
+                meeting_drafts.clear()
+                reset_meeting_form()
+            pending_changes.clear()
             add_submit_button.set_visibility(True)
             update_button.set_visibility(False)
             cancel_button.set_visibility(False)
@@ -271,21 +295,24 @@ def class_patterns_gui(
         def begin_edit(pattern) -> None:
             '''Load a pattern and its meetings into the editor.'''
 
+            form_container.set_visibility(False)
+            pending_changes.clear()
             editing_pattern["pattern"] = pattern
             form_heading.set_text("Modifying Class Pattern")
-            credits.value = pattern.credits
-            start_time.value = pattern.start_time or ""
-            disabled.value = pattern.disabled
-            meeting_drafts[:] = [
-                {
-                    "day": meeting.day,
-                    "start_time": meeting.start_time,
-                    "duration": meeting.duration,
-                    "lab": meeting.lab,
-                    "delivery": meeting.delivery.value,
-                }
-                for meeting in pattern.meetings
-            ]
+            with pending_changes.suspend():
+                credits.value = pattern.credits
+                start_time.value = pattern.start_time or ""
+                disabled.value = pattern.disabled
+                meeting_drafts[:] = [
+                    {
+                        "day": meeting.day,
+                        "start_time": meeting.start_time,
+                        "duration": meeting.duration,
+                        "lab": meeting.lab,
+                        "delivery": meeting.delivery.value,
+                    }
+                    for meeting in pattern.meetings
+                ]
             form_container.set_visibility(True)
             add_submit_button.set_visibility(False)
             update_button.set_visibility(True)

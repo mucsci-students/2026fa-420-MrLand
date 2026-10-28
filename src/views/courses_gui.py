@@ -7,6 +7,8 @@ from nicegui import ui
 from src.controllers.course_controller import CourseController
 from src.views.common import (
     ConfigurationChangeHandler,
+    PendingChangeHandler,
+    PendingFormChanges,
     parse_whole_number,
     run_crud_mutation,
 )
@@ -38,6 +40,7 @@ def _faculty_candidates(derive_from_preferences: bool, faculty_text: str | None)
 def courses_gui(
     course_members: list,
     on_change: ConfigurationChangeHandler | None = None,
+    on_pending_change: PendingChangeHandler | None = None,
 ) -> None:
     """Build the course editor, including its add, edit, and delete controls."""
     ui.label("Courses").classes("text-xl font-semibold text-white")
@@ -118,6 +121,19 @@ def courses_gui(
 
         modality.on_value_change(modality_changed)
 
+        pending_changes = PendingFormChanges(form_container, on_pending_change)
+        pending_changes.watch(
+            course_id,
+            section_id,
+            credits,
+            capacity,
+            modality,
+            *resource_fields,
+            conflicts,
+            faculty_names,
+            derive_faculty,
+        )
+
         editing_course = {"course": None}
 
         # Ensure numeric form fields contain positive whole numbers.
@@ -174,22 +190,25 @@ def courses_gui(
 
         # Reset the controls to defaults and open a new-course form.
         def show_form() -> None:
+            form_container.set_visibility(False)
+            pending_changes.clear()
             editing_course["course"] = None
             form_heading.set_text("Add New Course")
-            course_id.value = ""
-            section_id.value = ""
-            credits.value = 3
-            capacity.value = 30
-            modality.value = "in_person"
-            apply_modality("in_person")
-            rooms.value = ""
-            labs.value = ""
-            required_room_features.value = ""
-            required_lab_features.value = ""
-            reserve_room.value = True
-            conflicts.value = ""
-            faculty_names.value = ""
-            derive_faculty.value = True
+            with pending_changes.suspend():
+                course_id.value = ""
+                section_id.value = ""
+                credits.value = 3
+                capacity.value = 30
+                modality.value = "in_person"
+                apply_modality("in_person")
+                rooms.value = ""
+                labs.value = ""
+                required_room_features.value = ""
+                required_lab_features.value = ""
+                reserve_room.value = True
+                conflicts.value = ""
+                faculty_names.value = ""
+                derive_faculty.value = True
             form_container.set_visibility(True)
             add_submit_button.set_visibility(True)
             update_button.set_visibility(False)
@@ -197,23 +216,25 @@ def courses_gui(
 
         # Clear the controls and close the form after an action or cancellation.
         def reset_form() -> None:
+            form_container.set_visibility(False)
             editing_course["course"] = None
             form_heading.set_text("Add New Course")
-            course_id.value = ""
-            section_id.value = ""
-            credits.value = 3
-            capacity.value = 30
-            modality.value = "in_person"
-            apply_modality("in_person")
-            rooms.value = ""
-            labs.value = ""
-            required_room_features.value = ""
-            required_lab_features.value = ""
-            reserve_room.value = True
-            conflicts.value = ""
-            faculty_names.value = ""
-            derive_faculty.value = True
-            form_container.set_visibility(False)
+            with pending_changes.suspend():
+                course_id.value = ""
+                section_id.value = ""
+                credits.value = 3
+                capacity.value = 30
+                modality.value = "in_person"
+                apply_modality("in_person")
+                rooms.value = ""
+                labs.value = ""
+                required_room_features.value = ""
+                required_lab_features.value = ""
+                reserve_room.value = True
+                conflicts.value = ""
+                faculty_names.value = ""
+                derive_faculty.value = True
+            pending_changes.clear()
             add_submit_button.set_visibility(True)
             update_button.set_visibility(False)
             cancel_button.set_visibility(False)
@@ -244,26 +265,29 @@ def courses_gui(
 
         # Populate the form with a selected course's current values.
         def begin_edit(course) -> None:
+            form_container.set_visibility(False)
+            pending_changes.clear()
             editing_course["course"] = course
             form_heading.set_text("Modifying Course")
-            course_id.value = course.course_id
-            section_id.value = course.section_id or ""
-            credits.value = course.credits
-            capacity.value = course.capacity
-            modality.value = course.modality
-            apply_modality(course.modality)
-            rooms.value = ", ".join(course.room)
-            labs.value = ", ".join(course.lab)
-            required_room_features.value = ", ".join(
-                sorted(course.required_room_features)
-            )
-            required_lab_features.value = ", ".join(
-                sorted(course.required_lab_features)
-            )
-            reserve_room.value = course.reserve_room_during_lab
-            conflicts.value = ", ".join(course.conflicts)
-            derive_faculty.value = course.faculty is None
-            faculty_names.value = ", ".join(course.faculty or [])
+            with pending_changes.suspend():
+                course_id.value = course.course_id
+                section_id.value = course.section_id or ""
+                credits.value = course.credits
+                capacity.value = course.capacity
+                modality.value = course.modality
+                apply_modality(course.modality)
+                rooms.value = ", ".join(course.room)
+                labs.value = ", ".join(course.lab)
+                required_room_features.value = ", ".join(
+                    sorted(course.required_room_features)
+                )
+                required_lab_features.value = ", ".join(
+                    sorted(course.required_lab_features)
+                )
+                reserve_room.value = course.reserve_room_during_lab
+                conflicts.value = ", ".join(course.conflicts)
+                derive_faculty.value = course.faculty is None
+                faculty_names.value = ", ".join(course.faculty or [])
             form_container.set_visibility(True)
             add_submit_button.set_visibility(False)
             update_button.set_visibility(True)
