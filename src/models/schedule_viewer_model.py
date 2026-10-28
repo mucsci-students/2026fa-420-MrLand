@@ -14,8 +14,7 @@ from src.models.schedule_files import (
     SAVED_NAME_PATTERN,
     parse_schedule_file,
     records_from_result,
-    records_to_csv,
-    records_to_json,
+    schedule_export_strategy,
 )
 from src.models.schedule_result import ScheduleResult
 
@@ -154,11 +153,7 @@ class ScheduleViewerModel:
 
     @staticmethod
     def serialize(entry: ScheduleEntry, file_format: str) -> bytes:
-        if file_format == "csv":
-            return records_to_csv(entry.records)
-        if file_format == "json":
-            return records_to_json(entry.records)
-        raise ValueError("Please choose CSV or JSON.")
+        return schedule_export_strategy(file_format).serialize(entry.records)
 
     def default_export_file_name(self, entry: ScheduleEntry, file_format: str) -> str:
         """A loaded file keeps its name; a generated schedule gets the next free

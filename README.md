@@ -54,6 +54,31 @@ This project is a schedule-planning application for creating and managing course
   - Validate edits against the published [combined configuration JSON Schema](https://raw.githubusercontent.com/mucsci/scheduler/main/fern/docs/assets/combined-config.schema.json) and scheduler model rules
   - Preserve incomplete new drafts until valid; reject edits that would invalidate an already-valid configuration
 
+## Design pattern: Strategy
+
+The Schedule Viewer supports exporting the selected schedule or all generated
+schedules as either CSV or JSON. Each format requires different serialization,
+so keeping format-specific branches in the viewer model would couple export
+workflows to every supported format. The Strategy pattern lets those workflows
+use the selected serialization behavior through a shared interface.
+
+- **Relevant code:** [`schedule_files.py`](src/models/schedule_files.py) defines
+  `ScheduleExportStrategy`, `CsvScheduleExportStrategy`,
+  `JsonScheduleExportStrategy`, and the `SCHEDULE_EXPORT_STRATEGIES` registry.
+  [`schedule_viewer_model.py`](src/models/schedule_viewer_model.py) selects and
+  invokes the strategy in `ScheduleViewerModel.serialize`; both single-schedule
+  exports and ZIP exports use that method. The format choice is passed from
+  [`schedule_viewer.py`](src/views/schedule_viewer.py) through
+  [`schedule_controller.py`](src/controllers/schedule_controller.py).
+- **Participants and interaction:** `ScheduleViewerModel` is the context. It
+  requests serialization from the `ScheduleExportStrategy` interface. The
+  CSV and JSON concrete strategies delegate to their respective record
+  serializers, and the registry selects the concrete strategy by the user's
+  format choice.
+- **Why this fits:** CSV and JSON are interchangeable ways to serialize the
+  same schedule records. The viewer uses each strategy in actual download
+  behavior without needing format-specific serialization branches.
+
 ## AI assistant setup
 1. Run `uv sync` to install dependencies.
 2. Copy `.env.example` to a new file named `.env` in the project root.
