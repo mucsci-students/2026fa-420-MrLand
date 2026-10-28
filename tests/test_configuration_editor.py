@@ -143,6 +143,22 @@ def test_load_without_edits_opens_upload_without_warning(editor_controller):
     run_editor_simulation(action)
 
 
+def test_loaded_configuration_is_saved_until_edited(editor_controller):
+    async def action(user, _refresh):
+        content = editor_controller.configuration.model_dump_json().encode()
+        user.find("Load configuration").click()
+        await user.should_see("Load Configuration")
+        await upload_config(user, "demo.json", content)
+        await user.should_see("Editing: demo")
+        await user.should_see("Draft saved")
+
+        user.find("Load configuration").click()
+        await user.should_see("Load Configuration")
+        assert not find_dialog_with_label(user, "Unsaved changes").value
+
+    run_editor_simulation(action)
+
+
 def test_discard_and_load_opens_upload_without_saving(editor_controller, monkeypatch):
     def unexpected_local_save(*args, **kwargs):
         raise AssertionError("Discard and Load must not save the config locally.")
@@ -235,23 +251,31 @@ def test_failed_upload_resets_control_and_allows_retry(
         await user.should_see("Editing: retry")
         assert reset.call_count == 3
         user.find("Load configuration").click()
-        await user.should_see("Unsaved changes")
-        click_open_dialog_button(user, "Discard and Load")
         await user.should_see("Load Configuration")
+        assert not find_dialog_with_label(user, "Unsaved changes").value
         assert reset.call_count == 4
 
     run_editor_simulation(action)
 
 
 @pytest.mark.parametrize("choice", ["Cancel", "Discard and Load", "Save Configuration"])
-def test_uploaded_draft_requires_confirmation_before_replacement(editor_controller, choice):
+def test_edited_uploaded_draft_requires_confirmation_before_replacement(
+    editor_controller, choice
+):
     content = editor_controller.configuration.model_dump_json().encode()
 
-    async def action(user, _mark_unsaved):
+    async def action(user, _refresh):
         user.find("Load configuration").click()
         await user.should_see("Load Configuration")
         await upload_config(user, "draft.json", content)
         await user.should_see("Editing: draft")
+
+        user.find("Rooms").click()
+        user.find("Add new room").click()
+        user.find(kind=ui.input, content="Room name").type("Extra room")
+        user.find("Create room").click()
+        await user.should_see("Draft - not saved")
+
         draft = editor_controller.configuration
         user.find("Load configuration").click()
         await user.should_see("Unsaved changes")
@@ -265,7 +289,7 @@ def test_uploaded_draft_requires_confirmation_before_replacement(editor_controll
             return
         if choice == "Save Configuration":
             download = await user.download.next()
-            assert json.loads(download.content) == json.loads(content)
+            assert json.loads(download.content) == draft.model_dump(mode="json")
         await user.should_see("Load Configuration")
         await upload_config(user, "replacement.json", content)
         await user.should_see("Editing: replacement")
