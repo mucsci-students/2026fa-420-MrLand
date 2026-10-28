@@ -192,6 +192,55 @@ class TestStartGeneration:
         assert error is None
         assert model.begin_calls == [("config.json", 25)]
 
+    def test_generates_from_uploaded_configuration_without_mutating_it(
+        self, controller, model, monkeypatch
+    ):
+        started_threads = []
+
+        class FakeThread:
+            def __init__(self, target, args, daemon):
+                self.target = target
+                self.args = args
+                self.daemon = daemon
+
+            def start(self):
+                started_threads.append(self)
+
+        monkeypatch.setattr(
+            "src.controllers.schedule_generator_controller.threading.Thread",
+            FakeThread,
+        )
+        uploaded_config = SimpleNamespace(
+            limit=10,
+            optimizer_flags=["original"],
+            time_slot_config=SimpleNamespace(
+                max_time_gap=30,
+                min_time_overlap=10,
+            ),
+        )
+        model.load_error = RuntimeError("saved config should not be loaded")
+
+        requested, error = controller.start_generation(
+            "uploaded", "25", ["override"], "45", "15",
+            loaded_config=uploaded_config,
+        )
+
+        assert requested == 25
+        assert error is None
+        assert model.begin_calls == [("uploaded", 25)]
+        assert len(started_threads) == 1
+        assert started_threads[0].target == model.generate_configuration
+        generated_config = started_threads[0].args[1]
+        assert generated_config.limit == 25
+        assert generated_config.optimizer_flags == ["override"]
+        assert generated_config.time_slot_config.max_time_gap == 45
+        assert generated_config.time_slot_config.min_time_overlap == 15
+        assert started_threads[0].daemon is True
+        assert uploaded_config.limit == 10
+        assert uploaded_config.optimizer_flags == ["original"]
+        assert uploaded_config.time_slot_config.max_time_gap == 30
+        assert uploaded_config.time_slot_config.min_time_overlap == 10
+
     def test_duplicate_request_does_not_start_another_thread(
         self, model, monkeypatch
     ):

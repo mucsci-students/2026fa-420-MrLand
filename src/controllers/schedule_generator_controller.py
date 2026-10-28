@@ -2,7 +2,10 @@
 
 Used by: GUI."""
 
+import copy
 import threading
+
+from scheduler.config import CombinedConfig
 
 from src.models.schedule_generator_model import (
     ScheduleGenerationState,
@@ -58,6 +61,7 @@ class ScheduleGeneratorController:
         optimizer_override: list[str] | None,
         max_time_gap_override_value: object = None,
         min_time_overlap_override_value: object = None,
+        loaded_config: CombinedConfig | None = None,
     ) -> tuple[int | None, str | None]:
         if self.model.state_snapshot().running:
             return None, "Generation is already in progress. Please wait for it to finish."
@@ -81,13 +85,34 @@ class ScheduleGeneratorController:
             return None, error
 
         try:
-            config = self.model.load_config(config_name)
+            if loaded_config is None:
+                config = self.model.load_config(config_name)
+            else:
+                config = copy.deepcopy(loaded_config)
         except Exception as error:
             return None, f"Could not load configuration: {error}"
 
         requested = limit_override if limit_override is not None else config.limit
+        if loaded_config is not None:
+            config.limit = requested
+            if optimizer_override is not None:
+                config.optimizer_flags = optimizer_override
+            if max_time_gap_override is not None:
+                config.time_slot_config.max_time_gap = max_time_gap_override
+            if min_time_overlap_override is not None:
+                config.time_slot_config.min_time_overlap = min_time_overlap_override
+
         if not self.model.begin_generation(config_name, requested):
             return None, None
+
+        if loaded_config is not None:
+            worker = threading.Thread(
+                target=self.model.generate_configuration,
+                args=(config_name, config),
+                daemon=True,
+            )
+            worker.start()
+            return requested, None
 
         generation_args = (
             config_name,
