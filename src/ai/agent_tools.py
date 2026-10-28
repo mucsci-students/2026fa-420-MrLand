@@ -105,32 +105,6 @@ class SchedulerAgentState:
             combinations=combinations,
         )
 
-    # Format a configuration collection for the assistant.
-    def _list_items(self, items: list[Any], *, label: str) -> dict[str, Any]:
-        if not items:
-            return self._result(True, f"No {label} found.", items=[])
-        return self._result(
-            True,
-            f"Found {len(items)} {label}.",
-            items=[item.model_dump(mode="json") for item in items],
-        )
-
-    # Return all configured rooms in JSON form.
-    def get_rooms(self) -> str:
-        return self._list_items(self.config.config.rooms, label="rooms")
-
-    # Return all configured labs in JSON form.
-    def get_labs(self) -> str:
-        return self._list_items(self.config.config.labs, label="labs")
-
-    # Return all configured faculty members in JSON form.
-    def get_faculty(self) -> str:
-        return self._list_items(self.config.config.faculty, label="faculty members")
-
-    # Return all configured courses in JSON form.
-    def get_courses(self) -> str:
-        return self._list_items(self.config.config.courses, label="courses")
-
     # Summarize the counts of configured scheduling resources.
     def get_config_summary(self) -> dict[str, Any]:
         summary = (
@@ -804,30 +778,6 @@ def get_tool_list(
         return json.dumps(result, default=str)
 
     tools = [
-        StructuredTool.from_function(
-            name="get_rooms",
-            func=configuration_tool(state.get_rooms),
-            description="List all rooms in the scheduler configuration.",
-            args_schema={},
-        ),
-        StructuredTool.from_function(
-            name="get_labs",
-            func=configuration_tool(state.get_labs),
-            description="List all labs in the scheduler configuration.",
-            args_schema={},
-        ),
-        StructuredTool.from_function(
-            name="get_faculty",
-            func=configuration_tool(state.get_faculty),
-            description="List all faculty members in the scheduler configuration.",
-            args_schema={},
-        ),
-        StructuredTool.from_function(
-            name="get_courses",
-            func=configuration_tool(state.get_courses),
-            description="List all courses in the scheduler configuration.",
-            args_schema={},
-        ),
         StructuredTool.from_function(
             name="get_config_summary",
             func=configuration_tool(state.get_config_summary),
