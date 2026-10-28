@@ -209,7 +209,7 @@ def schedule_generator() -> None:
         update_optimizer_override_state
     )
 
-    def show_config(config, label: str) -> None:
+    def display_config(config, label: str) -> None:
         config_name_label.text = label
         configured_limit.value = str(config.limit)
         configured_max_time_gap.value = str(
@@ -221,6 +221,9 @@ def schedule_generator() -> None:
         configured_flags = {flag.value for flag in config.optimizer_flags}
         for value, checkbox in configured_optimizer_checkboxes.items():
             checkbox.value = value in configured_flags
+
+    def show_config(config, label: str) -> None:
+        display_config(config, label)
         generation_limit_override.value = ""
         max_time_gap_override.value = ""
         min_time_overlap_override.value = ""
@@ -229,36 +232,46 @@ def schedule_generator() -> None:
             checkbox.value = False
         update_optimizer_override_state()
 
-    def update_current_config_selection() -> None:
+    def handle_current_config_selection() -> None:
         current_config = editor_controller.configuration
-        available = current_config is not None
-        if available:
-            use_current_config.enable()
-        else:
-            use_current_config.value = False
-            use_current_config.disable()
-
-        load_button.set_enabled(not use_current_config.value)
         if use_current_config.value and current_config is not None:
-            show_config(current_config, "Using current loaded configuration")
-        elif selected_config["config"] is not None:
+            load_button.disable()
             show_config(
-                selected_config["config"],
-                f"Loaded: {selected_config['name']}",
+                current_config, "Using current loaded configuration"
             )
         else:
-            config_name_label.text = "No configuration loaded."
-            configured_limit.value = ""
-            configured_max_time_gap.value = ""
-            configured_min_time_overlap.value = ""
-            for checkbox in configured_optimizer_checkboxes.values():
-                checkbox.value = False
+            load_button.enable()
+            if selected_config["config"] is not None:
+                show_config(
+                    selected_config["config"],
+                    f"Loaded: {selected_config['name']}",
+                )
+            else:
+                config_name_label.text = "No configuration loaded."
+                configured_limit.value = ""
+                configured_max_time_gap.value = ""
+                configured_min_time_overlap.value = ""
+                for checkbox in configured_optimizer_checkboxes.values():
+                    checkbox.value = False
+
+    def sync_current_config_availability() -> None:
+        if editor_controller.configuration is None:
+            was_selected = use_current_config.value
+            use_current_config.value = False
+            use_current_config.disable()
+            load_button.enable()
+            if was_selected:
+                handle_current_config_selection()
+        else:
+            use_current_config.enable()
+            if use_current_config.value:
+                load_button.disable()
 
     use_current_config.on_value_change(
-        lambda _: update_current_config_selection()
+        lambda _: handle_current_config_selection()
     )
-    update_current_config_selection()
-    ui.timer(1.0, update_current_config_selection)
+    sync_current_config_availability()
+    ui.timer(1.0, sync_current_config_availability)
 
     progress_display = ScheduleGenerationProgress(
         "w-full max-w-2xl gap-2 mt-6"
