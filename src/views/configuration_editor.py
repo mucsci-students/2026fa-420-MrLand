@@ -429,7 +429,7 @@ def configuration_editor(
                 state["config"] = loaded_config
                 state["name"] = file_name[:-5]
                 clear_history()
-                set_saved_status(False)
+                set_saved_status(True)
                 editor_body.refresh()
 
                 load_dialog.close()
