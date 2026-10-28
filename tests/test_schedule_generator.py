@@ -1,12 +1,63 @@
+import asyncio
 from types import SimpleNamespace
 
 import pytest
+from nicegui import ElementFilter, ui
+from nicegui.testing import user_simulation
 
+import src.views.schedule_generator as schedule_generator_view
 from src.controllers.schedule_generator_controller import (
     ScheduleGeneratorController,
 )
 from src.models import schedule_generator_model
 from src.models.schedule_generator_model import ScheduleGeneratorModel
+
+
+def test_generation_limit_override_is_grouped_before_time_slot_settings(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        schedule_generator_view.controller, "list_config_names", lambda: []
+    )
+
+    async def simulate():
+        async with user_simulation(
+            root=schedule_generator_view.schedule_generator
+        ) as user:
+            await user.open("/")
+            with user.client:
+                configured_limit = next(
+                    iter(
+                        ElementFilter(
+                            kind=ui.input,
+                            content="Configured Generation Limit",
+                        )
+                    )
+                )
+                generation_override = next(
+                    iter(
+                        ElementFilter(
+                            kind=ui.input,
+                            content="Temporary Generation Limit Override",
+                        )
+                    )
+                )
+                time_slot_heading = next(
+                    iter(
+                        ElementFilter(
+                            kind=ui.label,
+                            content="Time Slot Settings",
+                        )
+                    )
+                )
+
+                assert (
+                    configured_limit.id
+                    < generation_override.id
+                    < time_slot_heading.id
+                )
+
+    asyncio.run(simulate())
 
 
 def test_controller_passes_time_slot_overrides_to_generation(monkeypatch):
