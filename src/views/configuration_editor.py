@@ -163,7 +163,7 @@ def configuration_editor(
         try:
             previous_state = controller.create_memento()
             accepted, problems = controller.apply_change(mutation)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - recover and notify for unexpected edit callback failures
             state["config"] = controller.configuration
             editor_body.refresh()
             ui.notify(f"Change was not applied: {exc}", type="negative")
@@ -188,7 +188,7 @@ def configuration_editor(
         try:
             current_state = controller.create_memento()
             controller.restore_memento(undo_history[-1])
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - report unexpected history-restore failures in the UI
             ui.notify(f"Unable to undo change: {exc}", type="negative")
             return
         undo_history.pop()
@@ -204,7 +204,7 @@ def configuration_editor(
         try:
             current_state = controller.create_memento()
             controller.restore_memento(redo_history[-1])
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - report unexpected history-restore failures in the UI
             ui.notify(f"Unable to redo change: {exc}", type="negative")
             return
         redo_history.pop()
@@ -432,7 +432,7 @@ def configuration_editor(
         except ValueError as exc:
             save_status.set_text(str(exc))
             return
-        except Exception as exc:  # pragma: no cover - UI guard
+        except Exception as exc:  # noqa: BLE001 - UI boundary for browser download failures
             ui.notify(f"Unable to save configuration: {exc}", type="negative")
             return
 
@@ -500,7 +500,7 @@ def configuration_editor(
                 show_problems("Invalid configuration file", exc.problems)
             except (ValueError, ConfigLoadError) as exc:
                 ui.notify(f"Unable to load configuration: {exc}", type="negative")
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - surface unexpected upload callback failures
                 ui.notify(f"Unable to load configuration: {exc}", type="negative")
             finally:
                 if generation == load_generation:
@@ -665,7 +665,7 @@ def configuration_editor(
         except ValueError as exc:
             ui.notify(str(exc), type="negative")
             return
-        except Exception as exc:  # pragma: no cover - UI guard
+        except Exception as exc:  # noqa: BLE001 - UI boundary for browser download failures
             ui.notify(f"Unable to save configuration: {exc}", type="negative")
             return
 
@@ -685,7 +685,7 @@ def configuration_editor(
             return
         try:
             config = controller.new_configuration()
-        except Exception as exc:  # pragma: no cover - UI guard
+        except Exception as exc:  # noqa: BLE001 - report unexpected draft-creation failures in the UI
             ui.notify(f"Unable to create configuration: {exc}", type="negative")
             return
 
@@ -744,7 +744,7 @@ def configuration_editor(
             return
         try:
             problems = controller.validate_configuration()
-        except Exception as exc:  # pragma: no cover - UI guard
+        except Exception as exc:  # noqa: BLE001 - report unexpected validation failures in the UI
             ui.notify(f"Unable to validate configuration: {exc}", type="negative")
             return
         show_problems("Validate configuration", problems)

@@ -11,6 +11,7 @@ from typing import Any
 from scheduler.scheduler import Scheduler
 
 from src.models.configuration_model import config_exists, load_config
+from src.models.configuration_repository import ConfigLoadError
 from src.models.schedule_files import records_from_result, records_to_csv
 from src.models.schedule_result import ScheduleResult
 
@@ -117,7 +118,7 @@ class ScheduleGeneratorModel:
                 full_config.time_slot_config.min_time_overlap = (
                     min_time_overlap_override
                 )
-        except Exception as error:
+        except (ConfigLoadError, FileNotFoundError, ValueError) as error:
             self.update_state(
                 error=str(error),
                 message="Schedule generation failed.",
@@ -186,7 +187,7 @@ class ScheduleGeneratorModel:
                 )
                 self._state.finished = True
                 self._state.running = False
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001 - worker boundary must publish scheduler failures
             self.update_state(
                 error=str(error),
                 message="Schedule generation failed.",

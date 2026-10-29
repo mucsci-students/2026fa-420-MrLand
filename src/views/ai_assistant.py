@@ -261,7 +261,7 @@ def scheduler_ai_assistant(
                     refresh_configuration(saved=True)
             state["history"] = result["messages"]
             state["messages"][-1] = ("assistant", response)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - surface unexpected assistant callback failures to the user
             if request_memento is not None:
                 controller.restore_memento(request_memento)
                 refresh_configuration(saved=configuration_is_saved())

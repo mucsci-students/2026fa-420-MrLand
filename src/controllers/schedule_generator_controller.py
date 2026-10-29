@@ -7,6 +7,7 @@ import threading
 
 from scheduler.config import CombinedConfig, OptimizerFlags
 
+from src.models.configuration_repository import ConfigLoadError
 from src.models.schedule_generator_model import (
     ScheduleGenerationState,
     ScheduleGeneratorModel,
@@ -84,13 +85,13 @@ class ScheduleGeneratorController:
         if error:
             return None, error
 
-        try:
-            if loaded_config is None:
+        if loaded_config is None:
+            try:
                 config = self.model.load_config(config_name)
-            else:
-                config = copy.deepcopy(loaded_config)
-        except Exception as error:
-            return None, f"Could not load configuration: {error}"
+            except (ConfigLoadError, FileNotFoundError, ValueError) as error:
+                return None, f"Could not load configuration: {error}"
+        else:
+            config = copy.deepcopy(loaded_config)
 
         requested = limit_override if limit_override is not None else config.limit
         if loaded_config is not None:

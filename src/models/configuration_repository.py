@@ -49,10 +49,9 @@ def save_config(combined_config: CombinedConfig, config_name: str) -> None:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(combined_config.model_dump_json(indent=4))
         os.replace(tmp_name, path)
-    except (OSError, TypeError, ValueError):
+    finally:
         if os.path.exists(tmp_name):
             os.remove(tmp_name)
-        raise
 
 
 def load_config(config_name: str) -> CombinedConfig:
