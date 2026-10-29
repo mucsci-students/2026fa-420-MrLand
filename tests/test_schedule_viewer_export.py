@@ -3,6 +3,9 @@ import io
 import json
 import zipfile
 from types import SimpleNamespace
+from typing import cast
+
+from scheduler.models.course import CourseInstance
 
 from src.controllers.schedule_controller import ScheduleController
 from src.models.schedule_files import records_to_csv
@@ -83,24 +86,30 @@ def test_export_all_generated_returns_zip_without_loaded_schedules(tmp_path):
             ScheduleResult(
                 config_name="fall",
                 schedule=[
-                    SimpleNamespace(
-                        course="CS101",
-                        faculty="Dr. Smith",
-                        room="Room 101",
-                        lab=None,
-                        time="MON 09:00-09:50",
+                    cast(
+                        CourseInstance,
+                        SimpleNamespace(
+                            course="CS101",
+                            faculty="Dr. Smith",
+                            room="Room 101",
+                            lab=None,
+                            time="MON 09:00-09:50",
+                        ),
                     )
                 ],
             ),
             ScheduleResult(
                 config_name="fall",
                 schedule=[
-                    SimpleNamespace(
-                        course="CS102",
-                        faculty="Dr. Jones",
-                        room="Room 202",
-                        lab=None,
-                        time="TUE 10:00-10:50",
+                    cast(
+                        CourseInstance,
+                        SimpleNamespace(
+                            course="CS102",
+                            faculty="Dr. Jones",
+                            room="Room 202",
+                            lab=None,
+                            time="TUE 10:00-10:50",
+                        ),
                     )
                 ],
             ),
@@ -153,12 +162,15 @@ def test_export_all_generated_supports_json_and_avoids_existing_names(tmp_path):
             ScheduleResult(
                 config_name="fall",
                 schedule=[
-                    SimpleNamespace(
-                        course="CS101",
-                        faculty="Dr. Smith",
-                        room="Room 101",
-                        lab=None,
-                        time="MON 09:00-09:50",
+                    cast(
+                        CourseInstance,
+                        SimpleNamespace(
+                            course="CS101",
+                            faculty="Dr. Smith",
+                            room="Room 101",
+                            lab=None,
+                            time="MON 09:00-09:50",
+                        ),
                     )
                 ],
             )

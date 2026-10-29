@@ -2,6 +2,7 @@
 # Primary Author: Dylan Groff
 
 from nicegui import ui
+from scheduler.config import CombinedConfig
 
 from src.controllers.schedule_controller import schedule_controller as controller
 from src.controllers.schedule_filters_controller import sort_schedule
@@ -27,57 +28,63 @@ class ScheduleTableView:
 
         # adds custom CSS styling
         ui.add_head_html(
-            f"""
+            """
             <style>
                 .q-table__container,
                 .q-table__middle,
-                .q-table {{
+                .q-table {
                     background: var(--app-background) !important;
-                }}
+                }
 
-                .q-table thead tr {{
+                .q-table thead tr {
                     background: var(--surface-raised) !important;
-                }}
+                }
 
-                .q-table tbody tr {{
+                .q-table tbody tr {
                     background: var(--app-background) !important;
-                }}
+                }
 
-                .q-table tbody tr:hover {{
+                .q-table tbody tr:hover {
                     background: var(--surface-hover) !important;
-                }}
+                }
 
                 .q-table th,
-                .q-table td {{
+                .q-table td {
                     color: var(--app-foreground) !important;
-                }}
+                }
 
                 /* Tab panel backgrounds */
                 .q-tab-panels,
-                .q-tab-panel {{
+                .q-tab-panel {
                     background: var(--app-background) !important;
                     color: var(--app-foreground) !important;
-                }}
+                }
             </style>
             """
         )
 
         # Creates buttons for the user to sort the table by different columns and order
         with ui.row().classes("w-full items-center gap-4"):
-            self.sort_select = ui.select(
-                ["Day", "Start Time", "Course", "Faculty", "Room / Lab"],
-                value="Day",
-                label="Sort",
-            ).props("outlined").classes("schedule-dropdown").style(
-                "width: 180px;"
+            self.sort_select = (
+                ui.select(
+                    ["Day", "Start Time", "Course", "Faculty", "Room / Lab"],
+                    value="Day",
+                    label="Sort",
+                )
+                .props("outlined")
+                .classes("schedule-dropdown")
+                .style("width: 180px;")
             )
 
-            self.order_select = ui.select(
-                ["Ascending", "Descending"],
-                value="Ascending",
-                label="Order",
-            ).props("outlined").classes("schedule-dropdown").style(
-                "width: 180px;"
+            self.order_select = (
+                ui.select(
+                    ["Ascending", "Descending"],
+                    value="Ascending",
+                    label="Order",
+                )
+                .props("outlined")
+                .classes("schedule-dropdown")
+                .style("width: 180px;")
             )
 
         # ---------------------------------------------------------
@@ -129,11 +136,15 @@ class ScheduleTableView:
         ]
 
         # create the table object
-        self.table = ui.table(
-            columns=columns,
-            rows=[],
-            row_key="id",
-        ).props("flat bordered").classes("w-full")
+        self.table = (
+            ui.table(
+                columns=columns,
+                rows=[],
+                row_key="id",
+            )
+            .props("flat bordered")
+            .classes("w-full")
+        )
 
         self._add_clickable_cells()
 
@@ -199,8 +210,8 @@ class ScheduleTableView:
 
     # ---------------------------------------------------------
     # Inspect Element Controls
-    # --------------------------------------------------------- 
-       
+    # ---------------------------------------------------------
+
     def _add_clickable_cells(self) -> None:
         """Make selected table cells open their detail dialogs."""
 
@@ -277,23 +288,26 @@ class ScheduleTableView:
         )
 
     # handles whether the current schedule has a config object before attempting to inspect details
-    def _has_config(self) -> bool:
-        if controller.current is None or controller.current.config is None:
+    def _get_config(self) -> CombinedConfig | None:
+        entry = controller.current
+        if entry is None or entry.config is None:
             ui.notify(
                 "Configuration details are unavailable for this schedule.",
                 type="warning",
             )
-            return False
-        return True
+            return None
+        return entry.config
 
     # ---------------------------------------------------------
     # Element Inspection Getters
     # ---------------------------------------------------------
     def _inspect_course(self, course_id: str) -> None:
-        if not self._has_config():
+        config = self._get_config()
+        if config is None:
             return
 
-        course = get_course_details(controller.current.schedule, course_id)
+        entry = controller.current
+        course = get_course_details(entry.schedule if entry is not None else None, course_id)
         if course is None:
             ui.notify("Course details not found", type="negative")
             return
@@ -312,93 +326,85 @@ class ScheduleTableView:
         )
 
         # create a dialog to display the course details
-        with ui.dialog() as dialog:
-            with ui.card():
-                ui.label("Course Details").classes("text-xl font-bold")
-                ui.label(f"Course ID: {course.course_id}")
-                ui.label(f"Section: {course.section_id}")
-                ui.label(f"Credits: {course.credits}")
-                ui.label(f"Capacity: {course.capacity}")
-                ui.label(f"Modality: {modality}")
-                ui.label(f"Conflicts: {conflicts}")
-                ui.button("Close", on_click=dialog.close)
+        with ui.dialog() as dialog, ui.card():
+            ui.label("Course Details").classes("text-xl font-bold")
+            ui.label(f"Course ID: {course.course_id}")
+            ui.label(f"Section: {course.section_id}")
+            ui.label(f"Credits: {course.credits}")
+            ui.label(f"Capacity: {course.capacity}")
+            ui.label(f"Modality: {modality}")
+            ui.label(f"Conflicts: {conflicts}")
+            ui.button("Close", on_click=dialog.close)
         dialog.open()
 
     def _inspect_faculty(self, faculty_name: str) -> None:
-        if not self._has_config():
+        config = self._get_config()
+        if config is None:
             return
 
-        faculty = get_faculty_details(controller.current.config, faculty_name)
+        faculty = get_faculty_details(config, faculty_name)
         if faculty is None:
             ui.notify("Faculty details not found", type="negative")
             return
 
         # create a dialog to display the faculty details
-        with ui.dialog() as dialog:
-            with ui.card():
-                ui.label("Faculty Details").classes("text-xl font-bold")
-                ui.label(f"Name: {faculty.name}")
-                ui.label(f"Minimum Credits: {faculty.minimum_credits}")
-                ui.label(f"Maximum Credits: {faculty.maximum_credits}")
-                ui.label(f"Maximum Days: {faculty.maximum_days}")
-                ui.label(f"Unique Course Limit: {faculty.unique_course_limit}")
-                ui.button("Close", on_click=dialog.close)
+        with ui.dialog() as dialog, ui.card():
+            ui.label("Faculty Details").classes("text-xl font-bold")
+            ui.label(f"Name: {faculty.name}")
+            ui.label(f"Minimum Credits: {faculty.minimum_credits}")
+            ui.label(f"Maximum Credits: {faculty.maximum_credits}")
+            ui.label(f"Maximum Days: {faculty.maximum_days}")
+            ui.label(f"Unique Course Limit: {faculty.unique_course_limit}")
+            ui.button("Close", on_click=dialog.close)
         dialog.open()
 
     def _inspect_room(self, room_name: str) -> None:
-        if not self._has_config():
+        config = self._get_config()
+        if config is None:
             return
 
-        room = get_room_details(controller.current.config, room_name)
+        room = get_room_details(config, room_name)
         if room is None:
             ui.notify("Room details not found", type="negative")
             return
 
         # format the features for more user-friendly display
-        features = (
-            ", ".join(str(feature) for feature in room.features)
-            if room.features
-            else "None"
-        )
+        features = ", ".join(str(feature) for feature in room.features) if room.features else "None"
 
         # create a dialog to display the room details
-        with ui.dialog() as dialog:
-            with ui.card():
-                ui.label("Room Details").classes("text-xl font-bold")
-                ui.label(f"Name: {room.name}")
-                ui.label(f"Capacity: {room.capacity}")
-                ui.label(f"Features: {features}")
-                ui.button("Close", on_click=dialog.close)
+        with ui.dialog() as dialog, ui.card():
+            ui.label("Room Details").classes("text-xl font-bold")
+            ui.label(f"Name: {room.name}")
+            ui.label(f"Capacity: {room.capacity}")
+            ui.label(f"Features: {features}")
+            ui.button("Close", on_click=dialog.close)
         dialog.open()
 
     def _inspect_lab(self, lab_name: str) -> None:
-        if not self._has_config():
+        config = self._get_config()
+        if config is None:
             return
 
-        lab = get_lab_details(controller.current.config, lab_name)
+        lab = get_lab_details(config, lab_name)
         if lab is None:
             ui.notify("Lab details not found", type="negative")
             return
 
         # format the features for more user-friendly display
-        features = (
-            ", ".join(str(feature) for feature in lab.features)
-            if lab.features
-            else "None"
-        )
+        features = ", ".join(str(feature) for feature in lab.features) if lab.features else "None"
 
         # create a dialog to display the lab details
-        with ui.dialog() as dialog:
-            with ui.card():
-                ui.label("Lab Details").classes("text-xl font-bold")
-                ui.label(f"Name: {lab.name}")
-                ui.label(f"Capacity: {lab.capacity}")
-                ui.label(f"Features: {features}")
-                ui.button("Close", on_click=dialog.close)
+        with ui.dialog() as dialog, ui.card():
+            ui.label("Lab Details").classes("text-xl font-bold")
+            ui.label(f"Name: {lab.name}")
+            ui.label(f"Capacity: {lab.capacity}")
+            ui.label(f"Features: {features}")
+            ui.button("Close", on_click=dialog.close)
         dialog.open()
 
     def _inspect_resource(self, row: dict) -> None:
-        if not self._has_config():
+        config = self._get_config()
+        if config is None:
             return
 
         resource = row.get("resource")
@@ -410,23 +416,21 @@ class ScheduleTableView:
             return
 
         # checks if the resource is a lab or a room and calls the appropriate inspection method
-        if get_lab_details(controller.current.config, resource) is not None:
+        if get_lab_details(config, resource) is not None:
             self._inspect_lab(resource)
         else:
             self._inspect_room(resource)
 
-
     def _inspect_time(self, row: dict) -> None:
         # The displayed row already has 12-hour formatted start/end values.
-        with ui.dialog() as dialog:
-            with ui.card():
-                ui.label("Time Assignment").classes("text-xl font-bold")
-                ui.label(f"Course: {row['course']}")
-                ui.label(f"Faculty: {row['faculty']}")
-                ui.label(f"Day: {self._format_day(row['day'])}")
-                ui.label(f"Start: {row['start']}")
-                ui.label(f"End: {row['end']}")
-                ui.button("Close", on_click=dialog.close)
+        with ui.dialog() as dialog, ui.card():
+            ui.label("Time Assignment").classes("text-xl font-bold")
+            ui.label(f"Course: {row['course']}")
+            ui.label(f"Faculty: {row['faculty']}")
+            ui.label(f"Day: {self._format_day(row['day'])}")
+            ui.label(f"Start: {row['start']}")
+            ui.label(f"End: {row['end']}")
+            ui.button("Close", on_click=dialog.close)
         dialog.open()
 
     # ---------------------------------------------------------
@@ -451,6 +455,7 @@ class ScheduleTableView:
         suffix = "AM" if hour < 12 else "PM"
         display_hour = hour % 12 or 12
         return f"{display_hour}:{minute:02d} {suffix}"
+
 
 # ---------------------------------------------------------
 # Create Table View

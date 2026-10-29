@@ -4,8 +4,8 @@ Used by: GUI."""
 
 import copy
 from collections.abc import Callable
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 from threading import RLock
 from typing import TypeVar
 
@@ -30,7 +30,6 @@ class ConfigurationMemento:
 
 
 class ConfigurationController:
-
     def __init__(self) -> None:
         self.config_service = ConfigService()
         self.configuration: CombinedConfig | None = None
@@ -38,14 +37,14 @@ class ConfigurationController:
         self._lock = RLock()
 
     def create_memento(self) -> ConfigurationMemento:
-        '''
+        """
         Captures the current config to restore if required later
 
-        Returns: memento holding a deep copy, so edits to the open config 
+        Returns: memento holding a deep copy, so edits to the open config
         don't change the snapshot
 
         Raises: ValueError on 'No Config Open'
-        '''
+        """
         with self._lock:
             if self.configuration is None:
                 raise ValueError("No configuration has been created or loaded.")
@@ -56,18 +55,18 @@ class ConfigurationController:
             )
 
     def restore_memento(self, memento: ConfigurationMemento) -> None:
-        '''Replace the open config with the saved snapshot'''
+        """Replace the open config with the saved snapshot"""
 
         with self._lock:
             self.configuration = copy.deepcopy(memento.configuration)
             self._has_valid_configuration = memento.has_valid_configuration
 
     def new_configuration(self) -> CombinedConfig:
-        '''
+        """
         Unsaved changes are not saved, Views should confirm with User
 
         Returns: the new empty draft
-        '''
+        """
         with self._lock:
             self.configuration = create_draft_config()
             self._has_valid_configuration = False
@@ -75,11 +74,11 @@ class ConfigurationController:
             return self.configuration
 
     def save_configuration(self, config_name: str) -> None:
-        '''
+        """
         Saves the open configuration under config_name. It validates first and
         raises ConfigValidationError (with the list of problems) instead of
         writing an invalid file. Raises ValueError if nothing is open.
-        '''
+        """
         with self._lock:
             if self.configuration is None:
                 raise ValueError("No configuration has been created.")
@@ -116,10 +115,9 @@ class ConfigurationController:
 
             content = self.configuration.model_dump_json(indent=4).encode("utf-8")
             return content, file_name, "application/json"
-    
-    def load_configuration(self, config_name: str) -> CombinedConfig:
 
-        '''
+    def load_configuration(self, config_name: str) -> CombinedConfig:
+        """
         Loads a saved configuration and makes it the open one. A loaded file has
         already passed validation, so _has_valid_configuration is set to True,
         which means later edits that make it invalid will be rolled back.
@@ -129,14 +127,13 @@ class ConfigurationController:
         ConfigLoadError - the file exists but can't be parsed or fails validation.
 
         Returns Loaded Config
-        '''
+        """
 
         with self._lock:
             self.configuration = self.config_service.load(config_name)
             self._has_valid_configuration = True
             return self.configuration
-    
-    
+
     # Load and validate a configuration from an uploaded JSON file
     def load_uploaded_configuration(self, content: bytes) -> CombinedConfig:
         configuration = self.config_service.load_uploaded(content)
@@ -149,27 +146,25 @@ class ConfigurationController:
         return self.config_service.list_names()
 
     def validate_configuration(self) -> list[ValidationProblem]:
-        '''
-        Checks the open config against scheduler's rules to 
+        """
+        Checks the open config against scheduler's rules to
         report problems.
 
-        Returns: 
+        Returns:
         List of problems
         or empty for valid
 
         Raises:
-        ValueError: No config is open 
-        '''
+        ValueError: No config is open
+        """
         with self._lock:
             if self.configuration is None:
                 raise ValueError("No configuration has been created or loaded.")
 
             return validate_config(self.configuration)
 
-    def apply_change(
-        self, mutation: Callable[[], T]
-    ) -> tuple[bool, list[ValidationProblem]]:
-        '''
+    def apply_change(self, mutation: Callable[[], T]) -> tuple[bool, list[ValidationProblem]]:
+        """
         Run edit against open config under validation rules
 
         Routing edits here keeps validation in one place
@@ -178,9 +173,9 @@ class ConfigurationController:
         Returns:
         Tuple (accepted, problems)
 
-        Raises: 
+        Raises:
         ValueError - No config is open
-        '''
+        """
         with self._lock:
             if self.configuration is None:
                 raise ValueError("No configuration has been created or loaded.")

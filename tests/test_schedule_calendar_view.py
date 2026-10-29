@@ -3,16 +3,16 @@ Tests for the Calendar View
 
 """
 
-
 import pytest
+
 from src.views.schedule_calendar_view import ScheduleCalendarView
 
 # ---------------------------------------------------------
 # Calendar Helpers
 # ---------------------------------------------------------
 
-class TestCalendarTimeHelpers:
 
+class TestCalendarTimeHelpers:
     @pytest.mark.parametrize(
         ("time_value", "expected"),
         [
@@ -52,12 +52,13 @@ class TestCalendarTimeHelpers:
         with pytest.raises((ValueError, TypeError)):
             ScheduleCalendarView._to_minutes(time_value)
 
+
 # ---------------------------------------------------------
 # Calendar Event Layout
 # ---------------------------------------------------------
 
-class TestCalendarEventLayout:
 
+class TestCalendarEventLayout:
     def test_non_overlapping_meetings_reuse_lane(self):
         meetings = [
             ({"course": "CS101"}, 540, 600),

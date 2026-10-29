@@ -5,15 +5,17 @@ Used by: GUI."""
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import TypedDict
 
 from nicegui import ui
+from nicegui.elements.badge import Badge
+from nicegui.elements.button import Button
+from scheduler.config import CombinedConfig
 
 from src.controllers.configuration_controller import (
     ConfigurationController,
     ConfigurationMemento,
 )
-from src.models.configuration_repository import ConfigLoadError
-from src.controllers.configuration_controller import ConfigurationController
 from src.models.configuration_model import ConfigValidationError, validate_config_name
 from src.models.configuration_repository import ConfigLoadError
 from src.views.class_patterns_gui import class_patterns_gui
@@ -24,7 +26,6 @@ from src.views.global_settings_gui import global_settings_gui
 from src.views.labs_gui import labs_gui
 from src.views.rooms_gui import rooms_gui
 from src.views.time_blocks_gui import time_blocks_gui
-
 
 controller = ConfigurationController()
 TOP_HAT_COMBINATION = ("Rooms", "Time blocks", "Faculty", "Faculty")
@@ -39,7 +40,7 @@ PANEL_COMBINATIONS = (
     ("flower_crown", FLOWER_CROWN_COMBINATION, "👑"),
     ("flower_hat", FLOWER_HAT_COMBINATION, "👒"),
     ("graduation_cap", GRADUATION_CAP_COMBINATION, "🎓"),
-    ("rescue_hat", RESCUE_HAT_COMBINATION, "⛑️")
+    ("rescue_hat", RESCUE_HAT_COMBINATION, "⛑️"),
 )
 
 
@@ -58,6 +59,17 @@ class ConfigurationEditorRefresh:
         self._refresh(saved=saved)
 
 
+class EditorState(TypedDict):
+    config: CombinedConfig | None
+    name: str | None
+    saved: bool
+    pending_forms: set[str]
+    status_badge: Badge | None
+    undo_button: Button | None
+    redo_button: Button | None
+    flush_pending_settings: Callable[[], bool]
+
+
 # Return the uploaded file name and contents.
 async def read_upload(event) -> tuple[str, bytes]:
     if hasattr(event, "file"):  # NiceGUI 3.x
@@ -70,7 +82,7 @@ def configuration_editor(
 ) -> ConfigurationEditorRefresh:
     """Build the editor workspace and coordinate configuration lifecycle actions."""
     # Keep the selected draft and save state shared by the editor callbacks.
-    state = {
+    state: EditorState = {
         "config": None,
         "name": None,
         "saved": False,
@@ -85,7 +97,7 @@ def configuration_editor(
     load_generation = 0
     undo_history: list[ConfigurationMemento] = []
     redo_history: list[ConfigurationMemento] = []
-    
+
     # Update the saved indicator after a draft change or successful save.
     def set_saved_status(saved: bool) -> None:
         state["saved"] = saved
@@ -151,7 +163,7 @@ def configuration_editor(
         try:
             previous_state = controller.create_memento()
             accepted, problems = controller.apply_change(mutation)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - recover and notify for unexpected edit callback failures
             state["config"] = controller.configuration
             editor_body.refresh()
             ui.notify(f"Change was not applied: {exc}", type="negative")
@@ -176,7 +188,7 @@ def configuration_editor(
         try:
             current_state = controller.create_memento()
             controller.restore_memento(undo_history[-1])
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - report unexpected history-restore failures in the UI
             ui.notify(f"Unable to undo change: {exc}", type="negative")
             return
         undo_history.pop()
@@ -192,7 +204,7 @@ def configuration_editor(
         try:
             current_state = controller.create_memento()
             controller.restore_memento(redo_history[-1])
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - report unexpected history-restore failures in the UI
             ui.notify(f"Unable to redo change: {exc}", type="negative")
             return
         redo_history.pop()
@@ -221,11 +233,8 @@ def configuration_editor(
         with ui.row().classes("items-center gap-3"):
             ui.label(f"Editing: {state['name']}").classes("text-xl font-semibold text-white")
             saved = state["saved"] and not state["pending_forms"]
-            state["status_badge"] = ui.badge(
-                "Draft saved" if saved else "Draft - not saved"
-            ).props(
-                f"color={'green' if saved else 'orange'} "
-                "id=configuration-draft-status"
+            state["status_badge"] = ui.badge("Draft saved" if saved else "Draft - not saved").props(
+                f"color={'green' if saved else 'orange'} id=configuration-draft-status"
             )
 
         current_problems = controller.validate_configuration()
@@ -239,26 +248,32 @@ def configuration_editor(
                 ).classes("font-semibold text-amber-300")
                 for problem in current_problems:
                     prefix = f"{problem.item}: " if problem.item else ""
-                    ui.label(
-                        f"{problem.area} — {prefix}{problem.message}"
-                    ).classes("break-words text-sm text-[#d8e7e8]")
+                    ui.label(f"{problem.area} — {prefix}{problem.message}").classes(
+                        "break-words text-sm text-[#d8e7e8]"
+                    )
 
         with ui.card().classes("w-full border border-[#29404b] bg-[#182630] p-6"):
             with ui.row().classes("w-full items-center justify-between gap-3"):
-                ui.label("Configuration pages").classes(
-                    "text-lg font-semibold text-white"
-                )
+                ui.label("Configuration pages").classes("text-lg font-semibold text-white")
                 with ui.row().classes("items-center gap-2"):
-                    state["undo_button"] = ui.button(
-                        "Undo",
-                        icon="undo",
-                        on_click=undo_last_change,
-                    ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
-                    state["redo_button"] = ui.button(
-                        "Redo",
-                        icon="redo",
-                        on_click=redo_last_change,
-                    ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
+                    state["undo_button"] = (
+                        ui.button(
+                            "Undo",
+                            icon="undo",
+                            on_click=undo_last_change,
+                        )
+                        .props("outline")
+                        .classes("border-[#45616b] text-[#d8e7e8]")
+                    )
+                    state["redo_button"] = (
+                        ui.button(
+                            "Redo",
+                            icon="redo",
+                            on_click=redo_last_change,
+                        )
+                        .props("outline")
+                        .classes("border-[#45616b] text-[#d8e7e8]")
+                    )
                     update_history_buttons()
             ui.label("Select an item to add/modify/delete objects to/from configuration.").classes(
                 "text-sm text-[#9fb2b8]"
@@ -288,56 +303,48 @@ def configuration_editor(
         labs_list = getattr(config_section, "labs", []) if config_section is not None else []
 
         time_slot_config = getattr(config, "time_slot_config", None)
-        time_blocks_list = getattr(time_slot_config, "times", {}) if time_slot_config is not None else {}
-        class_patterns_list = getattr(time_slot_config, "classes", []) if time_slot_config is not None else []
+        time_blocks_list = (
+            getattr(time_slot_config, "times", {}) if time_slot_config is not None else {}
+        )
+        class_patterns_list = (
+            getattr(time_slot_config, "classes", []) if time_slot_config is not None else []
+        )
 
         with ui.column().classes(panel_classes) as rooms_panel:
             rooms_gui(
                 rooms_list,
                 on_change=apply_config_change,
-                on_pending_change=lambda pending: update_pending_form(
-                    "rooms", pending
-                ),
+                on_pending_change=lambda pending: update_pending_form("rooms", pending),
             )
         with ui.column().classes(panel_classes) as faculty_panel:
             faculty_gui(
                 faculty_list,
                 on_change=apply_config_change,
-                on_pending_change=lambda pending: update_pending_form(
-                    "faculty", pending
-                ),
+                on_pending_change=lambda pending: update_pending_form("faculty", pending),
             )
         with ui.column().classes(panel_classes) as courses_panel:
             courses_gui(
                 courses_list,
                 on_change=apply_config_change,
-                on_pending_change=lambda pending: update_pending_form(
-                    "courses", pending
-                ),
+                on_pending_change=lambda pending: update_pending_form("courses", pending),
             )
         with ui.column().classes(panel_classes) as labs_panel:
             labs_gui(
                 labs_list,
                 on_change=apply_config_change,
-                on_pending_change=lambda pending: update_pending_form(
-                    "labs", pending
-                ),
+                on_pending_change=lambda pending: update_pending_form("labs", pending),
             )
         with ui.column().classes(panel_classes) as time_blocks_panel:
             time_blocks_gui(
                 time_blocks_list,
                 on_change=apply_config_change,
-                on_pending_change=lambda pending: update_pending_form(
-                    "time_blocks", pending
-                ),
+                on_pending_change=lambda pending: update_pending_form("time_blocks", pending),
             )
         with ui.column().classes(panel_classes) as class_patterns_panel:
             class_patterns_gui(
                 class_patterns_list,
                 on_change=apply_config_change,
-                on_pending_change=lambda pending: update_pending_form(
-                    "class_patterns", pending
-                ),
+                on_pending_change=lambda pending: update_pending_form("class_patterns", pending),
             )
         with ui.column().classes(panel_classes) as global_settings_panel:
             if hasattr(config, "limit") and hasattr(config, "optimizer_flags"):
@@ -371,10 +378,8 @@ def configuration_editor(
             for page_name, panel in panels.items():
                 panel.set_visibility(page_name == action)
 
-    # Download the active draft through the browser.
-            for index, (combination_name, combination, hat_emoji) in enumerate(
-                PANEL_COMBINATIONS
-            ):
+            # Download the active draft through the browser.
+            for index, (combination_name, combination, hat_emoji) in enumerate(PANEL_COMBINATIONS):
                 if combination_name in completed_combinations:
                     continue
                 progress = combination_progress[index]
@@ -420,7 +425,7 @@ def configuration_editor(
         except ValueError as exc:
             save_status.set_text(str(exc))
             return
-        except Exception as exc:  # pragma: no cover - UI guard
+        except Exception as exc:  # noqa: BLE001 - UI boundary for browser download failures
             ui.notify(f"Unable to save configuration: {exc}", type="negative")
             return
 
@@ -438,27 +443,25 @@ def configuration_editor(
         )
 
         # dialog for saving a config
-        with ui.dialog() as save_dialog:
-            with ui.card().classes(
-                "border border-[#29404b] bg-[#182630] w-[480px] gap-3"
-            ):
-                ui.label("Save Configuration").classes(
-                    "text-lg font-semibold text-white"
-                )
-                ui.label(
-                    "A copy will be downloaded to your browser's default location. " \
-                    "Check your browser settings to manually choose the save location."
-                ).classes("text-sm text-[#9fb2b8]")
-                save_name = ui.input("File Name").props("outlined dark").classes("w-full")
-                save_status = ui.label("").classes("text-sm text-red-400")
-                with ui.row().classes("w-full justify-end gap-2"):
-                    ui.button("Cancel", on_click=save_dialog.close).props("flat")
-                    ui.button(
-                        "Save",
-                        icon="download",
-                        on_click=save_current_config,
-                    ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
-        
+        with (
+            ui.dialog() as save_dialog,
+            ui.card().classes("border border-[#29404b] bg-[#182630] w-[480px] gap-3"),
+        ):
+            ui.label("Save Configuration").classes("text-lg font-semibold text-white")
+            ui.label(
+                "A copy will be downloaded to your browser's default location. "
+                "Check your browser settings to manually choose the save location."
+            ).classes("text-sm text-[#9fb2b8]")
+            save_name = ui.input("File Name").props("outlined dark").classes("w-full")
+            save_status = ui.label("").classes("text-sm text-red-400")
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button("Cancel", on_click=save_dialog.close).props("flat")
+                ui.button(
+                    "Save",
+                    icon="download",
+                    on_click=save_current_config,
+                ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
+
         # Upload a configuration file from the user's computer.
         async def handle_config_upload(event) -> None:
             generation = load_generation
@@ -489,38 +492,38 @@ def configuration_editor(
                 show_problems("Invalid configuration file", exc.problems)
             except (ValueError, ConfigLoadError) as exc:
                 ui.notify(f"Unable to load configuration: {exc}", type="negative")
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 - surface unexpected upload callback failures
                 ui.notify(f"Unable to load configuration: {exc}", type="negative")
             finally:
                 if generation == load_generation:
                     config_upload.reset()
 
         # Dialog for uploading a configuration from the user's computer.
-        with ui.dialog() as load_dialog:
-            with ui.card().classes(
-                "w-[480px] max-w-full border border-[#29404b] bg-[#182630] gap-4"
-            ):
-                ui.label("Load Configuration").classes(
-                    "text-lg font-semibold text-white"
-                )
-                ui.label(
-                    "Select a JSON configuration file from your computer."
-                ).classes("text-sm text-[#9fb2b8]")
+        with (
+            ui.dialog() as load_dialog,
+            ui.card().classes("w-[480px] max-w-full border border-[#29404b] bg-[#182630] gap-4"),
+        ):
+            ui.label("Load Configuration").classes("text-lg font-semibold text-white")
+            ui.label("Select a JSON configuration file from your computer.").classes(
+                "text-sm text-[#9fb2b8]"
+            )
 
-                config_upload = ui.upload(
+            config_upload = (
+                ui.upload(
                     label="Choose configuration file",
                     auto_upload=True,
                     on_upload=handle_config_upload,
                     max_files=1,
-                ).props("accept=.json flat bordered").classes(
-                    "w-full configuration-load-upload"
                 )
+                .props("accept=.json flat bordered")
+                .classes("w-full configuration-load-upload")
+            )
 
-                with ui.row().classes("w-full justify-end"):
-                    ui.button(
-                        "Cancel",
-                        on_click=lambda: cancel_load(),
-                    ).props("flat")
+            with ui.row().classes("w-full justify-end"):
+                ui.button(
+                    "Cancel",
+                    on_click=lambda: cancel_load(),
+                ).props("flat")
 
         def open_load_dialog() -> None:
             nonlocal load_generation
@@ -567,17 +570,18 @@ def configuration_editor(
     # Confirm before replacing an open draft with a new configuration.
     with ui.dialog() as discard_dialog, ui.card().classes("border border-[#29404b] bg-[#182630]"):
         ui.label("Start a new configuration?").classes("text-lg font-semibold text-white")
-        ui.label(
-            "Any unsaved changes to the current configuration will be lost."
-        ).classes("text-sm text-[#9fb2b8]")
+        ui.label("Any unsaved changes to the current configuration will be lost.").classes(
+            "text-sm text-[#9fb2b8]"
+        )
         with ui.row().classes("mt-4 w-full justify-end gap-2"):
             ui.button("Keep editing", on_click=discard_dialog.close).props("flat")
             ui.button("Continue", on_click=lambda: open_create_dialog()).props(
                 "unelevated color=negative"
             )
 
-    with ui.dialog() as unsaved_load_dialog, ui.card().classes(
-        "border border-[#29404b] bg-[#182630]"
+    with (
+        ui.dialog() as unsaved_load_dialog,
+        ui.card().classes("border border-[#29404b] bg-[#182630]"),
     ):
         ui.label("Unsaved changes").classes("text-lg font-semibold text-white")
         ui.label(
@@ -596,9 +600,11 @@ def configuration_editor(
     # Collect and validate the name for a newly created configuration.
     with ui.dialog() as create_dialog, ui.card().classes("border border-[#29404b] bg-[#182630]"):
         ui.label("Create new configuration").classes("text-lg font-semibold text-white")
-        name_input = ui.input(
-            "Configuration name", placeholder="fall_2026"
-        ).props("autofocus").classes("w-80")
+        name_input = (
+            ui.input("Configuration name", placeholder="fall_2026")
+            .props("autofocus")
+            .classes("w-80")
+        )
         name_input.on("keydown.enter", lambda: confirm_create())
         with ui.row().classes("mt-4 w-full justify-end gap-2"):
             ui.button("Cancel", on_click=create_dialog.close).props("flat")
@@ -622,9 +628,7 @@ def configuration_editor(
 
     # Protect an edited draft before opening the configuration upload dialog.
     def request_load_upload() -> None:
-        if state["config"] is not None and not (
-            state["saved"] and not state["pending_forms"]
-        ):
+        if state["config"] is not None and not (state["saved"] and not state["pending_forms"]):
             unsaved_load_dialog.open()
             return
         open_load_dialog()
@@ -655,7 +659,7 @@ def configuration_editor(
         except ValueError as exc:
             ui.notify(str(exc), type="negative")
             return
-        except Exception as exc:  # pragma: no cover - UI guard
+        except Exception as exc:  # noqa: BLE001 - UI boundary for browser download failures
             ui.notify(f"Unable to save configuration: {exc}", type="negative")
             return
 
@@ -675,7 +679,7 @@ def configuration_editor(
             return
         try:
             config = controller.new_configuration()
-        except Exception as exc:  # pragma: no cover - UI guard
+        except Exception as exc:  # noqa: BLE001 - report unexpected draft-creation failures in the UI
             ui.notify(f"Unable to create configuration: {exc}", type="negative")
             return
 
@@ -689,8 +693,9 @@ def configuration_editor(
         ui.notify(f"Configuration '{name}' created. Add items, then save.", type="positive")
 
     # Dialog surface used to display validation results and rejected edits.
-    with ui.dialog() as validate_dialog, ui.card().classes(
-        "min-w-[28rem] max-w-2xl border border-[#29404b] bg-[#182630]"
+    with (
+        ui.dialog() as validate_dialog,
+        ui.card().classes("min-w-[28rem] max-w-2xl border border-[#29404b] bg-[#182630]"),
     ):
         validate_title = ui.label().classes("text-lg font-semibold text-white")
         validate_results = ui.column().classes("w-full gap-3")
@@ -734,7 +739,7 @@ def configuration_editor(
             return
         try:
             problems = controller.validate_configuration()
-        except Exception as exc:  # pragma: no cover - UI guard
+        except Exception as exc:  # noqa: BLE001 - report unexpected validation failures in the UI
             ui.notify(f"Unable to validate configuration: {exc}", type="negative")
             return
         show_problems("Validate configuration", problems)
@@ -746,6 +751,5 @@ def configuration_editor(
 
     return ConfigurationEditorRefresh(
         refresh_after_ai_change,
-        lambda: state["config"] is None
-        or (bool(state["saved"]) and not state["pending_forms"]),
+        lambda: state["config"] is None or (bool(state["saved"]) and not state["pending_forms"]),
     )

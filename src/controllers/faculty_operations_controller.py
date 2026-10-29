@@ -23,8 +23,7 @@ def _build_faculty_from_values(
     if not name:
         raise ValueError("Name cannot be empty.")
     if any(
-        member is not exclude and member.name.lower() == name.lower()
-        for member in faculty_members
+        member is not exclude and member.name.lower() == name.lower() for member in faculty_members
     ):
         raise ValueError("Faculty member already exists.")
 
@@ -89,9 +88,7 @@ def update_faculty_from_values(
 ):
     """Replace a faculty member after validating all replacement values."""
     try:
-        index = next(
-            i for i, member in enumerate(faculty_members) if member is existing_member
-        )
+        index = next(i for i, member in enumerate(faculty_members) if member is existing_member)
     except StopIteration as exc:
         raise ValueError("Faculty member no longer exists.") from exc
 
@@ -116,15 +113,13 @@ def update_faculty_from_values(
 def delete_faculty_from_values(faculty_members, member_to_delete):
     """Remove and return a selected faculty member by object identity."""
     try:
-        index = next(
-            i for i, member in enumerate(faculty_members) if member is member_to_delete
-        )
+        index = next(i for i, member in enumerate(faculty_members) if member is member_to_delete)
     except StopIteration as exc:
         raise ValueError("Faculty member no longer exists.") from exc
     return faculty_members.pop(index)
 
 
-#getters to get faculty information from user input
+# getters to get faculty information from user input
 def get_name(faculty_members, exclude=None):
     while True:
         name = input("Enter faculty name: ")
@@ -140,12 +135,14 @@ def get_name(faculty_members, exclude=None):
             continue
         return name
 
+
 def get_max_credits():
     while True:
         try:
             return int(input("Enter maximum credits: "))
         except ValueError:
             print("Invalid input. Please enter a valid integer for maximum credits.")
+
 
 def get_min_credits():
     while True:
@@ -154,12 +151,14 @@ def get_min_credits():
         except ValueError:
             print("Invalid input. Please enter a valid integer for minimum credits.")
 
+
 def get_course_limit():
     while True:
         try:
             return int(input("Enter course limit: "))
         except ValueError:
             print("Invalid input. Please enter a valid integer for course limit.")
+
 
 def get_max_days():
     while True:
@@ -168,7 +167,8 @@ def get_max_days():
         except ValueError:
             print("Invalid input. Please enter a valid integer for maximum days.")
 
-#helper function to get time availability from user input
+
+# helper function to get time availability from user input
 def faculty_times():
     times = {}
     days = ["MON", "TUE", "WED", "THU", "FRI"]
@@ -186,70 +186,71 @@ def faculty_times():
             times[day] = ranges
     return times
 
-#helper function to get course preferences from user input
+
+# helper function to get course preferences from user input
 def course_preference_getter():
     course_preferences = {}
     print("Course Preferences:")
     while True:
         course = input("Enter preferred course name (or 'done' to finish): ")
-        if course.lower() == 'done':
+        if course.lower() == "done":
             break
         if not course.strip():
             print("Course name cannot be empty. Please enter a valid course name.")
             continue
 
         preference = input("Enter preference (1-10): ")
-        while (not preference.isdigit() or int(preference) < 1 or int(preference) > 10):
+        while not preference.isdigit() or int(preference) < 1 or int(preference) > 10:
             print("Invalid preference. Please enter a number between 1 and 10.")
             preference = input("Enter preference (1-10): ")
         course_preferences[course] = int(preference)
     return course_preferences
 
-#helper function to get room preferences from user input
+
+# helper function to get room preferences from user input
 def room_preference_getter():
     room_preferences = {}
     print("Room Preferences:")
     while True:
         room = input("Enter preferred room (or 'done' to finish): ")
-        if room.lower() == 'done':
+        if room.lower() == "done":
             break
         if not room.strip():
             print("Room name cannot be empty. Please enter a valid room name.")
             continue
 
         preference = input("Enter preference (1-10): ")
-        while (not preference.isdigit() or int(preference) < 1 or int(preference) > 10):
+        while not preference.isdigit() or int(preference) < 1 or int(preference) > 10:
             print("Invalid preference. Please enter a number between 1 and 10.")
             preference = input("Enter preference (1-10): ")
         room_preferences[room] = int(preference)
     return room_preferences
 
-#helper function to get lab preferences from user input
+
+# helper function to get lab preferences from user input
 def lab_preference_getter():
     lab_preferences = {}
     print("Lab Preferences:")
     while True:
         lab = input("Enter preferred lab (or 'done' to finish): ")
-        if lab.lower() == 'done':
+        if lab.lower() == "done":
             break
         if not lab.strip():
             print("Lab name cannot be empty. Please enter a valid lab name.")
             continue
         preference = input("Enter preference (1-10): ")
-        while (not preference.isdigit() or int(preference) < 1 or int(preference) > 10):
+        while not preference.isdigit() or int(preference) < 1 or int(preference) > 10:
             print("Invalid preference. Please enter a number between 1 and 10.")
             preference = input("Enter preference (1-10): ")
         lab_preferences[lab] = int(preference)
     return lab_preferences
 
-#helper function to get mandatory teaching days from user input
+
+# helper function to get mandatory teaching days from user input
 def mandatory_days_getter():
     days = set()
     while True:
-        day = input(
-            "Enter a mandatory teaching day "
-            "(Mon/Tue/Wed/Thu/Fri, or 'done' to finish): "
-        )
+        day = input("Enter a mandatory teaching day (Mon/Tue/Wed/Thu/Fri, or 'done' to finish): ")
         if day.lower() == "done":
             break
         day = day.lower()
@@ -267,7 +268,8 @@ def mandatory_days_getter():
             print("Invalid day. Please enter Mon, Tue, Wed, Thu, or Fri.")
     return days
 
-#adds a faculty member to the faculty_members list, with error handling for invalid input
+
+# adds a faculty member to the faculty_members list, with error handling for invalid input
 def add_faculty(faculty_members):
     while True:
         print("ADD NEW FACULTY MEMBER")
@@ -283,20 +285,23 @@ def add_faculty(faculty_members):
         mandatory_days = mandatory_days_getter()
 
         try:
-            faculty_members.append(FacultyConfig(
-                name=name,
-                maximum_credits=max_credits,
-                minimum_credits=min_credits,
-                unique_course_limit=course_limit,
-                times=times,
-                maximum_days=max_days,
-                course_preferences=course_preferences,
-                room_preferences=room_preferences,
-                lab_preferences=lab_preferences,
-                mandatory_days=mandatory_days))
+            faculty_members.append(
+                FacultyConfig(
+                    name=name,
+                    maximum_credits=max_credits,
+                    minimum_credits=min_credits,
+                    unique_course_limit=course_limit,
+                    times=times,
+                    maximum_days=max_days,
+                    course_preferences=course_preferences,
+                    room_preferences=room_preferences,
+                    lab_preferences=lab_preferences,
+                    mandatory_days=mandatory_days,
+                )
+            )
             print("Faculty member added successfully.")
             return
-        except Exception as e:
+        except (TypeError, ValueError, AttributeError) as e:
             print(f"Error occurred while adding faculty member: {e}")
             print("Faculty member was not added.")
             print("Commands:\n  (r)etry\n  (f)aculty\n")
@@ -309,7 +314,7 @@ def add_faculty(faculty_members):
             # choice == "r" falls through to loop again
 
 
-def  view_faculty_names(faculty_members):
+def view_faculty_names(faculty_members):
     if not faculty_members:
         print("No faculty members found.")
         return False
@@ -319,7 +324,7 @@ def  view_faculty_names(faculty_members):
     return True
 
 
-#modify a faculty member's information, with error handling for invalid input
+# modify a faculty member's information, with error handling for invalid input
 def modify_faculty(faculty_members):
     if not view_faculty_names(faculty_members):
         return
@@ -391,7 +396,7 @@ def modify_faculty(faculty_members):
                 selected_faculty.mandatory_days = mandatory_days_getter()
             print(f"Updated faculty member: {selected_faculty.name}")
             return
-        except Exception as e:
+        except (TypeError, ValueError, AttributeError) as e:
             print(f"Error occurred while modifying faculty member: {e}")
             print("Faculty member was not modified.")
             print("Commands:\n  (r)etry\n  (f)aculty\n")
@@ -404,7 +409,7 @@ def modify_faculty(faculty_members):
             # retry_choice == "r" falls through to outer while, loops again
 
 
-#prints out all the faculty members and their information
+# prints out all the faculty members and their information
 def view_faculty(faculty_members):
     if not faculty_members:
         print("No faculty members found.")
@@ -422,7 +427,8 @@ def view_faculty(faculty_members):
         print(f"   Lab Preferences: {faculty.lab_preferences}")
         print(f"   Mandatory Days: {faculty.mandatory_days}")
 
-#deletes a specified faculty member
+
+# deletes a specified faculty member
 def delete_faculty(faculty_members):
     view_faculty_names(faculty_members)
     try:

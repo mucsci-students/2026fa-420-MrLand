@@ -1,5 +1,7 @@
 import asyncio
+from collections.abc import Callable
 from types import SimpleNamespace
+from typing import Any, cast
 from unittest.mock import Mock
 
 import pytest
@@ -10,21 +12,35 @@ from nicegui.testing import user_simulation
 
 import src.views.schedule_viewer as viewer
 from src.controllers.schedule_controller import ScheduleController
+from src.controllers.schedule_generator_controller import (
+    ScheduleGeneratorController,
+)
 from src.models.schedule_files import records_to_csv
 from src.models.schedule_viewer_model import ScheduleViewerModel
+from tests.conftest import active_client
 
 
 @pytest.mark.parametrize("reopen", [False, True])
 def test_cancel_pending_upload_preserves_schedule_and_allows_next_load(
     monkeypatch, tmp_path, reopen
 ):
-    content = records_to_csv([{
-        "course": "CMSC 420", "faculty": "Dr. Smith", "room": "Room 101",
-        "lab": "", "times": "MON 09:00-09:50",
-    }])
+    content = records_to_csv(
+        [
+            {
+                "course": "CMSC 420",
+                "faculty": "Dr. Smith",
+                "room": "Room 101",
+                "lab": "",
+                "times": "MON 09:00-09:50",
+            }
+        ]
+    )
     controller = ScheduleController(
         model=ScheduleViewerModel(directory=tmp_path),
-        generator=SimpleNamespace(generated_schedules=[]),
+        generator=cast(
+            ScheduleGeneratorController,
+            SimpleNamespace(generated_schedules=[]),
+        ),
     )
     original, error = controller.load_uploaded_file("original.csv", content)
     assert error is None
@@ -47,15 +63,21 @@ def test_cancel_pending_upload_preserves_schedule_and_allows_next_load(
             await user.open("/")
             user.find(kind=ui.button, content="Load").click()
             await user.should_see("Load Schedule")
-            with user.client:
+            client = active_client(user)
+            with client:
                 upload = next(iter(ElementFilter(kind=ui.upload)))
                 load_dialog = next(a for a in upload.ancestors() if isinstance(a, ui.dialog))
                 assert load_dialog.value
                 event = UploadEventArguments(
-                    sender=upload, client=user.client,
+                    sender=upload,
+                    client=client,
                     file=SmallFileUpload("canceled.csv", "text/csv", content),
                 )
-                pending = asyncio.create_task(upload._upload_handlers[0](event))
+                upload_handler = cast(
+                    Callable[[UploadEventArguments], Any],
+                    upload._upload_handlers[0],
+                )
+                pending = asyncio.create_task(upload_handler(event))
             try:
                 await asyncio.wait_for(started.wait(), timeout=2)
                 user.find("Cancel").click()
@@ -81,12 +103,15 @@ def test_cancel_pending_upload_preserves_schedule_and_allows_next_load(
             if not reopen:
                 user.find(kind=ui.button, content="Load").click()
                 await user.should_see("Load Schedule")
-            with user.client:
-                await upload.handle_uploads([
-                    SmallFileUpload("next.csv", "text/csv", content),
-                ])
+            with active_client(user):
+                await upload.handle_uploads(
+                    [
+                        SmallFileUpload("next.csv", "text/csv", content),
+                    ]
+                )
             await user.should_see("Loaded next.csv")
             load.assert_called_once_with("next.csv", content)
+            assert controller.current is not None
             assert controller.current.file_name == "next.csv"
             assert controller.selected_index == 1
             assert not load_dialog.value

@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-from concurrent.futures import Future, TimeoutError
 import os
 from collections.abc import Callable
+from concurrent.futures import Future, TimeoutError
 from typing import Any
 
 from nicegui import ui
@@ -24,9 +24,7 @@ def _create_duck_launcher(
     on_click: Callable[[], None], *, with_hat: bool, hat_emoji: str = "🎩"
 ) -> tuple[Any, Any]:
     """Create a duck-emoji launcher, optionally adding a hat above it."""
-    with ui.button(on_click=on_click).props("unelevated").classes(
-        "bg-[#75e6da]"
-    ) as launcher:
+    with ui.button(on_click=on_click).props("unelevated").classes("bg-[#75e6da]") as launcher:
         ui.label("🦆").classes("text-3xl leading-none")
         hat = ui.label(hat_emoji).style(
             "position: absolute; top: -7px; left: 50%; "
@@ -83,9 +81,7 @@ def scheduler_ai_assistant(
                 ui.label("You" if is_user else "Scheduler AI").classes(
                     "text-xs font-semibold text-[#75e6da]"
                 )
-                ui.label(text).classes(
-                    "whitespace-pre-wrap break-words text-sm text-[#d8e7e8]"
-                )
+                ui.label(text).classes("whitespace-pre-wrap break-words text-sm text-[#d8e7e8]")
 
     async def scroll_transcript_to_latest() -> None:
         await ui.run_javascript(
@@ -140,13 +136,12 @@ def scheduler_ai_assistant(
         progress_monitor = asyncio.create_task(monitor_schedule_generation())
 
         apply_ai_change = None
-        request_memento = (
-            controller.create_memento() if config is not None else None
-        )
+        request_memento = controller.create_memento() if config is not None else None
         tool_results: list[dict[str, Any]] = []
         saved_during_request = False
         pending_save_names: list[str] = []
         if config is not None:
+
             def apply_ai_change(mutation):
                 changed = []
 
@@ -171,19 +166,16 @@ def scheduler_ai_assistant(
                 confirmation_prompt.set_text(question)
                 confirmation_dialog.open()
 
-            asyncio.run_coroutine_threadsafe(
-                show_confirmation(), loop
-            ).result(timeout=10)
+            asyncio.run_coroutine_threadsafe(show_confirmation(), loop).result(timeout=10)
             try:
                 return answer.result(timeout=120)
             except TimeoutError:
+
                 async def close_confirmation() -> None:
                     confirmation_dialog.close()
                     confirmation_state["future"] = None
 
-                asyncio.run_coroutine_threadsafe(
-                    close_confirmation(), loop
-                ).result(timeout=10)
+                asyncio.run_coroutine_threadsafe(close_confirmation(), loop).result(timeout=10)
                 return False
 
         def record_tool_result(result: dict[str, Any]) -> None:
@@ -226,9 +218,7 @@ def scheduler_ai_assistant(
                 controller.restore_memento(request_memento)
                 refresh_configuration(saved=configuration_is_saved())
                 accepted_mutations.clear()
-                failed_messages = "\n".join(
-                    f"- {outcome['message']}" for outcome in failed_actions
-                )
+                failed_messages = "\n".join(f"- {outcome['message']}" for outcome in failed_actions)
                 response = (
                     "The request could not be completed:\n"
                     f"{failed_messages}\n"
@@ -242,8 +232,7 @@ def scheduler_ai_assistant(
                     (
                         message.text
                         for message in reversed(result["messages"])
-                        if getattr(message, "type", None) == "ai"
-                        and getattr(message, "text", None)
+                        if getattr(message, "type", None) == "ai" and getattr(message, "text", None)
                     ),
                     "The assistant did not return a text response.",
                 )
@@ -261,7 +250,7 @@ def scheduler_ai_assistant(
                     refresh_configuration(saved=True)
             state["history"] = result["messages"]
             state["messages"][-1] = ("assistant", response)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - surface unexpected assistant callback failures to the user
             if request_memento is not None:
                 controller.restore_memento(request_memento)
                 refresh_configuration(saved=configuration_is_saved())
@@ -298,9 +287,7 @@ def scheduler_ai_assistant(
         assistant_hat.set_text(hat_emoji)
         assistant_hat.set_visibility(True)
 
-    with ui.card().classes(
-        "border border-[#29404b] bg-[#182630] p-3"
-    ) as assistant_panel:
+    with ui.card().classes("border border-[#29404b] bg-[#182630] p-3") as assistant_panel:
         assistant_panel.style(
             "position: fixed; right: 20px; bottom: 20px; z-index: 9999; "
             "width: min(440px, calc(100vw - 40px));"
@@ -309,18 +296,20 @@ def scheduler_ai_assistant(
             with ui.row().classes("items-center gap-2"):
                 ui.icon("auto_awesome").classes("text-[#75e6da]")
                 ui.label("Scheduler AI").classes("font-semibold text-white")
-            ui.button(icon="close", on_click=close_assistant).props(
-                "flat round"
-            ).classes("text-[#75e6da]")
+            ui.button(icon="close", on_click=close_assistant).props("flat round").classes(
+                "text-[#75e6da]"
+            )
 
         progress_display = ScheduleGenerationProgress("w-full gap-2")
 
-        with ui.column().props("id=scheduler-ai-transcript").classes(
-            "mb-3 max-h-80 w-full gap-2 overflow-y-auto rounded border "
-            "border-[#29404b] p-3"
+        with (
+            ui.column()
+            .props("id=scheduler-ai-transcript")
+            .classes(
+                "mb-3 max-h-80 w-full gap-2 overflow-y-auto rounded border border-[#29404b] p-3"
+            )
         ):
             transcript()
-
 
         with ui.row().classes("w-full items-center gap-2"):
             message_input = (
@@ -338,12 +327,13 @@ def scheduler_ai_assistant(
             )
 
         confirmation_state: dict[str, Future[bool] | None] = {"future": None}
-        with ui.dialog() as confirmation_dialog, ui.card().classes(
-            "w-[min(28rem,calc(100vw-2rem))] border border-[#29404b] bg-[#182630]"
+        with (
+            ui.dialog() as confirmation_dialog,
+            ui.card().classes(
+                "w-[min(28rem,calc(100vw-2rem))] border border-[#29404b] bg-[#182630]"
+            ),
         ):
-            confirmation_prompt = ui.label().classes(
-                "whitespace-pre-wrap text-[#d8e7e8]"
-            )
+            confirmation_prompt = ui.label().classes("whitespace-pre-wrap text-[#d8e7e8]")
             with ui.row().classes("w-full justify-end gap-2"):
                 ui.button(
                     "Cancel",
@@ -362,7 +352,5 @@ def scheduler_ai_assistant(
         confirmation_dialog.close()
 
     assistant_panel.set_visibility(False)
-    assistant_launcher, assistant_hat = _create_duck_launcher(
-        open_assistant, with_hat=False
-    )
+    assistant_launcher, assistant_hat = _create_duck_launcher(open_assistant, with_hat=False)
     return unlock_assistant

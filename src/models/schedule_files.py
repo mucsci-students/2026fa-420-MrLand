@@ -24,9 +24,7 @@ from src.models.schedule_result import ScheduleResult
 RECORD_FIELDS = ("course", "faculty", "room", "lab", "times")
 
 # "MON 09:00-09:50", optionally followed by "@online" and/or the "^" lab marker.
-MEETING_PATTERN = re.compile(
-    r"^(MON|TUE|WED|THU|FRI) \d{2}:\d{2}-\d{2}:\d{2}(@online)?\^?$"
-)
+MEETING_PATTERN = re.compile(r"^(MON|TUE|WED|THU|FRI) \d{2}:\d{2}-\d{2}:\d{2}(@online)?\^?$")
 
 # Older JSON exports wrote str(instance.times), a Python list repr like
 # "[TimeInstance(day=TUE, start=TimePoint(timepoint=540), duration=Duration(duration=150), ...)]".
@@ -42,6 +40,7 @@ SAVED_NAME_PATTERN = re.compile(r"^(?P<config>.+?)_schedule_?(?P<number>\d+)$")
 # ---------------------------------------------------------------------------
 # Generated schedules -> records
 # ---------------------------------------------------------------------------
+
 
 def instance_times(instance) -> str:
     """The meeting string for one CourseInstance, e.g. 'MON 09:00-09:50,THU 09:00-10:50^'."""
@@ -68,6 +67,7 @@ def records_from_result(result: ScheduleResult) -> list[dict[str, str]]:
 # ---------------------------------------------------------------------------
 # Records -> file contents
 # ---------------------------------------------------------------------------
+
 
 def records_to_csv(records: list[dict[str, str]], extra: dict[str, str] | None = None) -> bytes:
     """Write scheduler CSV; `extra` adds leading columns such as schedule and config."""
@@ -116,6 +116,7 @@ def schedule_export_strategy(file_format: str) -> ScheduleExportStrategy:
 # ---------------------------------------------------------------------------
 # File contents -> records
 # ---------------------------------------------------------------------------
+
 
 def _clean(value: object) -> str:
     text = "" if value is None else str(value).strip()

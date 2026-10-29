@@ -85,7 +85,9 @@ class ScheduleController:
         except (OSError, ValueError) as error:
             return None, f"Could not load '{file_name}': {error}"
 
-    def load_uploaded_file(self, file_name: str, content: bytes) -> tuple[ScheduleEntry | None, str | None]:
+    def load_uploaded_file(
+        self, file_name: str, content: bytes
+    ) -> tuple[ScheduleEntry | None, str | None]:
         try:
             return self.model.load_bytes(file_name, content), None
         except ValueError as error:
@@ -99,7 +101,9 @@ class ScheduleController:
         entry = self.model.current
         return self.model.default_export_file_name(entry, file_format) if entry else ""
 
-    def export_current(self, file_format: str, file_name: str) -> tuple[tuple[bytes, str, str] | None, str | None]:
+    def export_current(
+        self, file_format: str, file_name: str
+    ) -> tuple[tuple[bytes, str, str] | None, str | None]:
         """(content, file name, media type) for a browser download."""
         entry = self.model.current
         if entry is None:

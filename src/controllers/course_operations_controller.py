@@ -2,9 +2,8 @@
 
 Used by: GUI."""
 
-# File name: course.py
+# File name: course_operations_controller.py
 # Primary Author: Dylan Groff
-
 
 from scheduler.config import CourseConfig
 
@@ -28,7 +27,7 @@ def add_course(course_members):
     capacity = get_capacity()
     modality = get_modality()
     # Does not let user choose a room or lab if the class is online
-    if modality != "online": 
+    if modality != "online":
         room = get_room()
         lab = get_lab()
         required_room_features = get_required_room_features()
@@ -44,24 +43,26 @@ def add_course(course_members):
     faculty = get_faculty()
 
     # adds course to the list after using CourseConfig constructor
-    try: 
-        course_members.append(CourseConfig(
-            course_id=course_id,
-            section_id=section_id,
-            credits=credits,
-            capacity=capacity,
-            modality=modality,
-            room=room,
-            lab=lab,
-            required_room_features=required_room_features,
-            required_lab_features=required_lab_features,
-            reserve_room_during_lab=reserve_room_during_lab,
-            conflicts=conflicts,
-            faculty=faculty
-        ))
+    try:
+        course_members.append(
+            CourseConfig(
+                course_id=course_id,
+                section_id=section_id,
+                credits=credits,
+                capacity=capacity,
+                modality=modality,
+                room=room,
+                lab=lab,
+                required_room_features=required_room_features,
+                required_lab_features=required_lab_features,
+                reserve_room_during_lab=reserve_room_during_lab,
+                conflicts=conflicts,
+                faculty=faculty,
+            )
+        )
 
         print(f"Course {course_id} added successfully.")
-    except Exception as e:
+    except (TypeError, ValueError, AttributeError) as e:
         print(f"Error occurred while adding course: {e}")
         print("Course was not added.")
 
@@ -76,7 +77,7 @@ def add_course(course_members):
             add_course(course_members)
         else:
             return
-    
+
 
 # method to allow user to pick a course and modify it
 def modify_course(course_members):
@@ -115,7 +116,9 @@ def modify_course(course_members):
                 new_course_id = get_course_id()
 
                 # validation check to ensure no courseID and sectionID combinations
-                if course_exists(course_members, new_course_id, selected_course.section_id, selected_course):
+                if course_exists(
+                    course_members, new_course_id, selected_course.section_id, selected_course
+                ):
                     print("That course section already exists.")
                     return
 
@@ -126,7 +129,9 @@ def modify_course(course_members):
                 new_section_id = get_section_id()
 
                 # validation check to ensure no courseID and sectionID combinations
-                if course_exists(course_members, selected_course.course_id, new_section_id, selected_course):
+                if course_exists(
+                    course_members, selected_course.course_id, new_section_id, selected_course
+                ):
                     print("That course section already exists.")
                     return
 
@@ -151,7 +156,7 @@ def modify_course(course_members):
                     selected_course.required_room_features = set()
                     selected_course.required_lab_features = set()
                     selected_course.reserve_room_during_lab = False
-                
+
                 selected_course.modality = new_modality
 
             # rooms
@@ -169,7 +174,7 @@ def modify_course(course_members):
                     selected_course.lab = get_lab()
                 else:
                     print("Online classes can not have labs.")
-            
+
             # required room features
             elif choice == 8:
                 if selected_course.modality != "online":
@@ -181,24 +186,24 @@ def modify_course(course_members):
             elif choice == 9:
                 if selected_course.modality != "online":
                     selected_course.required_lab_features = get_required_lab_features()
-                else: 
+                else:
                     print("Online classes can not have required lab features.")
-            
+
             # reserve room
             elif choice == 10:
                 if selected_course.modality != "online":
                     selected_course.reserve_room_during_lab = get_reserve_room()
                 else:
                     print("Online classes can not reserve rooms during labs.")
-            
+
             # conflicts
             elif choice == 11:
                 selected_course.conflicts = get_conflicts(course_members, selected_course.course_id)
-            
+
             # faculty
             elif choice == 12:
                 selected_course.faculty = get_faculty()
-                 
+
             else:
                 print("Invalid selection.")
                 return
@@ -208,7 +213,7 @@ def modify_course(course_members):
         else:
             print("Invalid selection.")
 
-    except Exception as e:
+    except (TypeError, ValueError, AttributeError) as e:
         print(f"Error occurred while modifying course: {e}")
         print("Course was not modified.")
         print("Commands:\n  (r)etry\n  (c)ourses\n")
@@ -274,14 +279,14 @@ def view_courses(course_members):
         print(f"  Faculty:         {course.faculty}")
         print("-" * 80)
 
+
 # helper to check for duplicate courseIDs with the same sectionID
 def course_exists(course_members, course_id, section_id, exclude=None):
     for course in course_members:
         if course is exclude:
             continue
 
-        if (course.course_id.lower() == course_id.lower() and
-                course.section_id == section_id):
+        if course.course_id.lower() == course_id.lower() and course.section_id == section_id:
             return True
 
     return False
@@ -432,9 +437,7 @@ def update_course_from_values(
 ):
     """Replace a course after validating its complete replacement values."""
     try:
-        index = next(
-            i for i, course in enumerate(course_members) if course is existing_course
-        )
+        index = next(i for i, course in enumerate(course_members) if course is existing_course)
     except StopIteration as exc:
         raise ValueError("Course no longer exists.") from exc
 
@@ -461,16 +464,14 @@ def update_course_from_values(
 def delete_course_from_values(course_members, course_to_delete):
     """Remove and return a selected course by object identity."""
     try:
-        index = next(
-            i for i, course in enumerate(course_members) if course is course_to_delete
-        )
+        index = next(i for i, course in enumerate(course_members) if course is course_to_delete)
     except StopIteration as exc:
         raise ValueError("Course no longer exists.") from exc
     return course_members.pop(index)
 
 
+# ------------------- Getters for course data -----------------------------
 
-#------------------- Getters for course data -----------------------------
 
 # getter to get the course ID
 def get_course_id():
@@ -485,7 +486,8 @@ def get_course_id():
     except ValueError as e:
         print(f"Invalid input: {e}")
         return get_course_id()
-    
+
+
 # getter to get the number of credits for the course
 def get_credits():
     try:
@@ -499,7 +501,8 @@ def get_credits():
     except ValueError as e:
         print(f"Invalid input: {e}")
         return get_credits()
-    
+
+
 # getter to get the capacity of students for the course
 def get_capacity():
     try:
@@ -513,7 +516,8 @@ def get_capacity():
     except ValueError as e:
         print(f"Invalid input: {e}")
         return get_capacity()
-    
+
+
 # getter to get the section ID for a course
 def get_section_id():
     try:
@@ -527,7 +531,8 @@ def get_section_id():
     except ValueError as e:
         print(f"Invalid input: {e}")
         return get_section_id()
-    
+
+
 # getter to get the possible rooms the course could be in
 def get_room():
     try:
@@ -537,7 +542,7 @@ def get_room():
 
         if not rooms or rooms == [""]:
             raise ValueError("At least one room must be entered.")
-        
+
         if any(not room for room in rooms):
             raise ValueError("Room names cannot be empty.")
 
@@ -550,7 +555,8 @@ def get_room():
     except ValueError as e:
         print(f"Invalid input: {e}")
         return get_room()
-    
+
+
 # getter to get the conflicts between other courses
 def get_conflicts(course_members, course_id):
     try:
@@ -579,7 +585,8 @@ def get_conflicts(course_members, course_id):
     except ValueError as e:
         print(f"Invalid input: {e}")
         return get_conflicts(course_members, course_id)
-    
+
+
 # getter for the faculty that can teach the course
 def get_faculty():
     try:
@@ -605,7 +612,8 @@ def get_faculty():
     except ValueError as e:
         print(f"Invalid input: {e}")
         return get_faculty()
-    
+
+
 # getter to get the possible lab rooms for the course
 def get_lab():
     try:
@@ -628,7 +636,8 @@ def get_lab():
     except ValueError as e:
         print(f"Invalid input: {e}")
         return get_lab()
-    
+
+
 # getter to get the modality of the course
 def get_modality():
     try:
@@ -642,7 +651,8 @@ def get_modality():
     except ValueError as e:
         print(f"Invalid input: {e}")
         return get_modality()
-        
+
+
 # getter to get required features of the room
 def get_required_room_features():
     try:
@@ -655,7 +665,7 @@ def get_required_room_features():
 
         if any(not feature for feature in features):
             raise ValueError("Room feature names cannot be empty.")
-        
+
         # checks for duplicates
         if len(features) != len(set(features)):
             raise ValueError("Duplicate room features are not allowed.")
@@ -665,7 +675,8 @@ def get_required_room_features():
     except ValueError as e:
         print(f"Invalid input: {e}")
         return get_required_room_features()
-    
+
+
 # getter to get the required features of the lab
 def get_required_lab_features():
     try:
@@ -688,7 +699,8 @@ def get_required_lab_features():
     except ValueError as e:
         print(f"Invalid input: {e}")
         return get_required_lab_features()
-    
+
+
 # getter to get a bool to reserve a room or not
 def get_reserve_room():
     try:

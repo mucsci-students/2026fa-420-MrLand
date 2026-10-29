@@ -184,10 +184,24 @@ cd 2026fa-420-MrLand
    uv run pytest
    ```
 
+---
+
+## Development
+
 For development, install/synchronize dependencies without starting the app:
 ```bash
 uv sync
 ```
+
+Before pushing, run the same checks CI runs:
+
+    uv run ruff format .
+    uv run ruff check --fix .
+    uv run ty check
+    uv run pytest --cov
+
+Add dependencies with `uv add <pkg>` (or `uv add --dev <pkg>`), never pip,
+and commit `pyproject.toml` and `uv.lock` together.
 
 ---
 
@@ -251,6 +265,21 @@ This includes tests for:
 - conflicts
 - schedule generation
 - configuration handling
+
+---
+
+## Test Coverage
+
+CI requires at least 80% line coverage of the team-written Model code.
+
+- **In scope:** `src/models/` (configuration state, generated schedule
+  state, and Model behavior)
+- **Out of scope:** the third-party `course-constraint-scheduler` library,
+  views/controllers, and tests
+
+Scope and threshold are set in `pyproject.toml` under `[tool.coverage.*]`.
+Reproduce locally with `uv run pytest --cov`. The run fails below 80%.
+Results appear on Codecov under the `model` flag.
 
 ---
 

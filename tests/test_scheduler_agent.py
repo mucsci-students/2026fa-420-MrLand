@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import src.ai.scheduler_agent as scheduler_agent
+from src.ai import scheduler_agent
 from src.ai.scheduler_agent import SchedulerAgentState, get_tool_list
 from src.controllers.configuration_controller import ConfigurationController
 from src.models.configuration_model import ValidationProblem
@@ -21,10 +21,7 @@ def test_base_prompt_documents_tool_capabilities_and_behavior(monkeypatch):
     scheduler_agent.build_scheduler_agent(model=object())
 
     prompt = captured["system_prompt"]
-    tool_names = {
-        tool.name
-        for tool in get_tool_list(SchedulerAgentState())
-    }
+    tool_names = {tool.name for tool in get_tool_list(SchedulerAgentState())}
     assert all(f"- {name}:" in prompt for name in tool_names)
     assert "exact role" in prompt
     assert "All configuration changes and supported application actions must be" in prompt
@@ -38,10 +35,7 @@ def test_base_prompt_documents_tool_capabilities_and_behavior(monkeypatch):
 
 
 def _tools(state, **kwargs):
-    return {
-        tool.name: tool
-        for tool in get_tool_list(state, **kwargs)
-    }
+    return {tool.name: tool for tool in get_tool_list(state, **kwargs)}
 
 
 def test_list_combinations_returns_panel_sequences_and_hats():
@@ -89,9 +83,7 @@ def test_general_create_tool_edits_the_active_configuration_through_controller()
     assert result["success"]
     assert result["message"].startswith("Created rooms item")
     assert config.config.rooms[0].name == "Room 101"
-    assert tools["inspect_configuration"].invoke({"area": "rooms"})["data"][0][
-        "name"
-    ] == "Room 101"
+    assert tools["inspect_configuration"].invoke({"area": "rooms"})["data"][0]["name"] == "Room 101"
 
 
 def test_general_create_tool_preserves_case_sensitive_duplicate_checks():
@@ -106,9 +98,7 @@ def test_general_create_tool_preserves_case_sensitive_duplicate_checks():
         ("faculty", {"name": "Dr. Smith"}),
         ("faculty", {"name": "dr. smith"}),
     ):
-        result = tools["create_configuration_item"].invoke(
-            {"area": area, "item": item}
-        )
+        result = tools["create_configuration_item"].invoke({"area": area, "item": item})
         assert result["success"]
 
     assert len(config.config.rooms) == 2
@@ -121,12 +111,8 @@ def test_general_create_tool_keeps_defaults_for_all_item_types():
     tools = _tools(SchedulerAgentState(config))
     create = tools["create_configuration_item"]
 
-    course = create.invoke(
-        {"area": "courses", "item": {"course_id": "CS 101"}}
-    )
-    faculty = create.invoke(
-        {"area": "faculty", "item": {"name": "Dr. Smith"}}
-    )
+    course = create.invoke({"area": "courses", "item": {"course_id": "CS 101"}})
+    faculty = create.invoke({"area": "faculty", "item": {"name": "Dr. Smith"}})
 
     assert course["success"]
     assert config.config.courses[0].credits == 3
@@ -212,18 +198,12 @@ def test_scheduler_tools_inspect_and_manage_all_configuration_areas():
     assert "Updated rooms item" in updated["message"]
     assert config.config.rooms[0].capacity == 40
 
-    deleted = tools["delete_configuration_item"].invoke(
-        {"area": "rooms", "item_key": "Room 101"}
-    )
+    deleted = tools["delete_configuration_item"].invoke({"area": "rooms", "item_key": "Room 101"})
     assert deleted["success"] is False
     assert "confirmation" in deleted["message"].lower() or "cancelled" in deleted["message"].lower()
     assert len(config.config.rooms) == 1
-    tools = _tools(
-        SchedulerAgentState(config, confirm_action=lambda _question: True)
-    )
-    deleted = tools["delete_configuration_item"].invoke(
-        {"area": "rooms", "item_key": "Room 101"}
-    )
+    tools = _tools(SchedulerAgentState(config, confirm_action=lambda _question: True))
+    deleted = tools["delete_configuration_item"].invoke({"area": "rooms", "item_key": "Room 101"})
     assert deleted["success"]
     assert "Deleted rooms item" in deleted["message"]
     assert config.config.rooms == []
@@ -290,15 +270,13 @@ def test_meeting_tools_create_update_inspect_and_confirm_delete():
     assert inspected["data"][1]["class_pattern_index"] == 0
     assert inspected["data"][1]["duration"] == 75
 
-    deleted = tools["delete_configuration_item"].invoke(
-        {"area": "meetings", "item_key": "0::WED"}
-    )
+    deleted = tools["delete_configuration_item"].invoke({"area": "meetings", "item_key": "0::WED"})
     assert deleted["success"]
     assert len(config.time_slot_config.classes[0].meetings) == 1
 
 
 def test_overwriting_saved_configuration_requires_confirmation(monkeypatch):
-    import src.ai.agent_tools as agent_tools
+    from src.ai import agent_tools
 
     config = ConfigurationController().new_configuration()
     saved_names = []
@@ -323,9 +301,7 @@ def test_global_settings_validate_before_mutating_any_setting():
     config = ConfigurationController().new_configuration()
     tools = _tools(SchedulerAgentState(config))
 
-    result = tools["update_configuration_settings"].invoke(
-        {"limit": 5, "max_time_gap": -1}
-    )
+    result = tools["update_configuration_settings"].invoke({"limit": 5, "max_time_gap": -1})
 
     assert result["success"] is False
     assert config.limit == 10
@@ -349,7 +325,7 @@ def test_invalid_tool_arguments_return_structured_failure():
 
 
 def test_save_tool_uses_the_application_save_callback(monkeypatch):
-    import src.ai.agent_tools as agent_tools
+    from src.ai import agent_tools
 
     config = ConfigurationController().new_configuration()
     saved_names = []
@@ -367,11 +343,10 @@ def test_save_tool_uses_the_application_save_callback(monkeypatch):
 
 
 def test_generate_schedules_uses_the_active_configuration(monkeypatch):
-    import src.ai.agent_tools as agent_tools
-    import src.models.schedule_generator_model as schedule_generator_model
-
+    from src.ai import agent_tools
     from src.controllers.schedule_controller import ScheduleController
     from src.controllers.schedule_generator_controller import ScheduleGeneratorController
+    from src.models import schedule_generator_model
     from src.models.schedule_generator_model import ScheduleGeneratorModel
 
     config = ConfigurationController().new_configuration()
@@ -408,4 +383,5 @@ def test_generate_schedules_uses_the_active_configuration(monkeypatch):
     assert "Schedule Viewer tab" in result["message"]
     assert "CS 101.01" not in result["message"]
     assert viewer.sync_generated()
+    assert viewer.current is not None
     assert viewer.current.records[0]["course"] == "CS 101.01"

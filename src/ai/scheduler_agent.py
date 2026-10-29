@@ -127,16 +127,14 @@ def build_scheduler_agent(
             save_configuration=save_configuration,
             on_tool_result=on_tool_result,
         ),
-        system_prompt=(
-            BASE_SYSTEM_PROMPT + "\n\n" + configuration_context
-        ),
+        system_prompt=(BASE_SYSTEM_PROMPT + "\n\n" + configuration_context),
     )
 
 
 # Invoke the agent with the query and prior conversation messages.
 def invoke_scheduler_agent(
     *,
-    config: CombinedConfig,
+    config: CombinedConfig | None,
     query: str,
     history: list[Any] | None = None,
     apply_change: Callable[[Callable[[], Any]], tuple[bool, list[Any]]] | None = None,
@@ -179,8 +177,7 @@ def run_cli() -> None:
             (
                 message.text
                 for message in reversed(result["messages"])
-                if getattr(message, "type", None) == "ai"
-                and getattr(message, "text", None)
+                if getattr(message, "type", None) == "ai" and getattr(message, "text", None)
             ),
             "",
         )

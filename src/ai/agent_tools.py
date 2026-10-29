@@ -18,6 +18,7 @@ from scheduler.config import (
     RoomConfig,
     TimeBlock,
 )
+
 from src.controllers.schedule_generator_controller import (
     schedule_generator_controller,
 )
@@ -83,9 +84,7 @@ class SchedulerAgentState:
 
     # Describe the editor combinations the user can complete to change the duck hat.
     def list_combinations(self, password: str) -> dict[str, Any]:
-        if not hmac.compare_digest(
-            password.encode("utf-8"), COMBINATIONS_PASSWORD.encode("utf-8")
-        ):
+        if not hmac.compare_digest(password.encode("utf-8"), COMBINATIONS_PASSWORD.encode("utf-8")):
             return self._result(
                 False,
                 "The password is incorrect. Ask the user to try again; do not show "
@@ -130,9 +129,7 @@ class SchedulerAgentState:
                     "class_pattern_credits": pattern["credits"],
                     **meeting,
                 }
-                for pattern_index, pattern in enumerate(
-                    payload["time_slot_config"]["classes"]
-                )
+                for pattern_index, pattern in enumerate(payload["time_slot_config"]["classes"])
                 for meeting in pattern["meetings"]
             ],
             "time_blocks": payload["time_slot_config"]["times"],
@@ -164,9 +161,7 @@ class SchedulerAgentState:
         item_key: str | None = None,
     ) -> dict[str, Any]:
         try:
-            if area in {
-                "rooms", "labs", "courses", "faculty", "class_patterns"
-            }:
+            if area in {"rooms", "labs", "courses", "faculty", "class_patterns"}:
                 item = dict(item)
                 defaults = {
                     "rooms": {"capacity": 1, "features": [], "times": None},
@@ -220,9 +215,7 @@ class SchedulerAgentState:
                 pattern.meetings.append(parsed)
             elif area == "time_blocks":
                 if not item_key:
-                    return self._result(
-                        False, "A weekday item_key is required for time_blocks."
-                    )
+                    return self._result(False, "A weekday item_key is required for time_blocks.")
                 day = item_key.upper()
                 if day not in {"MON", "TUE", "WED", "THU", "FRI"}:
                     return self._result(False, f"Unknown weekday '{item_key}'.")
@@ -230,9 +223,7 @@ class SchedulerAgentState:
                     return self._result(False, f"Time blocks for {day} already exist.")
                 blocks = item.get("blocks")
                 if not isinstance(blocks, list):
-                    return self._result(
-                        False, "time_blocks item must include a 'blocks' list."
-                    )
+                    return self._result(False, "time_blocks item must include a 'blocks' list.")
                 self.config.time_slot_config.times[day] = [
                     TimeBlock.model_validate(block) for block in blocks
                 ]
@@ -254,9 +245,7 @@ class SchedulerAgentState:
         item: dict[str, Any],
     ) -> dict[str, Any]:
         if not item_key:
-            return self._result(
-                False, "An item_key is required to update a configuration item."
-            )
+            return self._result(False, "An item_key is required to update a configuration item.")
         try:
             if area == "time_blocks":
                 day = item_key.upper()
@@ -266,9 +255,7 @@ class SchedulerAgentState:
                     return self._result(False, f"No time blocks found for {day}.")
                 blocks = item.get("blocks")
                 if not isinstance(blocks, list):
-                    return self._result(
-                        False, "time_blocks item must include a 'blocks' list."
-                    )
+                    return self._result(False, "time_blocks item must include a 'blocks' list.")
                 self.config.time_slot_config.times[day] = [
                     TimeBlock.model_validate(block) for block in blocks
                 ]
@@ -292,8 +279,7 @@ class SchedulerAgentState:
                 ):
                     return self._result(
                         False,
-                        f"Pattern {pattern_key} already has a meeting on "
-                        f"{updated_meeting.day}.",
+                        f"Pattern {pattern_key} already has a meeting on {updated_meeting.day}.",
                     )
                 pattern.meetings[index] = updated_meeting
             elif area in {"rooms", "labs", "courses", "faculty", "class_patterns"}:
@@ -308,8 +294,7 @@ class SchedulerAgentState:
                 if area != "class_patterns":
                     new_key = self._item_identity(area, collection[index])
                     if any(
-                        position != index
-                        and self._item_identity(area, current) == new_key
+                        position != index and self._item_identity(area, current) == new_key
                         for position, current in enumerate(collection)
                     ):
                         collection[index] = existing
@@ -322,9 +307,7 @@ class SchedulerAgentState:
                     False, f"Items cannot be updated in configuration area '{area}'."
                 )
         except (ValidationError, TypeError, ValueError) as error:
-            return self._result(
-                False, f"Could not update {area} item '{item_key}': {error}"
-            )
+            return self._result(False, f"Could not update {area} item '{item_key}': {error}")
         return self._result(True, f"Updated {area} item '{item_key}'.")
 
     # Delete a keyed configuration item or a weekday's time blocks.
@@ -347,9 +330,7 @@ class SchedulerAgentState:
                 None,
             )
             if index is None:
-                return self._result(
-                    False, f"No meeting found for pattern {pattern_key} on {day}."
-                )
+                return self._result(False, f"No meeting found for pattern {pattern_key} on {day}.")
             if len(pattern.meetings) == 1:
                 return self._result(
                     False,
@@ -364,9 +345,7 @@ class SchedulerAgentState:
                 return self._result(False, index)
             del collection[index]
         else:
-            return self._result(
-                False, f"Items cannot be deleted from configuration area '{area}'."
-            )
+            return self._result(False, f"Items cannot be deleted from configuration area '{area}'.")
         return self._result(True, f"Deleted {area} item '{item_key}'.")
 
     def _find_pattern(self, pattern_key: str | None) -> ClassPattern:
@@ -410,20 +389,14 @@ class SchedulerAgentState:
             object.__setattr__(self.config, "optimizer_flags", optimizer_flags)
             changed.append("optimizer_flags")
         if max_time_gap is not None:
-            object.__setattr__(
-                self.config.time_slot_config, "max_time_gap", max_time_gap
-            )
+            object.__setattr__(self.config.time_slot_config, "max_time_gap", max_time_gap)
             changed.append("max_time_gap")
         if min_time_overlap is not None:
-            object.__setattr__(
-                self.config.time_slot_config, "min_time_overlap", min_time_overlap
-            )
+            object.__setattr__(self.config.time_slot_config, "min_time_overlap", min_time_overlap)
             changed.append("min_time_overlap")
         if not changed:
             return self._result(False, "No settings were provided to update.")
-        return self._result(
-            True, f"Updated global settings: {', '.join(changed)}."
-        )
+        return self._result(True, f"Updated global settings: {', '.join(changed)}.")
 
     # Format validation problems for the active configuration.
     def validate_current_config(self) -> dict[str, Any]:
@@ -456,13 +429,13 @@ class SchedulerAgentState:
                 ],
             )
         try:
-            if self._configuration_exists(config_name):
-                if self._confirm_action is None or not self._confirm_action(
+            if self._configuration_exists(config_name) and (
+                self._confirm_action is None
+                or not self._confirm_action(
                     f"Replace the saved configuration '{config_name}.json'?"
-                ):
-                    return self._result(
-                        False, "Save cancelled; the existing file was not changed."
-                    )
+                )
+            ):
+                return self._result(False, "Save cancelled; the existing file was not changed.")
             if self._save_configuration is not None:
                 self._save_configuration(config_name)
             else:
@@ -481,9 +454,7 @@ class SchedulerAgentState:
                         for problem in error.problems
                     ],
                 )
-            return self._result(
-                False, f"Could not save configuration '{config_name}': {error}"
-            )
+            return self._result(False, f"Could not save configuration '{config_name}': {error}")
         return self._result(
             True,
             f"Configuration saved as '{config_name}.json'.",
@@ -502,9 +473,7 @@ class SchedulerAgentState:
                     for problem in problems
                 ],
             )
-        state, error = self._schedule_generator.generate_active_configuration(
-            self.config
-        )
+        state, error = self._schedule_generator.generate_active_configuration(self.config)
         if error:
             return self._result(False, f"Schedule generation failed: {error}")
 
@@ -551,9 +520,7 @@ class SchedulerAgentState:
         return item.name
 
     # Find an item by key or return a message explaining why it is unresolved.
-    def _find_item_index(
-        self, area: str, collection: list[Any], item_key: str
-    ) -> int | str:
+    def _find_item_index(self, area: str, collection: list[Any], item_key: str) -> int | str:
         if area == "class_patterns":
             try:
                 index = int(item_key)
@@ -568,19 +535,14 @@ class SchedulerAgentState:
                 matches = [
                     index
                     for index, course in enumerate(collection)
-                    if course.course_id == course_id
-                    and (course.section_id or "default") == section
+                    if course.course_id == course_id and (course.section_id or "default") == section
                 ]
             else:
                 matches = [
-                    index
-                    for index, course in enumerate(collection)
-                    if course.course_id == item_key
+                    index for index, course in enumerate(collection) if course.course_id == item_key
                 ]
             if len(matches) > 1:
-                keys = [
-                    self._item_identity(area, collection[index]) for index in matches
-                ]
+                keys = [self._item_identity(area, collection[index]) for index in matches]
                 return f"'{item_key}' is ambiguous. Use one of: {', '.join(keys)}."
             if not matches:
                 return f"No course found with key '{item_key}'."
@@ -607,8 +569,7 @@ class InspectConfigurationArgs(BaseModel):
 
 class ConfigurationItemArgs(BaseModel):
     area: Literal[
-        "rooms", "labs", "courses", "faculty", "class_patterns", "meetings",
-        "time_blocks"
+        "rooms", "labs", "courses", "faculty", "class_patterns", "meetings", "time_blocks"
     ] = Field(description="Configuration area containing the item")
     item_key: str | None = Field(
         default=None,
@@ -625,8 +586,7 @@ class ConfigurationItemArgs(BaseModel):
 
 class DeleteConfigurationItemArgs(BaseModel):
     area: Literal[
-        "rooms", "labs", "courses", "faculty", "class_patterns", "meetings",
-        "time_blocks"
+        "rooms", "labs", "courses", "faculty", "class_patterns", "meetings", "time_blocks"
     ] = Field(description="Configuration area containing the item")
     item_key: str = Field(
         description=(
@@ -638,9 +598,7 @@ class DeleteConfigurationItemArgs(BaseModel):
 
 
 class ConfigurationSettingsArgs(BaseModel):
-    limit: int | None = Field(
-        default=None, description="Positive maximum schedules to generate"
-    )
+    limit: int | None = Field(default=None, description="Positive maximum schedules to generate")
     optimizer_flags: list[str] | None = Field(
         default=None, description="Scheduler optimization flags"
     )
@@ -691,15 +649,11 @@ def get_tool_list(
                 if state._confirm_action is None or not state._confirm_action(
                     f"Delete {arguments['area']} item '{key}'?"
                 ):
-                    return report(
-                        state._result(False, "Deletion cancelled; no item was changed.")
-                    )
+                    return report(state._result(False, "Deletion cancelled; no item was changed."))
             if apply_change is None:
                 return report(operation(**arguments))
             result: list[dict[str, Any]] = []
-            accepted, problems = apply_change(
-                lambda: result.append(operation(**arguments))
-            )
+            accepted, problems = apply_change(lambda: result.append(operation(**arguments)))
             if not accepted:
                 details = "\n".join(
                     f"- {problem.area}: {problem.item or 'overall'}: {problem.message}"
@@ -724,8 +678,7 @@ def get_tool_list(
                 return report(outcome)
             if problems:
                 details = "\n".join(
-                    f"- {problem.area}: {problem.item or 'overall'}: "
-                    f"{problem.message}"
+                    f"- {problem.area}: {problem.item or 'overall'}: {problem.message}"
                     for problem in problems
                 )
                 outcome = {
@@ -747,13 +700,11 @@ def get_tool_list(
 
     # Block configuration operations when no active config is attached.
     def configuration_tool(
-        operation: Callable[..., dict[str, Any]]
+        operation: Callable[..., dict[str, Any]],
     ) -> Callable[..., dict[str, Any]]:
         def guarded_operation(**arguments: Any) -> dict[str, Any]:
             if not state.has_active_configuration:
-                return report(
-                    state._result(False, state.configuration_required_message())
-                )
+                return report(state._result(False, state.configuration_required_message()))
             outcome = operation(**arguments)
             if outcome.get("action") == "saved" and on_tool_result is not None:
                 on_tool_result(outcome)
@@ -764,7 +715,7 @@ def get_tool_list(
         return guarded_operation
 
     def informational_tool(
-        operation: Callable[..., dict[str, Any]]
+        operation: Callable[..., dict[str, Any]],
     ) -> Callable[..., dict[str, Any]]:
         def reported_operation(**arguments: Any) -> dict[str, Any]:
             return report(operation(**arguments))
@@ -772,9 +723,7 @@ def get_tool_list(
         return reported_operation
 
     def validation_error(error: list[Any]) -> str:
-        result = report(
-            state._result(False, f"Invalid tool arguments: {error}")
-        )
+        result = report(state._result(False, f"Invalid tool arguments: {error}"))
         return json.dumps(result, default=str)
 
     tools = [
@@ -854,7 +803,4 @@ def get_tool_list(
             args_schema=CombinationPasswordArgs,
         ),
     ]
-    return [
-        tool.model_copy(update={"handle_validation_error": validation_error})
-        for tool in tools
-    ]
+    return [tool.model_copy(update={"handle_validation_error": validation_error}) for tool in tools]

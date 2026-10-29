@@ -3,21 +3,17 @@
 Used by: GUI."""
 
 from pydantic import ValidationError
-
 from scheduler.config import (
-    TimeSlotConfig,
     ClassPattern,
-    Meeting,
-    Day,
     DeliveryMode,
+    Meeting,
+    TimeSlotConfig,
 )
 
 
 def get_day():
     """Get a valid Day from the user."""
-    day_input = input(
-        "Enter day (MON, TUE, WED, THU, FRI): "
-    ).strip().upper()
+    day_input = input("Enter day (MON, TUE, WED, THU, FRI): ").strip().upper()
 
     valid_days = ("MON", "TUE", "WED", "THU", "FRI")
 
@@ -39,9 +35,7 @@ def get_integer(prompt):
 
 def get_delivery_mode():
     """Get a valid delivery mode from the user."""
-    delivery_input = input(
-        "Enter delivery mode (in_person/online): "
-    ).strip().lower()
+    delivery_input = input("Enter delivery mode (in_person/online): ").strip().lower()
 
     if delivery_input == "in_person":
         return DeliveryMode.IN_PERSON
@@ -60,8 +54,7 @@ def _build_class_pattern_from_values(
         raise ValueError("Credits must be a positive integer.")
 
     validated_meetings = [
-        meeting if isinstance(meeting, Meeting) else Meeting(**meeting)
-        for meeting in meetings
+        meeting if isinstance(meeting, Meeting) else Meeting(**meeting) for meeting in meetings
     ]
     start_time = start_time.strip() if start_time and start_time.strip() else None
     return ClassPattern(
@@ -72,13 +65,9 @@ def _build_class_pattern_from_values(
     )
 
 
-def add_class_pattern_from_values(
-    patterns, credits, meetings, disabled=False, start_time=None
-):
+def add_class_pattern_from_values(patterns, credits, meetings, disabled=False, start_time=None):
     """Validate and append a class pattern supplied by a non-interactive caller."""
-    pattern = _build_class_pattern_from_values(
-        patterns, credits, meetings, disabled, start_time
-    )
+    pattern = _build_class_pattern_from_values(patterns, credits, meetings, disabled, start_time)
     patterns.append(pattern)
     return pattern
 
@@ -120,20 +109,14 @@ def create_meeting():
     if day is None:
         return None
 
-    start_time = input(
-        "Enter meeting start time (HH:MM), or press Enter for none: "
-    ).strip()
+    start_time = input("Enter meeting start time (HH:MM), or press Enter for none: ").strip()
 
     if not start_time:
         start_time = None
 
     duration = get_integer("Enter duration in minutes: ")
 
-    lab = (
-        input("Is this a lab meeting? (y/n): ")
-        .strip()
-        .lower() == "y"
-    )
+    lab = input("Is this a lab meeting? (y/n): ").strip().lower() == "y"
 
     delivery = get_delivery_mode()
 
@@ -142,11 +125,7 @@ def create_meeting():
 
     try:
         return Meeting(
-            day=day,
-            start_time=start_time,
-            duration=duration,
-            lab=lab,
-            delivery=delivery
+            day=day, start_time=start_time, duration=duration, lab=lab, delivery=delivery
         )
     except ValidationError as e:
         print("Invalid meeting:")
@@ -160,15 +139,9 @@ def add_class_pattern(time_slot_config: TimeSlotConfig):
 
     credits = get_integer("Enter credits: ")
 
-    disabled = (
-        input("Is this pattern disabled? (y/n): ")
-        .strip()
-        .lower() == "y"
-    )
+    disabled = input("Is this pattern disabled? (y/n): ").strip().lower() == "y"
 
-    start_time = input(
-        "Enter start time (HH:MM), or press Enter for none: "
-    ).strip()
+    start_time = input("Enter start time (HH:MM), or press Enter for none: ").strip()
 
     if not start_time:
         start_time = None
@@ -188,10 +161,7 @@ def add_class_pattern(time_slot_config: TimeSlotConfig):
 
     try:
         pattern = ClassPattern(
-            credits=credits,
-            meetings=meetings,
-            disabled=disabled,
-            start_time=start_time
+            credits=credits, meetings=meetings, disabled=disabled, start_time=start_time
         )
     except ValidationError as e:
         print("Invalid class pattern:")
@@ -242,9 +212,7 @@ def select_class_pattern(time_slot_config):
 
     view_class_patterns(time_slot_config)
 
-    index = get_integer(
-        "\nEnter the class pattern number: "
-    ) - 1
+    index = get_integer("\nEnter the class pattern number: ") - 1
 
     if index < 0 or index >= len(time_slot_config.classes):
         print("Invalid class pattern.")
@@ -259,19 +227,11 @@ def modify_class_pattern(time_slot_config: TimeSlotConfig):
     if pattern is None:
         return
 
-    credits = get_integer(
-        f"Enter credits [{pattern.credits}]: "
-    )
+    credits = get_integer(f"Enter credits [{pattern.credits}]: ")
 
-    disabled = (
-        input("Is this pattern disabled? (y/n): ")
-        .strip()
-        .lower() == "y"
-    )
+    disabled = input("Is this pattern disabled? (y/n): ").strip().lower() == "y"
 
-    start_time = input(
-        "Enter start time (HH:MM), or press Enter for none: "
-    ).strip()
+    start_time = input("Enter start time (HH:MM), or press Enter for none: ").strip()
 
     if not start_time:
         start_time = None
@@ -302,6 +262,7 @@ def delete_class_pattern(time_slot_config: TimeSlotConfig):
 
 # ---------------- MEETING CRUD ----------------
 
+
 def select_meeting(time_slot_config):
     """Select a class pattern and one of its meetings."""
     pattern = select_class_pattern(time_slot_config)
@@ -324,9 +285,7 @@ def select_meeting(time_slot_config):
             f"Delivery: {meeting.delivery.value}"
         )
 
-    index = get_integer(
-        "Enter the meeting number: "
-    ) - 1
+    index = get_integer("Enter the meeting number: ") - 1
 
     if index < 0 or index >= len(pattern.meetings):
         print("Invalid meeting.")
@@ -355,7 +314,7 @@ def add_meeting(time_slot_config: TimeSlotConfig):
             credits=pattern.credits,
             meetings=test_meetings,
             disabled=pattern.disabled,
-            start_time=pattern.start_time
+            start_time=pattern.start_time,
         )
     except ValidationError as e:
         print("Meeting cannot be added:")
@@ -409,7 +368,7 @@ def modify_meeting(time_slot_config: TimeSlotConfig):
             credits=pattern.credits,
             meetings=new_meetings,
             disabled=pattern.disabled,
-            start_time=pattern.start_time
+            start_time=pattern.start_time,
         )
     except ValidationError as e:
         print("Meeting cannot be modified:")

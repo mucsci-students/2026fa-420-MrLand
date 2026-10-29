@@ -8,8 +8,9 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from scheduler.models.course import CourseInstance
 from scheduler.config import CombinedConfig
+from scheduler.models.course import CourseInstance
+
 from src.models.schedule_files import (
     SAVED_NAME_PATTERN,
     parse_schedule_file,
@@ -18,7 +19,6 @@ from src.models.schedule_files import (
 )
 from src.models.schedule_result import ScheduleResult
 
-
 SCHEDULE_DIRECTORY = Path(__file__).resolve().parents[1] / "schedules"
 FORMATS = {"csv": "text/csv", "json": "application/json"}
 
@@ -26,13 +26,14 @@ FORMATS = {"csv": "text/csv", "json": "application/json"}
 @dataclass
 class ScheduleEntry:
     """One schedule the viewer can show."""
+
     label: str
     config_name: str
-    source: str                       # "generated" or "file"
+    source: str  # "generated" or "file"
     records: list[dict[str, str]]
     config: CombinedConfig | None = None
     schedule: list[CourseInstance] | None = None
-    file_name: str | None = None      # set for schedules loaded from a file
+    file_name: str | None = None  # set for schedules loaded from a file
 
 
 def _natural_key(name: str) -> list:
@@ -188,9 +189,7 @@ class ScheduleViewerModel:
 
         next_number_by_config: dict[str, int] = {}
         archive = io.BytesIO()
-        with zipfile.ZipFile(
-            archive, mode="w", compression=zipfile.ZIP_DEFLATED
-        ) as bundle:
+        with zipfile.ZipFile(archive, mode="w", compression=zipfile.ZIP_DEFLATED) as bundle:
             for entry in self._generated:
                 config_name = re.sub(
                     r'[<>:"/\\|?*\x00-\x1f]',
@@ -222,8 +221,7 @@ class ScheduleViewerModel:
             raise ValueError("Please choose CSV or JSON.")
 
         file_name = Path(
-            file_name.strip()
-            or self.default_export_file_name(entry, file_format)
+            file_name.strip() or self.default_export_file_name(entry, file_format)
         ).name
         if Path(file_name).suffix.lower() != f".{file_format}":
             file_name = f"{file_name}.{file_format}"

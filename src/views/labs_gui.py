@@ -43,21 +43,23 @@ def labs_gui(
     lab_list = ui.column().classes("w-full gap-1")
 
     with ui.row().classes("w-full flex-wrap items-center gap-2"):
-        add_button = ui.button("Add new lab", icon="add", on_click=lambda: show_form()).props(
+        ui.button("Add new lab", icon="add", on_click=lambda: show_form()).props(
             "unelevated"
         ).classes("bg-[#75e6da] text-[#101820]")
 
     # Form fields and callbacks for creating or editing a lab.
-    with ui.column().classes("w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4") as form_container:
+    with ui.column().classes(
+        "w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4"
+    ) as form_container:
         form_container.set_visibility(False)
         form_heading = ui.label("Add New Lab").classes("text-lg font-semibold text-white")
 
         with ui.row().classes("w-full flex-wrap gap-4"):
             name = ui.input("Lab name").classes("min-w-56 flex-1")
             capacity = ui.number("Capacity", value=20, min=1, step=1).classes("w-40")
-            features = ui.input(
-                "Features", placeholder="Projector, fume hood"
-            ).classes("min-w-56 flex-1")
+            features = ui.input("Features", placeholder="Projector, fume hood").classes(
+                "min-w-56 flex-1"
+            )
 
         unrestricted = ui.checkbox("Unrestricted availability", value=True).classes(
             "text-[#d8e7e8]"
@@ -102,18 +104,12 @@ def labs_gui(
             times = None
             if not unrestricted.value:
                 times = {
-                    day: [
-                        value.strip()
-                        for value in field.value.split(",")
-                        if value.strip()
-                    ]
+                    day: [value.strip() for value in field.value.split(",") if value.strip()]
                     for day, field in availability_fields.items()
                 }
 
             feature_values = [
-                value.strip()
-                for value in (features.value or "").split(",")
-                if value.strip()
+                value.strip() for value in (features.value or "").split(",") if value.strip()
             ]
             return name.value or "", int(capacity_value), feature_values, times
 
@@ -156,9 +152,7 @@ def labs_gui(
 
         # Apply a new lab to the current configuration.
         def add_lab() -> None:
-            if not run_crud_mutation(
-                on_change, lambda: controller.add_lab(labs, *form_values())
-            ):
+            if not run_crud_mutation(on_change, lambda: controller.add_lab(labs, *form_values())):
                 return
             reset_form()
             refresh_labs()
@@ -168,9 +162,7 @@ def labs_gui(
         def update_lab() -> None:
             if not run_crud_mutation(
                 on_change,
-                lambda: controller.update_lab(
-                    labs, editing_lab["lab"], *form_values()
-                ),
+                lambda: controller.update_lab(labs, editing_lab["lab"], *form_values()),
             ):
                 return
             reset_form()
@@ -191,8 +183,7 @@ def labs_gui(
                 set_availability_enabled(lab.times is not None)
                 for day, field in availability_fields.items():
                     field.value = ", ".join(
-                        f"{item.start}-{item.end}"
-                        for item in (lab.times or {}).get(day, [])
+                        f"{item.start}-{item.end}" for item in (lab.times or {}).get(day, [])
                     )
             form_container.set_visibility(True)
             add_submit_button.set_visibility(False)
@@ -215,16 +206,22 @@ def labs_gui(
             refresh_labs()
 
         with ui.row().classes("w-full flex-wrap items-center gap-2"):
-            add_submit_button = ui.button("Create lab", icon="add", on_click=add_lab).props(
-                "unelevated"
-            ).classes("bg-[#75e6da] text-[#101820]")
-            update_button = ui.button(
-                "Apply changes", icon="save", on_click=update_lab
-            ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
+            add_submit_button = (
+                ui.button("Create lab", icon="add", on_click=add_lab)
+                .props("unelevated")
+                .classes("bg-[#75e6da] text-[#101820]")
+            )
+            update_button = (
+                ui.button("Apply changes", icon="save", on_click=update_lab)
+                .props("unelevated")
+                .classes("bg-[#75e6da] text-[#101820]")
+            )
             update_button.set_visibility(False)
-            cancel_button = ui.button("Cancel", on_click=reset_form).props(
-                "outline"
-            ).classes("border-[#45616b] text-[#d8e7e8]")
+            cancel_button = (
+                ui.button("Cancel", on_click=reset_form)
+                .props("outline")
+                .classes("border-[#45616b] text-[#d8e7e8]")
+            )
             cancel_button.set_visibility(False)
 
     # Rebuild the lab summaries and their edit/delete controls.
@@ -251,15 +248,14 @@ def labs_gui(
                             icon="edit",
                             on_click=lambda selected=lab: begin_edit(selected),
                         ).props("flat round dense").tooltip("Edit lab")
-                        with ui.dialog() as dialog, ui.card().classes(
-                            "border border-[#29404b] bg-[#182630]"
+                        with (
+                            ui.dialog() as dialog,
+                            ui.card().classes("border border-[#29404b] bg-[#182630]"),
                         ):
                             ui.label(f"Delete {lab.name}?").classes(
                                 "text-lg font-semibold text-white"
                             )
-                            ui.label("This cannot be undone.").classes(
-                                "text-sm text-[#9fb2b8]"
-                            )
+                            ui.label("This cannot be undone.").classes("text-sm text-[#9fb2b8]")
                             with ui.row().classes("mt-4 w-full justify-end gap-2"):
                                 ui.button("Cancel", on_click=dialog.close).props("flat")
                                 ui.button(

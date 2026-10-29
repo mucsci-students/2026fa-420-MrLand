@@ -5,8 +5,9 @@ Used by: GUI."""
 import copy
 import threading
 
-from scheduler.config import CombinedConfig
+from scheduler.config import CombinedConfig, OptimizerFlags
 
+from src.models.configuration_repository import ConfigLoadError
 from src.models.schedule_generator_model import (
     ScheduleGenerationState,
     ScheduleGeneratorModel,
@@ -57,10 +58,10 @@ class ScheduleGeneratorController:
     def start_generation(
         self,
         config_name: str | None,
-        limit_override_value: object,
+        limit_override_value: str | float | None,
         optimizer_override: list[str] | None,
-        max_time_gap_override_value: object = None,
-        min_time_overlap_override_value: object = None,
+        max_time_gap_override_value: str | float | None = None,
+        min_time_overlap_override_value: str | float | None = None,
         loaded_config: CombinedConfig | None = None,
     ) -> tuple[int | None, str | None]:
         if self.model.state_snapshot().running:
@@ -84,19 +85,19 @@ class ScheduleGeneratorController:
         if error:
             return None, error
 
-        try:
-            if loaded_config is None:
+        if loaded_config is None:
+            try:
                 config = self.model.load_config(config_name)
-            else:
-                config = copy.deepcopy(loaded_config)
-        except Exception as error:
-            return None, f"Could not load configuration: {error}"
+            except (ConfigLoadError, FileNotFoundError, ValueError) as error:
+                return None, f"Could not load configuration: {error}"
+        else:
+            config = copy.deepcopy(loaded_config)
 
         requested = limit_override if limit_override is not None else config.limit
         if loaded_config is not None:
             config.limit = requested
             if optimizer_override is not None:
-                config.optimizer_flags = optimizer_override
+                config.optimizer_flags = [OptimizerFlags(flag) for flag in optimizer_override]
             if max_time_gap_override is not None:
                 config.time_slot_config.max_time_gap = max_time_gap_override
             if min_time_overlap_override is not None:
@@ -119,10 +120,7 @@ class ScheduleGeneratorController:
             limit_override,
             optimizer_override,
         )
-        if (
-            max_time_gap_override is not None
-            or min_time_overlap_override is not None
-        ):
+        if max_time_gap_override is not None or min_time_overlap_override is not None:
             generation_args += (
                 max_time_gap_override,
                 min_time_overlap_override,
@@ -138,14 +136,12 @@ class ScheduleGeneratorController:
 
     @staticmethod
     def _parse_positive_integer_override(
-        value: object, setting_name: str
+        value: str | float | None, setting_name: str
     ) -> tuple[int | None, str | None]:
         if value is None or not str(value).strip():
             return None, None
 
-        error_message = (
-            f"Temporary {setting_name} must be a positive whole number."
-        )
+        error_message = f"Temporary {setting_name} must be a positive whole number."
         try:
             parsed_value = int(value)
         except (OverflowError, TypeError, ValueError):
