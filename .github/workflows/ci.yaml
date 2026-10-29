@@ -43,7 +43,7 @@ jobs:
   # Tests on all three OSes; coverage gate enforced on each,
   # report uploaded to Codecov once (from Ubuntu)
   test:
-    name: Tests (${{ matrix.os }})
+    name: ci (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
