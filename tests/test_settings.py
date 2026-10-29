@@ -17,8 +17,9 @@ from src.controllers.settings_operations_controller import (
 
 class TestGlobalSettingsCRUD(unittest.TestCase):
     def setUp(self):
-        self.config = CombinedConfig(
-            config={
+        self.config = CombinedConfig.model_validate(
+            {
+                "config": {
                 "rooms": [
                     {
                         "name": "Room 101",
@@ -51,8 +52,8 @@ class TestGlobalSettingsCRUD(unittest.TestCase):
                         },
                     }
                 ],
-            },
-            time_slot_config={
+                },
+                "time_slot_config": {
                 "times": {
                     "MON": [
                         {
@@ -101,7 +102,8 @@ class TestGlobalSettingsCRUD(unittest.TestCase):
                         ],
                     }
                 ],
-            },
+                },
+            }
         )
 
     # -------------------------
@@ -268,7 +270,7 @@ class TestGlobalSettingsCRUD(unittest.TestCase):
 
     def test_invalid_optimizer_flag_rejected(self):
         with self.assertRaises(ValueError):
-            self.config.optimizer_flags = ["not_a_real_flag"]
+            self.config.__setattr__("optimizer_flags", ["not_a_real_flag"])
 
 
 if __name__ == "__main__":

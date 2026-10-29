@@ -547,7 +547,13 @@ def schedule_viewer() -> None:
 
         # method to get room elements from the config and display them in a dialog box
         def inspect_room(room_name):
-            room = get_room_details(controller.current.config, room_name)
+            entry = controller.current
+            if entry is None or entry.config is None:
+                ui.notify(
+                    "Configuration details are unavailable for this schedule.", type="negative"
+                )
+                return
+            room = get_room_details(entry.config, room_name)
 
             if room is None:
                 ui.notify("Room details not found", type="negative")
@@ -574,7 +580,13 @@ def schedule_viewer() -> None:
 
         # method to get lab elements from the config and display them in a dialog box
         def inspect_lab(lab_name):
-            lab = get_lab_details(controller.current.config, lab_name)
+            entry = controller.current
+            if entry is None or entry.config is None:
+                ui.notify(
+                    "Configuration details are unavailable for this schedule.", type="negative"
+                )
+                return
+            lab = get_lab_details(entry.config, lab_name)
 
             if lab is None:
                 ui.notify("Lab details not found", type="negative")
@@ -671,13 +683,13 @@ def schedule_viewer() -> None:
             filter_type = filter_select.value
 
             if filter_type == "Course":
-                values = sorted(set(course["course"] for course in schedule))
+                values = sorted({course["course"] for course in schedule})
 
             elif filter_type == "Faculty":
-                values = sorted(set(course["faculty"] for course in schedule))
+                values = sorted({course["faculty"] for course in schedule})
 
             elif filter_type == "Room / Lab":
-                values = sorted(set(course["resource"] for course in schedule))
+                values = sorted({course["resource"] for course in schedule})
 
             else:
                 values = []
@@ -900,6 +912,9 @@ def schedule_viewer() -> None:
             )
             if error:
                 export_status.text = error
+                return
+            if export is None:
+                export_status.text = "No schedule export is available."
                 return
             content, file_name, media_type = export
             ui.download(content, filename=file_name, media_type=media_type)

@@ -1,6 +1,6 @@
 import copy
 
-from scheduler.config import CombinedConfig, SchedulerConfig, TimeSlotConfig
+from scheduler.config import CombinedConfig, RoomConfig, SchedulerConfig, TimeSlotConfig
 
 from src.models.configuration_model import (
     ValidationProblem,
@@ -171,13 +171,14 @@ def test_invalid_change_restores_a_valid_configuration():
 
 def test_incomplete_draft_can_be_edited_before_it_is_valid():
     config = empty_draft()
+    invalid_room = RoomConfig.model_construct(name="", capacity=0)
 
     accepted, problems, _ = apply_configuration_change(
         config,
-        lambda: config.config.rooms.append({}),
+        lambda: config.config.rooms.append(invalid_room),
         has_valid_baseline=False,
     )
 
     assert accepted
     assert problems
-    assert config.config.rooms == [{}]
+    assert config.config.rooms == [invalid_room]

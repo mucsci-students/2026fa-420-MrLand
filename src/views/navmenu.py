@@ -7,6 +7,8 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from scheduler.config import CombinedConfig
+
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -52,8 +54,8 @@ from src.controllers.time_block_operations_controller import (
 from src.models.schedule_files import records_from_result
 from src.models.schedule_viewer_model import ScheduleViewerModel
 
-current_config = None
-config_name = None
+current_config: CombinedConfig | None = None
+config_name: str | None = None
 cur_schedules = []
 
 
@@ -109,6 +111,12 @@ def reset_config_state():
     config_name = None
 
 
+def _require_current_config() -> CombinedConfig:
+    if current_config is None:
+        raise RuntimeError("No configuration is currently loaded.")
+    return current_config
+
+
 def config():
     return Page(
         "config",
@@ -150,6 +158,8 @@ def load_get_name():
 
 
 def save_current_config():
+    if current_config is None or config_name is None:
+        raise RuntimeError("No configuration is currently loaded.")
     config_service.save_config(current_config, config_name)
 
 
@@ -176,17 +186,17 @@ def settings():
             Command.parse(
                 "v|view",
                 "view global settings",
-                lambda: settings_service.view_settings(current_config),
+                lambda: settings_service.view_settings(_require_current_config()),
             ),
             Command.parse(
                 "m|modify",
                 "modify global settings",
-                lambda: settings_service.modify_settings(current_config),
+                lambda: settings_service.modify_settings(_require_current_config()),
             ),
             Command.parse(
                 "r|reset",
                 "reset global settings",
-                lambda: settings_service.reset_settings(current_config),
+                lambda: settings_service.reset_settings(_require_current_config()),
             ),
             Command.parse("h|home", "go to home page", home),
         ],
@@ -199,16 +209,20 @@ def faculty():
         "faculty",
         [
             Command.parse(
-                "a|add", "add faculty", lambda: add_faculty(current_config.config.faculty)
+                "a|add", "add faculty", lambda: add_faculty(_require_current_config().config.faculty)
             ),
             Command.parse(
-                "m|modify", "modify faculty", lambda: modify_faculty(current_config.config.faculty)
+                "m|modify",
+                "modify faculty",
+                lambda: modify_faculty(_require_current_config().config.faculty),
             ),
             Command.parse(
-                "d|delete", "delete faculty", lambda: delete_faculty(current_config.config.faculty)
+                "d|delete",
+                "delete faculty",
+                lambda: delete_faculty(_require_current_config().config.faculty),
             ),
             Command.parse(
-                "v|view", "view faculty", lambda: view_faculty(current_config.config.faculty)
+                "v|view", "view faculty", lambda: view_faculty(_require_current_config().config.faculty)
             ),
             Command.parse("h|home", "go to home page", home),
         ],
@@ -219,15 +233,21 @@ def courses():
     return Page(
         "courses",
         [
-            Command.parse("a|add", "add course", lambda: add_course(current_config.config.courses)),
             Command.parse(
-                "m|modify", "modify course", lambda: modify_course(current_config.config.courses)
+                "a|add", "add course", lambda: add_course(_require_current_config().config.courses)
             ),
             Command.parse(
-                "d|delete", "delete course", lambda: delete_course(current_config.config.courses)
+                "m|modify",
+                "modify course",
+                lambda: modify_course(_require_current_config().config.courses),
             ),
             Command.parse(
-                "v|view", "view course", lambda: view_courses(current_config.config.courses)
+                "d|delete",
+                "delete course",
+                lambda: delete_course(_require_current_config().config.courses),
+            ),
+            Command.parse(
+                "v|view", "view course", lambda: view_courses(_require_current_config().config.courses)
             ),
             Command.parse("h|home", "go to home page", home),
         ],
@@ -238,10 +258,16 @@ def labs():
     return Page(
         "labs",
         [
-            Command.parse("a|add", "add lab", lambda: add_lab(current_config.config.labs)),
-            Command.parse("m|modify", "modify lab", lambda: modify_lab(current_config.config.labs)),
-            Command.parse("d|delete", "delete lab", lambda: delete_lab(current_config.config.labs)),
-            Command.parse("v|view", "view lab", lambda: view_labs(current_config.config.labs)),
+            Command.parse("a|add", "add lab", lambda: add_lab(_require_current_config().config.labs)),
+            Command.parse(
+                "m|modify", "modify lab", lambda: modify_lab(_require_current_config().config.labs)
+            ),
+            Command.parse(
+                "d|delete", "delete lab", lambda: delete_lab(_require_current_config().config.labs)
+            ),
+            Command.parse(
+                "v|view", "view lab", lambda: view_labs(_require_current_config().config.labs)
+            ),
             Command.parse("h|home", "go to home page", home),
         ],
     )
@@ -251,14 +277,20 @@ def rooms():
     return Page(
         "rooms",
         [
-            Command.parse("a|add", "add room", lambda: add_rooms(current_config.config.rooms)),
+            Command.parse("a|add", "add room", lambda: add_rooms(_require_current_config().config.rooms)),
             Command.parse(
-                "m|modify", "modify room", lambda: modify_rooms(current_config.config.rooms)
+                "m|modify",
+                "modify room",
+                lambda: modify_rooms(_require_current_config().config.rooms),
             ),
             Command.parse(
-                "d|delete", "delete room", lambda: delete_rooms(current_config.config.rooms)
+                "d|delete",
+                "delete room",
+                lambda: delete_rooms(_require_current_config().config.rooms),
             ),
-            Command.parse("v|view", "view room", lambda: view_rooms(current_config.config.rooms)),
+            Command.parse(
+                "v|view", "view room", lambda: view_rooms(_require_current_config().config.rooms)
+            ),
             Command.parse("h|home", "go to home page", home),
         ],
     )
@@ -281,22 +313,24 @@ def time_blocks():
         "time blocks",
         [
             Command.parse(
-                "a|add", "add time block", lambda: add_time_block(current_config.time_slot_config)
+                "a|add",
+                "add time block",
+                lambda: add_time_block(_require_current_config().time_slot_config),
             ),
             Command.parse(
                 "m|modify",
                 "modify time block",
-                lambda: modify_time_block(current_config.time_slot_config),
+                lambda: modify_time_block(_require_current_config().time_slot_config),
             ),
             Command.parse(
                 "d|delete",
                 "delete time block",
-                lambda: delete_time_block(current_config.time_slot_config),
+                lambda: delete_time_block(_require_current_config().time_slot_config),
             ),
             Command.parse(
                 "v|view",
                 "view time blocks",
-                lambda: view_time_blocks(current_config.time_slot_config),
+                lambda: view_time_blocks(_require_current_config().time_slot_config),
             ),
             Command.parse("h|home", "go to home page", home),
         ],
@@ -310,40 +344,42 @@ def class_patterns():
             Command.parse(
                 "a|add",
                 "add class pattern",
-                lambda: add_class_pattern(current_config.time_slot_config),
+                lambda: add_class_pattern(_require_current_config().time_slot_config),
             ),
             Command.parse(
                 "m|modify",
                 "modify class pattern",
-                lambda: modify_class_pattern(current_config.time_slot_config),
+                lambda: modify_class_pattern(_require_current_config().time_slot_config),
             ),
             Command.parse(
                 "d|delete",
                 "delete class pattern",
-                lambda: delete_class_pattern(current_config.time_slot_config),
+                lambda: delete_class_pattern(_require_current_config().time_slot_config),
             ),
             Command.parse(
                 "v|view",
                 "view class patterns",
-                lambda: view_class_patterns(current_config.time_slot_config),
+                lambda: view_class_patterns(_require_current_config().time_slot_config),
             ),
             Command.parse(
-                "ad|addmeeting", "add meeting", lambda: add_meeting(current_config.time_slot_config)
+                "ad|addmeeting",
+                "add meeting",
+                lambda: add_meeting(_require_current_config().time_slot_config),
             ),
             Command.parse(
                 "mo|modifymeeting",
                 "modify meeting",
-                lambda: modify_meeting(current_config.time_slot_config),
+                lambda: modify_meeting(_require_current_config().time_slot_config),
             ),
             Command.parse(
                 "de|deletemeeting",
                 "delete meeting",
-                lambda: delete_meeting(current_config.time_slot_config),
+                lambda: delete_meeting(_require_current_config().time_slot_config),
             ),
             Command.parse(
                 "vi|viewmeetings",
                 "view meetings",
-                lambda: view_meetings(current_config.time_slot_config),
+                lambda: view_meetings(_require_current_config().time_slot_config),
             ),
             Command.parse("h|home", "go to home page", home),
         ],
@@ -358,21 +394,21 @@ def time_slot_settings():
                 "v|view",
                 "view time slot settings",
                 lambda: time_slot_settings_service.view_time_slot_settings(
-                    current_config.time_slot_config
+                    _require_current_config().time_slot_config
                 ),
             ),
             Command.parse(
                 "m|modify",
                 "modify time slot settings",
                 lambda: time_slot_settings_service.modify_time_slot_settings(
-                    current_config.time_slot_config
+                    _require_current_config().time_slot_config
                 ),
             ),
             Command.parse(
                 "r|reset",
                 "reset time slot settings",
                 lambda: time_slot_settings_service.reset_time_slot_settings(
-                    current_config.time_slot_config
+                    _require_current_config().time_slot_config
                 ),
             ),
             Command.parse("h|home", "go to home page", home),

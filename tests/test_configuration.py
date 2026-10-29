@@ -567,7 +567,7 @@ def test_controller_loaded_config_rolls_back_invalid_change(
 
     assert accepted is False
     assert problems
-    assert len(other.configuration.config.rooms) == 1
+    assert len(loaded.config.rooms) == 1
 
 
 def test_controller_valid_change_is_accepted_and_sets_baseline(controller, valid_config):

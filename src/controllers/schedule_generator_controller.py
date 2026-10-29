@@ -38,7 +38,7 @@ class ScheduleGeneratorController:
     def start_generation(
         self,
         config_name: str | None,
-        limit_override_value: object,
+        limit_override_value: str | None,
         optimizer_override: list[str] | None,
     ) -> tuple[int | None, str | None]:
         if self.model.state_snapshot().running:

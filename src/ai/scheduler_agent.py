@@ -246,7 +246,13 @@ def get_tool_list(
 
         def guarded_operation(**arguments: Any) -> str:
             result: list[str] = []
-            accepted, problems = apply_change(lambda: result.append(operation(**arguments)))
+
+            def mutate() -> str:
+                message = operation(**arguments)
+                result.append(message)
+                return message
+
+            accepted, problems = apply_change(mutate)
             if not accepted:
                 details = "\n".join(
                     f"- {problem.area}: {problem.item or 'overall'}: {problem.message}"

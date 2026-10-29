@@ -3,6 +3,7 @@
 Used by: GUI."""
 
 import os
+from collections.abc import Callable
 
 from nicegui import ui
 
@@ -272,13 +273,14 @@ def build_app() -> None:
         .props("data-theme-region=content")
         .classes("mx-auto w-full max-w-7xl gap-0 px-6 py-8")
     ):
-        tabs = ui.tabs(value="configuration").classes("w-full border-b border-[#29404b]")
+        tabs = ui.tabs().classes("w-full border-b border-[#29404b]")
         with tabs:
             ui.tab("configuration", label="Configuration Editor", icon="tune")
             ui.tab("generator", label="Schedule Generator", icon="auto_awesome")
             ui.tab("viewer", label="Schedule Viewer", icon="calendar_view_week")
+        tabs.value = "configuration"
 
-        editor_refresh = None
+        editor_refresh: Callable[[], None]
         with ui.tab_panels(tabs, value="configuration").classes("w-full bg-transparent pt-8"):
             with ui.tab_panel("configuration"):
                 editor_refresh = configuration_editor()

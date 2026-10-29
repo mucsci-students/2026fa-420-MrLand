@@ -4,7 +4,12 @@ Used by: GUI."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from typing import TypedDict
+
 from nicegui import ui
+from nicegui.elements.badge import Badge
+from scheduler.config import CombinedConfig
 
 from src.controllers.configuration_controller import ConfigurationController
 from src.models.configuration_model import ConfigValidationError, validate_config_name
@@ -21,10 +26,17 @@ from src.views.time_blocks_gui import time_blocks_gui
 controller = ConfigurationController()
 
 
-def configuration_editor() -> None:
+class EditorState(TypedDict):
+    config: CombinedConfig | None
+    name: str | None
+    saved: bool
+    status_badge: Badge | None
+
+
+def configuration_editor() -> Callable[[], None]:
     """Build the editor workspace and coordinate configuration lifecycle actions."""
     # Keep the selected draft and save state shared by the editor callbacks.
-    state = {"config": None, "name": None, "saved": False, "status_badge": None}
+    state: EditorState = {"config": None, "name": None, "saved": False, "status_badge": None}
 
     # Update the saved indicator after a draft change or successful save.
     def set_saved_status(saved: bool) -> None:

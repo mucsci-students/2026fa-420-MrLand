@@ -7,6 +7,7 @@ import threading
 from typing import Any
 
 from nicegui import ui
+from scheduler.config import OptimizerFlags
 from scheduler.scheduler import Scheduler
 
 from src.models.configuration_model import config_exists
@@ -86,7 +87,7 @@ def _scheduler_worker(
             full_config.limit = limit_override
 
         if optimizer_override is not None:
-            full_config.optimizer_flags = optimizer_override
+            full_config.optimizer_flags = [OptimizerFlags(flag) for flag in optimizer_override]
 
         limit = full_config.limit
 

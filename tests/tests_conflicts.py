@@ -3,9 +3,9 @@ from unittest.mock import patch
 
 from scheduler.config import CourseConfig
 
-from src import conflict
+from src.models import conflict
 
-MODULE = "src.conflict"
+MODULE = "src.models.conflict"
 
 
 def make_course(course_id, conflicts=None):

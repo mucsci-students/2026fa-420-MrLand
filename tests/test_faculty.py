@@ -348,9 +348,8 @@ class TestFacultyGetters(unittest.TestCase):
         # so get_name() should prompt again.
         inputs = ["dr. smith", "Dr. Jones"]
 
-        with patch("builtins.input", side_effect=inputs):
-            with patch("builtins.print") as mock_print:
-                result = faculty.get_name(self.faculty_members)
+        with patch("builtins.input", side_effect=inputs), patch("builtins.print") as mock_print:
+            result = faculty.get_name(self.faculty_members)
 
         self.assertEqual(result, "Dr. Jones")
 
@@ -359,9 +358,10 @@ class TestFacultyGetters(unittest.TestCase):
         self.assertIn("already exists", printed_text)
 
     def test_get_max_credits_invalid_then_valid(self):
-        with patch("builtins.input", side_effect=["not_a_number", "12"]):
-            with patch("builtins.print"):
-                result = faculty.get_max_credits()
+        with patch("builtins.input", side_effect=["not_a_number", "12"]), patch(
+            "builtins.print"
+        ):
+            result = faculty.get_max_credits()
 
         self.assertEqual(result, 12)
 
@@ -408,9 +408,8 @@ class TestFacultyGetters(unittest.TestCase):
     def test_course_preference_getter_rejects_out_of_range_then_accepts(self):
         inputs = ["CS101", "15", "5", "done"]
 
-        with patch("builtins.input", side_effect=inputs):
-            with patch("builtins.print") as mock_print:
-                result = faculty.course_preference_getter()
+        with patch("builtins.input", side_effect=inputs), patch("builtins.print") as mock_print:
+            result = faculty.course_preference_getter()
 
         self.assertEqual(result, {"CS101": 5})
 
@@ -445,9 +444,8 @@ class TestFacultyGetters(unittest.TestCase):
     def test_mandatory_days_getter_rejects_invalid_day(self):
         inputs = ["funday", "mon", "fri", "done"]
 
-        with patch("builtins.input", side_effect=inputs):
-            with patch("builtins.print") as mock_print:
-                result = faculty.mandatory_days_getter()
+        with patch("builtins.input", side_effect=inputs), patch("builtins.print") as mock_print:
+            result = faculty.mandatory_days_getter()
 
         self.assertEqual(result, {"MON", "FRI"})
 
@@ -582,9 +580,8 @@ class TestModifyFacultyEdgeCases(unittest.TestCase):
         self.assertEqual(self.faculty_members[0].maximum_credits, 20)
 
     def test_modify_faculty_index_out_of_range(self):
-        with patch("builtins.input", side_effect=["99"]):
-            with patch("builtins.print") as mock_print:
-                faculty.modify_faculty(self.faculty_members)
+        with patch("builtins.input", side_effect=["99"]), patch("builtins.print") as mock_print:
+            faculty.modify_faculty(self.faculty_members)
 
         printed_text = "\n".join(str(c.args[0]) for c in mock_print.call_args_list)
 
@@ -597,9 +594,8 @@ class TestModifyFacultyEdgeCases(unittest.TestCase):
         # Valid faculty index, but an out-of-range attribute number.
         inputs = ["1", "99"]
 
-        with patch("builtins.input", side_effect=inputs):
-            with patch("builtins.print") as mock_print:
-                faculty.modify_faculty(self.faculty_members)
+        with patch("builtins.input", side_effect=inputs), patch("builtins.print") as mock_print:
+            faculty.modify_faculty(self.faculty_members)
 
         printed_text = "\n".join(str(c.args[0]) for c in mock_print.call_args_list)
 
@@ -657,9 +653,10 @@ class TestDeleteFacultyEdgeCases(unittest.TestCase):
         )
 
     def test_delete_faculty_invalid_input_leaves_list_unchanged(self):
-        with patch("builtins.input", return_value="not_a_number"):
-            with patch("builtins.print") as mock_print:
-                faculty.delete_faculty(self.faculty_members)
+        with patch("builtins.input", return_value="not_a_number"), patch(
+            "builtins.print"
+        ) as mock_print:
+            faculty.delete_faculty(self.faculty_members)
 
         printed_text = "\n".join(str(c.args[0]) for c in mock_print.call_args_list)
 
@@ -668,9 +665,8 @@ class TestDeleteFacultyEdgeCases(unittest.TestCase):
         self.assertEqual(len(self.faculty_members), 1)
 
     def test_delete_faculty_out_of_range_leaves_list_unchanged(self):
-        with patch("builtins.input", return_value="99"):
-            with patch("builtins.print") as mock_print:
-                faculty.delete_faculty(self.faculty_members)
+        with patch("builtins.input", return_value="99"), patch("builtins.print") as mock_print:
+            faculty.delete_faculty(self.faculty_members)
 
         printed_text = "\n".join(str(c.args[0]) for c in mock_print.call_args_list)
 
