@@ -5,6 +5,7 @@ from nicegui.elements.upload_files import SmallFileUpload
 from nicegui.testing import user_simulation
 
 import src.views.schedule_generator as generator
+from tests.conftest import active_client
 from tests.test_configuration import make_valid_config
 
 
@@ -35,7 +36,7 @@ def test_schedule_generator_loads_uploaded_configuration(monkeypatch):
     async def simulate():
         async with user_simulation(root=generator.schedule_generator) as user:
             await user.open("/")
-            with user.client:
+            with active_client(user):
                 assert not list(ElementFilter(kind=ui.select))
                 current_config_checkbox = next(
                     iter(
@@ -49,7 +50,7 @@ def test_schedule_generator_loads_uploaded_configuration(monkeypatch):
             user.find("Load configuration").click()
             await user.should_see("Load Configuration")
 
-            with user.client:
+            with active_client(user):
                 upload = next(iter(ElementFilter(kind=ui.upload)))
                 await upload.handle_uploads(
                     [SmallFileUpload("demo.json", "application/json", content)]
@@ -82,7 +83,7 @@ def test_current_editor_configuration_disables_upload_and_generates(
     async def simulate():
         async with user_simulation(root=generator.schedule_generator) as user:
             await user.open("/")
-            with user.client:
+            with active_client(user):
                 use_current_checkbox = next(
                     iter(
                         ElementFilter(
@@ -104,7 +105,7 @@ def test_current_editor_configuration_disables_upload_and_generates(
 
             user.find("Use current loaded configuration").click()
 
-            with user.client:
+            with active_client(user):
                 assert not load_button.enabled
 
             user.find("Generate Schedules").click()

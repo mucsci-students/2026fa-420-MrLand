@@ -10,16 +10,17 @@ Used by: GUI."""
 from collections.abc import Callable
 
 from nicegui import ui
+
 from src.controllers.schedule_controller import (
     schedule_controller as controller,
 )
 from src.controllers.schedule_filters_controller import (
-    filter_by_resource,
-    filter_by_faculty,
     filter_by_course,
+    filter_by_faculty,
+    filter_by_resource,
 )
-from src.views.schedule_table_view import schedule_table_view
 from src.views.schedule_calendar_view import schedule_calendar_view
+from src.views.schedule_table_view import schedule_table_view
 
 # set the background and accent colors for the schedule viewer
 BACKGROUND = "#101820"
@@ -146,75 +147,81 @@ def schedule_viewer() -> Callable[[], None]:
         # Load dialog
         # ---------------------------------------------------------
 
-        with ui.dialog() as load_dialog:
-            with ui.card().classes("bg-[#101820] border border-[#29404b] w-[480px] gap-3"):
-                ui.label("Load Schedule").classes("text-lg font-semibold text-white")
+        with (
+            ui.dialog() as load_dialog,
+            ui.card().classes("bg-[#101820] border border-[#29404b] w-[480px] gap-3"),
+        ):
+            ui.label("Load Schedule").classes("text-lg font-semibold text-white")
 
-                load_status = ui.label("").classes("text-sm text-red-400")
+            load_status = ui.label("").classes("text-sm text-red-400")
 
-                ui.label(
-                    "Upload a CSV or JSON schedule from your computer."
-                ).classes("text-sm text-gray-400")
+            ui.label(
+                "Upload a CSV or JSON schedule from your computer."
+            ).classes("text-sm text-gray-400")
 
-                upload = ui.upload(
-                    auto_upload=True,
-                    max_files=1,
-                ).props("accept=.csv,.json dark flat bordered").classes(
-                    "w-full schedule-load-upload"
-                )
-                
-                with ui.row().classes("w-full justify-end"):
-                    ui.button(
-                        "Cancel",
-                        on_click=lambda: cancel_load(),
-                    ).props("flat")
+            upload = ui.upload(
+                auto_upload=True,
+                max_files=1,
+            ).props("accept=.csv,.json dark flat bordered").classes(
+                "w-full schedule-load-upload"
+            )
+
+            with ui.row().classes("w-full justify-end"):
+                ui.button(
+                    "Cancel",
+                    on_click=lambda: cancel_load(),
+                ).props("flat")
 
         # ---------------------------------------------------------
         # Export dialog
         # ---------------------------------------------------------
 
-        with ui.dialog() as export_dialog:
-            with ui.card().classes("bg-[#101820] border border-[#29404b] w-[480px] gap-3"):
-                ui.label("Export Schedule").classes("text-lg font-semibold text-white")
-                export_description = ui.label("").classes("text-sm text-gray-400")
+        with (
+            ui.dialog() as export_dialog,
+            ui.card().classes("bg-[#101820] border border-[#29404b] w-[480px] gap-3"),
+        ):
+            ui.label("Export Schedule").classes("text-lg font-semibold text-white")
+            export_description = ui.label("").classes("text-sm text-gray-400")
 
-                export_format = ui.select(
-                    {"csv": "CSV", "json": "JSON"},
-                    value="csv",
-                    label="File Format",
-                ).props("outlined dark").classes("schedule-dropdown w-full")
+            export_format = ui.select(
+                {"csv": "CSV", "json": "JSON"},
+                value="csv",
+                label="File Format",
+            ).props("outlined dark").classes("schedule-dropdown w-full")
 
-                export_name = ui.input(
-                    label="File Name",
-                ).props("outlined dark").classes("schedule-dropdown w-full")
+            export_name = ui.input(
+                label="File Name",
+            ).props("outlined dark").classes("schedule-dropdown w-full")
 
-                export_status = ui.label("").classes("text-sm text-red-400")
+            export_status = ui.label("").classes("text-sm text-red-400")
 
-                with ui.row().classes("w-full justify-end gap-2"):
-                    ui.button("Cancel", on_click=export_dialog.close).props("flat")
-                    export_button = ui.button("Export", icon="download")
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button("Cancel", on_click=export_dialog.close).props("flat")
+                export_button = ui.button("Export", icon="download")
 
-        with ui.dialog() as export_all_dialog:
-            with ui.card().classes("bg-[#101820] border border-[#29404b] w-[480px] gap-3"):
-                ui.label("Export All Generated Schedules").classes(
-                    "text-lg font-semibold text-white"
+        with (
+            ui.dialog() as export_all_dialog,
+            ui.card().classes("bg-[#101820] border border-[#29404b] w-[480px] gap-3"),
+        ):
+            ui.label("Export All Generated Schedules").classes(
+                "text-lg font-semibold text-white"
+            )
+            ui.label(
+                "Download every generated schedule together in one ZIP archive."
+            ).classes("text-sm text-gray-400")
+            export_all_format = ui.select(
+                {"csv": "CSV", "json": "JSON"},
+                value="csv",
+                label="Schedule File Format",
+            ).props("outlined dark").classes("schedule-dropdown w-full")
+            export_all_status = ui.label("").classes("text-sm text-red-400")
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button(
+                    "Cancel", on_click=export_all_dialog.close
+                ).props("flat")
+                export_all_button = ui.button(
+                    "Export All", icon="folder_zip"
                 )
-                ui.label(
-                    "Download every generated schedule together in one ZIP archive."
-                ).classes("text-sm text-gray-400")
-                export_all_format = ui.select(
-                    {"csv": "CSV", "json": "JSON"},
-                    value="csv",
-                    label="Schedule File Format",
-                ).props("outlined dark").classes("schedule-dropdown w-full")
-                export_all_status = ui.label("").classes("text-sm text-red-400")
-                with ui.row().classes("w-full justify-end gap-2"):
-                    ui.button(
-                        "Cancel", on_click=export_all_dialog.close
-                    ).props("flat")
-                    export_all_button = ui.button(
-                        "Export All", icon="folder_zip"
-                    )
 
         # ---------------------------------------------------------
         # Schedule controls
@@ -356,19 +363,13 @@ def schedule_viewer() -> Callable[[], None]:
             filter_type = filter_select.value
 
             if filter_type == "Course":
-                values = sorted(
-                    set(course["course"] for course in schedule)
-                )
+                values = sorted({course["course"] for course in schedule})
 
             elif filter_type == "Faculty":
-                values = sorted(
-                    set(course["faculty"] for course in schedule)
-                )
+                values = sorted({course["faculty"] for course in schedule})
 
             elif filter_type == "Room / Lab":
-                values = sorted(
-                    set(course["resource"] for course in schedule)
-                )
+                values = sorted({course["resource"] for course in schedule})
 
             else:
                 values = []
@@ -578,6 +579,9 @@ def schedule_viewer() -> Callable[[], None]:
             )
             if error:
                 export_status.text = error
+                return
+            if export is None:
+                export_status.text = "No schedule export is available."
                 return
             content, file_name, media_type = export
             ui.download(content, filename=file_name, media_type=media_type)

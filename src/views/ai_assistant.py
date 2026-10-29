@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import asyncio
-from concurrent.futures import Future, TimeoutError
 import os
 from collections.abc import Callable
+from concurrent.futures import Future, TimeoutError
 from typing import Any
 
 from nicegui import ui

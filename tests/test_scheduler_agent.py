@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import src.ai.scheduler_agent as scheduler_agent
+from src.ai import scheduler_agent
 from src.ai.scheduler_agent import SchedulerAgentState, get_tool_list
 from src.controllers.configuration_controller import ConfigurationController
 from src.models.configuration_model import ValidationProblem
@@ -298,7 +298,7 @@ def test_meeting_tools_create_update_inspect_and_confirm_delete():
 
 
 def test_overwriting_saved_configuration_requires_confirmation(monkeypatch):
-    import src.ai.agent_tools as agent_tools
+    from src.ai import agent_tools
 
     config = ConfigurationController().new_configuration()
     saved_names = []
@@ -349,7 +349,7 @@ def test_invalid_tool_arguments_return_structured_failure():
 
 
 def test_save_tool_uses_the_application_save_callback(monkeypatch):
-    import src.ai.agent_tools as agent_tools
+    from src.ai import agent_tools
 
     config = ConfigurationController().new_configuration()
     saved_names = []
@@ -367,11 +367,10 @@ def test_save_tool_uses_the_application_save_callback(monkeypatch):
 
 
 def test_generate_schedules_uses_the_active_configuration(monkeypatch):
-    import src.ai.agent_tools as agent_tools
-    import src.models.schedule_generator_model as schedule_generator_model
-
+    from src.ai import agent_tools
     from src.controllers.schedule_controller import ScheduleController
     from src.controllers.schedule_generator_controller import ScheduleGeneratorController
+    from src.models import schedule_generator_model
     from src.models.schedule_generator_model import ScheduleGeneratorModel
 
     config = ConfigurationController().new_configuration()
@@ -408,4 +407,5 @@ def test_generate_schedules_uses_the_active_configuration(monkeypatch):
     assert "Schedule Viewer tab" in result["message"]
     assert "CS 101.01" not in result["message"]
     assert viewer.sync_generated()
+    assert viewer.current is not None
     assert viewer.current.records[0]["course"] == "CS 101.01"

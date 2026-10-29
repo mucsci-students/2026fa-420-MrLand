@@ -136,7 +136,7 @@ def build_scheduler_agent(
 # Invoke the agent with the query and prior conversation messages.
 def invoke_scheduler_agent(
     *,
-    config: CombinedConfig,
+    config: CombinedConfig | None,
     query: str,
     history: list[Any] | None = None,
     apply_change: Callable[[Callable[[], Any]], tuple[bool, list[Any]]] | None = None,

@@ -4,12 +4,15 @@ Unit tests for the ScheduleGeneratorController class.
 """
 
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
+from scheduler.config import OptimizerFlags
 
 from src.controllers.schedule_generator_controller import (
     ScheduleGeneratorController,
 )
+from src.models.schedule_generator_model import ScheduleGeneratorModel
 
 
 class FakeGeneratorModel:
@@ -67,7 +70,7 @@ def model():
 
 @pytest.fixture
 def controller(model):
-    return ScheduleGeneratorController(model=model)
+    return ScheduleGeneratorController(model=cast(ScheduleGeneratorModel, model))
 
 
 class TestStartGenerationValidation:
@@ -82,13 +85,14 @@ class TestStartGenerationValidation:
 
     def test_rejects_request_when_already_running(self):
         model = FakeGeneratorModel(running=True)
-        controller = ScheduleGeneratorController(model=model)
+        controller = ScheduleGeneratorController(model=cast(ScheduleGeneratorModel, model))
 
         requested, error = controller.start_generation(
             "config.json", None, None
         )
 
         assert requested is None
+        assert error is not None
         assert "already in progress" in error
         assert model.begin_calls == []
 
@@ -221,7 +225,7 @@ class TestStartGeneration:
         model.load_error = RuntimeError("saved config should not be loaded")
 
         requested, error = controller.start_generation(
-            "uploaded", "25", ["override"], "45", "15",
+            "uploaded", "25", [OptimizerFlags.FACULTY_COURSE.value], "45", "15",
             loaded_config=uploaded_config,
         )
 
@@ -232,7 +236,7 @@ class TestStartGeneration:
         assert started_threads[0].target == model.generate_configuration
         generated_config = started_threads[0].args[1]
         assert generated_config.limit == 25
-        assert generated_config.optimizer_flags == ["override"]
+        assert generated_config.optimizer_flags == [OptimizerFlags.FACULTY_COURSE]
         assert generated_config.time_slot_config.max_time_gap == 45
         assert generated_config.time_slot_config.min_time_overlap == 15
         assert started_threads[0].daemon is True
@@ -270,6 +274,7 @@ class TestStartGeneration:
 
         assert first_result == (10, None)
         assert second_result[0] is None
+        assert second_result[1] is not None
         assert "already in progress" in second_result[1]
         assert len(started_threads) == 1
 
@@ -277,7 +282,7 @@ class TestStartGeneration:
 class TestGenerateActiveConfiguration:
     def test_rejects_request_when_already_running(self):
         model = FakeGeneratorModel(running=True)
-        controller = ScheduleGeneratorController(model=model)
+        controller = ScheduleGeneratorController(model=cast(ScheduleGeneratorModel, model))
         config = SimpleNamespace(limit=5)
 
         state, error = controller.generate_active_configuration(
@@ -285,6 +290,7 @@ class TestGenerateActiveConfiguration:
         )
 
         assert state is None
+        assert error is not None
         assert "already in progress" in error
         assert model.begin_calls == []
         assert model.generate_configuration_calls == []

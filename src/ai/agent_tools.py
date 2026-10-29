@@ -18,6 +18,7 @@ from scheduler.config import (
     RoomConfig,
     TimeBlock,
 )
+
 from src.controllers.schedule_generator_controller import (
     schedule_generator_controller,
 )
@@ -456,13 +457,15 @@ class SchedulerAgentState:
                 ],
             )
         try:
-            if self._configuration_exists(config_name):
-                if self._confirm_action is None or not self._confirm_action(
+            if self._configuration_exists(config_name) and (
+                self._confirm_action is None
+                or not self._confirm_action(
                     f"Replace the saved configuration '{config_name}.json'?"
-                ):
-                    return self._result(
-                        False, "Save cancelled; the existing file was not changed."
-                    )
+                )
+            ):
+                return self._result(
+                    False, "Save cancelled; the existing file was not changed."
+                )
             if self._save_configuration is not None:
                 self._save_configuration(config_name)
             else:

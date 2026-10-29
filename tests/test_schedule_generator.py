@@ -11,13 +11,14 @@ from src.controllers.schedule_generator_controller import (
 )
 from src.models import schedule_generator_model
 from src.models.schedule_generator_model import ScheduleGeneratorModel
+from tests.conftest import active_client
 
 
 def test_generation_limit_override_is_grouped_before_time_slot_settings(
     monkeypatch,
 ):
     monkeypatch.setattr(
-        schedule_generator_view.controller, "list_config_names", lambda: []
+        schedule_generator_view.controller, "list_config_names", list
     )
 
     async def simulate():
@@ -25,7 +26,7 @@ def test_generation_limit_override_is_grouped_before_time_slot_settings(
             root=schedule_generator_view.schedule_generator
         ) as user:
             await user.open("/")
-            with user.client:
+            with active_client(user):
                 configured_limit = next(
                     iter(
                         ElementFilter(
@@ -108,17 +109,15 @@ def test_controller_rejects_invalid_time_slot_overrides(
     setting, value, expected_error
 ):
     controller = ScheduleGeneratorController()
-    overrides = {
-        "max_time_gap_override_value": "",
-        "min_time_overlap_override_value": "",
-    }
-    overrides[setting] = value
+    max_time_gap = value if setting == "max_time_gap_override_value" else ""
+    min_time_overlap = value if setting == "min_time_overlap_override_value" else ""
 
     requested, error = controller.start_generation(
         "sample",
         "",
         None,
-        **overrides,
+        max_time_gap_override_value=max_time_gap,
+        min_time_overlap_override_value=min_time_overlap,
     )
 
     assert requested is None

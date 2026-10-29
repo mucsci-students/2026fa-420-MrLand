@@ -1,8 +1,8 @@
 """Shared NiceGUI helpers for applying configuration changes."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Any
 
 from nicegui import ui
 from nicegui.element import Element
@@ -36,7 +36,7 @@ class PendingFormChanges:
         self._set_pending(False)
 
     @contextmanager
-    def suspend(self) -> Iterator[None]:
+    def suspend(self) -> Generator[None, None, None]:
         previous = self._suspended
         self._suspended = True
         try:
@@ -91,7 +91,7 @@ def run_crud_mutation(
         return False
 
 
-def parse_whole_number(value: object, error_message: str) -> int:
+def parse_whole_number(value: str | float, error_message: str) -> int:
     """Parse a numeric form value as an integer with a page-specific error."""
     try:
         number = float(value)

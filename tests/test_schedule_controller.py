@@ -2,10 +2,13 @@
 Tests for ScheduleController.py
 
 """
+from typing import cast
+
 import pytest
 
 from src.controllers.schedule_controller import ScheduleController
-from src.models.schedule_viewer_model import ScheduleEntry
+from src.controllers.schedule_generator_controller import ScheduleGeneratorController
+from src.models.schedule_viewer_model import ScheduleEntry, ScheduleViewerModel
 
 
 class FakeModel:
@@ -79,7 +82,10 @@ def controller(sample_records):
 
     model = FakeModel(entries)
     generator = FakeGenerator()
-    return ScheduleController(model=model, generator=generator)
+    return ScheduleController(
+        model=cast(ScheduleViewerModel, model),
+        generator=cast(ScheduleGeneratorController, generator),
+    )
 
 
 class TestScheduleNavigation:
@@ -88,8 +94,8 @@ class TestScheduleNavigation:
 
     def test_no_schedules_when_entries_are_empty(self):
         controller = ScheduleController(
-            model=FakeModel(),
-            generator=FakeGenerator(),
+            model=cast(ScheduleViewerModel, FakeModel()),
+            generator=cast(ScheduleGeneratorController, FakeGenerator()),
         )
 
         assert controller.has_schedules is False

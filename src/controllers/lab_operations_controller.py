@@ -6,6 +6,7 @@ import re
 
 from scheduler.config import LabConfig
 
+
 def find_lab(labs, name, exclude=None):
     for lab in labs:
         if lab is exclude:

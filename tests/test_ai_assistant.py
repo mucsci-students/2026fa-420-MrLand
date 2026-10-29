@@ -5,6 +5,7 @@ from nicegui.testing import user_simulation
 
 from src.controllers.configuration_controller import ConfigurationController
 from src.views.ai_assistant import scheduler_ai_assistant
+from tests.conftest import active_client
 
 
 @pytest.mark.parametrize(
@@ -31,7 +32,7 @@ def test_unlock_assistant_displays_combination_hat(combination_name, emoji):
     async def simulate():
         async with user_simulation(root=root) as user:
             await user.open("/")
-            with user.client:
+            with active_client(user):
                 unlock_callbacks[0](combination_name, emoji)
             await user.should_see(emoji)
 
@@ -53,10 +54,10 @@ def test_unlocking_another_combination_updates_the_hat():
     async def simulate():
         async with user_simulation(root=root) as user:
             await user.open("/")
-            with user.client:
+            with active_client(user):
                 unlock_callbacks[0]("top_hat", "🎩")
             await user.should_see("🎩")
-            with user.client:
+            with active_client(user):
                 unlock_callbacks[0]("baseball_cap", "🧢")
             await user.should_see("🧢")
             await user.should_not_see("🎩")

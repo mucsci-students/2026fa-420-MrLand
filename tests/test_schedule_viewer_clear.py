@@ -1,8 +1,10 @@
 import asyncio
 from types import SimpleNamespace
+from typing import cast
 
 from nicegui import ElementFilter, ui
 from nicegui.testing import user_simulation
+from scheduler.models.course import CourseInstance
 
 import src.views.schedule_viewer as viewer
 from src.controllers.schedule_controller import ScheduleController
@@ -13,6 +15,7 @@ from src.models.schedule_files import records_to_csv
 from src.models.schedule_generator_model import ScheduleGeneratorModel
 from src.models.schedule_result import ScheduleResult
 from src.models.schedule_viewer_model import ScheduleViewerModel
+from tests.conftest import active_client
 
 
 def test_clear_generated_results_preserves_uploaded_schedules(
@@ -23,13 +26,13 @@ def test_clear_generated_results_preserves_uploaded_schedules(
         ScheduleResult(
             config_name="generated",
             schedule=[
-                SimpleNamespace(
+                cast(CourseInstance, SimpleNamespace(
                     course="CS101",
                     faculty="Dr. Smith",
                     room="Room 101",
                     lab=None,
                     time="MON 09:00-09:50",
-                )
+                ))
             ],
         )
     )
@@ -57,7 +60,7 @@ def test_clear_generated_results_preserves_uploaded_schedules(
     async def simulate():
         async with user_simulation(root=viewer.schedule_viewer) as user:
             await user.open("/")
-            with user.client:
+            with active_client(user):
                 clear_button = next(
                     iter(
                         ElementFilter(
@@ -74,8 +77,9 @@ def test_clear_generated_results_preserves_uploaded_schedules(
             assert generator_model.generated_schedules == []
             assert controller.has_generated_schedules is False
             assert controller.current is entry
+            assert controller.current is not None
             assert controller.current.file_name == "imported.csv"
-            with user.client:
+            with active_client(user):
                 assert not clear_button.enabled
 
     asyncio.run(simulate())

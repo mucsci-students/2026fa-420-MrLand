@@ -1,5 +1,7 @@
 import asyncio
 import json
+from collections.abc import Callable
+from typing import Any, cast
 from unittest.mock import Mock
 
 import pytest
@@ -11,6 +13,7 @@ from nicegui.testing import UserInteraction, user_simulation
 import src.views.configuration_editor as editor
 from src.controllers.configuration_controller import ConfigurationController
 from src.models import configuration_repository as config_repo
+from tests.conftest import active_client
 from tests.test_configuration import make_valid_config
 
 
@@ -30,7 +33,9 @@ def run_editor_simulation(action, on_unlock=None):
     refresh_callbacks = []
 
     def root():
-        refresh = editor.configuration_editor(on_unlock or (lambda: None))
+        refresh = editor.configuration_editor(
+            on_unlock or (lambda _name, _emoji: None)
+        )
         refresh_callbacks.append(refresh)
 
     async def simulate():
@@ -92,13 +97,13 @@ async def load_demo_config(user, controller, mark_unsaved=None):
 
 
 async def upload_config(user, file_name, content):
-    with user.client:
+    with active_client(user):
         upload = next(iter(ElementFilter(kind=ui.upload)))
         await upload.handle_uploads([SmallFileUpload(file_name, "application/json", content)])
 
 
 def click_open_dialog_button(user, label):
-    with user.client:
+    with active_client(user):
         dialogs = [dialog for dialog in user.find(ui.dialog).elements if dialog.value]
         assert len(dialogs) == 1
         dialog = dialogs[0]
@@ -111,7 +116,7 @@ def click_open_dialog_button(user, label):
 
 
 def find_dialog_with_label(user, label):
-    with user.client:
+    with active_client(user):
         for dialog in user.find(ui.dialog).elements:
             labels = ElementFilter(kind=ui.label, content=label).within(instance=dialog)
             if next(iter(labels), None) is not None:
@@ -232,7 +237,7 @@ def test_failed_upload_resets_control_and_allows_retry(
     async def action(user, _mark_unsaved):
         await load_demo_config(user, editor_controller)
         draft = editor_controller.configuration
-        with user.client:
+        with active_client(user):
             upload = next(iter(ElementFilter(kind=ui.upload)))
         reset = Mock(wraps=upload.reset)
         monkeypatch.setattr(upload, "reset", reset)
@@ -315,11 +320,14 @@ def test_canceling_upload_prevents_late_configuration_replacement(
             return await read_upload(event)
 
         monkeypatch.setattr(editor, "read_upload", delayed_read)
-        async with user_simulation(root=lambda: editor.configuration_editor(lambda: None)) as user:
+        async with user_simulation(
+            root=lambda: editor.configuration_editor(lambda _name, _emoji: None)
+        ) as user:
             await user.open("/")
             user.find("Load configuration").click()
             await user.should_see("Load Configuration")
-            with user.client:
+            client = active_client(user)
+            with client:
                 upload = next(iter(ElementFilter(kind=ui.upload)))
                 load_dialog = next(
                     ancestor for ancestor in upload.ancestors()
@@ -327,12 +335,14 @@ def test_canceling_upload_prevents_late_configuration_replacement(
                 )
                 event = UploadEventArguments(
                     sender=upload,
-                    client=user.client,
+                    client=client,
                     file=SmallFileUpload("late.json", "application/json", content),
                 )
-                pending = asyncio.create_task(
-                    upload._upload_handlers[0](event)
+                upload_handler = cast(
+                    Callable[[UploadEventArguments], Any],
+                    upload._upload_handlers[0],
                 )
+                pending = asyncio.create_task(upload_handler(event))
             try:
                 await asyncio.wait_for(started.wait(), timeout=2)
                 click_open_dialog_button(user, "Cancel")

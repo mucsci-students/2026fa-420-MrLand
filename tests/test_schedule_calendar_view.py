@@ -5,6 +5,7 @@ Tests for the Calendar View
 
 
 import pytest
+
 from src.views.schedule_calendar_view import ScheduleCalendarView
 
 # ---------------------------------------------------------

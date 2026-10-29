@@ -7,12 +7,11 @@ import pytest
 
 from src.controllers.schedule_filters_controller import (
     create_resource_schedule,
-    sort_schedule,
-    filter_by_resource,
-    filter_by_faculty,
     filter_by_course,
+    filter_by_faculty,
+    filter_by_resource,
+    sort_schedule,
 )
-
 
 # ---------------------------------------------------------
 # Schedule Stub

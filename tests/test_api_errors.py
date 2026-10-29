@@ -1,18 +1,18 @@
 """Tests for the Scheduler AI friendly error messages."""
 
-import httpx
+import httpx2
 import openai
 import pytest
 from langchain_core.exceptions import LangChainException
 
 from src.ai.api_errors import MISSING_KEY_MESSAGE, friendly_error_message
 
-REQUEST = httpx.Request("POST", "https://api.openai.com/v1/responses")
+REQUEST = httpx2.Request("POST", "https://api.openai.com/v1/responses")
 
 
 def status_error(error_class, status_code, message="error", body=None):
     """Build an OpenAI status error the same way the OpenAI client does."""
-    response = httpx.Response(status_code, request=REQUEST)
+    response = httpx2.Response(status_code, request=REQUEST)
     return error_class(message, response=response, body=body)
 
 

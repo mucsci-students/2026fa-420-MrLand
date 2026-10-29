@@ -3,8 +3,9 @@ Tests for the ScheduleGeneratorModel class, which manages the state of schedule 
 
 """
 
-from types import SimpleNamespace
 import threading
+from types import SimpleNamespace
+from typing import Any, ClassVar
 
 import pytest
 
@@ -14,9 +15,11 @@ from src.models.schedule_generator_model import ScheduleGeneratorModel
 class FakeScheduler:
     """Controllable replacement for the real scheduler."""
 
-    schedules = []
-    audit_valid = True
-    diagnosis_result = {"reason": "No compatible room assignments"}
+    schedules: ClassVar[list[Any] | Exception] = []
+    audit_valid: ClassVar[bool] = True
+    diagnosis_result: ClassVar[dict[str, str]] = {
+        "reason": "No compatible room assignments"
+    }
 
     def __init__(self, config):
         self.config = config

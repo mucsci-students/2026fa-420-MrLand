@@ -41,7 +41,7 @@ def rooms_gui(
     room_list = ui.column().classes("w-full gap-1")
 
     with ui.row().classes("w-full flex-wrap items-center gap-2"):
-        add_button = ui.button("Add new room", icon="add", on_click=lambda: show_form()).props(
+        ui.button("Add new room", icon="add", on_click=lambda: show_form()).props(
             "unelevated"
         ).classes("bg-[#75e6da] text-[#101820]")
 

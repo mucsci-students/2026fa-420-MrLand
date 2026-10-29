@@ -12,8 +12,11 @@ update(filtered_schedule) whenever the schedule or a shared filter changes.
 from __future__ import annotations
 
 from math import ceil, floor
+from typing import Any, TypedDict
 
 from nicegui import ui
+from scheduler.config import FacultyConfig, LabConfig, RoomConfig
+from scheduler.models.course import Course
 
 from src.controllers.schedule_controller import schedule_controller as controller
 from src.controllers.schedule_inspection_controller import (
@@ -23,7 +26,6 @@ from src.controllers.schedule_inspection_controller import (
     get_room_details,
 )
 
-
 DAYS = [
     ("MON", "Monday"),
     ("TUE", "Tuesday"),
@@ -31,6 +33,16 @@ DAYS = [
     ("THU", "Thursday"),
     ("FRI", "Friday"),
 ]
+
+ScheduleRow = dict[str, Any]
+OverlapCluster = list[tuple[ScheduleRow, int, int]]
+
+
+class SelectedMeeting(TypedDict):
+    row: ScheduleRow
+    start: int
+    end: int
+    cluster: OverlapCluster
 
 
 class ScheduleCalendarView:
@@ -47,9 +59,9 @@ class ScheduleCalendarView:
 
         # Adds custom CSS for styling the Calendar
         ui.add_head_html(
-            f"""
+            """
             <style>
-                .schedule-calendar-fullscreen {{
+                .schedule-calendar-fullscreen {
                     position: fixed !important;
                     inset: 0 !important;
                     z-index: 1000 !important;
@@ -60,30 +72,30 @@ class ScheduleCalendarView:
                     padding: 12px !important;
                     box-sizing: border-box !important;
                     background: var(--app-background) !important;
-                }}
+                }
 
-                .schedule-calendar-fullscreen .schedule-calendar-scroll {{
+                .schedule-calendar-fullscreen .schedule-calendar-scroll {
                     height: calc(100dvh - 90px);
                     overflow: hidden;
-                }}
+                }
 
-                .schedule-calendar-fullscreen .schedule-calendar-grid {{
+                .schedule-calendar-fullscreen .schedule-calendar-grid {
                     min-width: 0;
                     height: 100%;
-                }}
-                .schedule-calendar-scroll {{
+                }
+                .schedule-calendar-scroll {
                     width: 100%;
                     overflow-x: auto;
                     border: 1px solid var(--border-color);
                     border-radius: 8px;
-                }}
-                .schedule-calendar-grid {{
+                }
+                .schedule-calendar-grid {
                     display: grid;
                     grid-template-columns: 76px repeat(5, minmax(150px, 1fr));
                     min-width: 850px;
                     background: var(--app-background);
-                }}
-                .schedule-calendar-heading {{
+                }
+                .schedule-calendar-heading {
                     position: sticky;
                     top: 0;
                     z-index: 2;
@@ -94,16 +106,16 @@ class ScheduleCalendarView:
                     background: var(--surface-raised);
                     border-bottom: 1px solid var(--border-color);
                     border-right: 1px solid var(--border-color);
-                }}
-                .schedule-calendar-time {{
+                }
+                .schedule-calendar-time {
                     box-sizing: border-box;
                     padding: 4px 8px 0 0;
                     text-align: right;
                     color: var(--text-muted);
                     font-size: 12px;
                     border-right: 1px solid var(--border-color);
-                }}
-                .schedule-calendar-day {{
+                }
+                .schedule-calendar-day {
                     position: relative;
                     border-right: 1px solid var(--border-color);
                     background-image: repeating-linear-gradient(
@@ -113,8 +125,8 @@ class ScheduleCalendarView:
                         var(--border-color) 59px,
                         var(--border-color) 60px
                     );
-                }}
-                .schedule-calendar-event {{
+                }
+                .schedule-calendar-event {
                     position: absolute;
                     top: 0;
                     box-sizing: border-box;
@@ -127,26 +139,26 @@ class ScheduleCalendarView:
                     line-height: 1.3;
                     cursor: pointer;
                     min-width: 0;
-                }}
-                .schedule-calendar-event:hover {{
+                }
+                .schedule-calendar-event:hover {
                     filter: brightness(1.2);
                     z-index: 1;
-                }}
-                .schedule-calendar-event-title {{
+                }
+                .schedule-calendar-event-title {
                     font-weight: 700;
                     overflow-wrap: anywhere;
                     word-break: break-word;
-                }}
-                .schedule-calendar-event-details {{
+                }
+                .schedule-calendar-event-details {
                     color: #e0eaec;
                     overflow-wrap: anywhere;
                     word-break: break-word;
-                }}
-                .schedule-calendar-empty {{
+                }
+                .schedule-calendar-empty {
                     padding: 24px;
                     color: var(--text-muted);
                     text-align: center;
-                }}
+                }
             </style>
             """
         )
@@ -168,30 +180,29 @@ class ScheduleCalendarView:
         # Fullscreen pop-up
         self.fullscreen_dialog = ui.dialog().props("maximized")
 
-        with self.fullscreen_dialog:
-            with ui.card().classes(
-                "w-full h-full gap-2"
-            ).style("background: var(--app-background); color: var(--app-foreground);"
-                    "display: flex; flex-direction: column;"
-                    ):
-                with ui.row().classes(
-                    "w-full items-center justify-end gap-2"
+        with self.fullscreen_dialog, ui.card().classes(
+            "w-full h-full gap-2"
+        ).style("background: var(--app-background); color: var(--app-foreground);"
+                "display: flex; flex-direction: column;"
                 ):
-                    ui.button(
-                        "Export",
-                        icon="download",
-                        on_click=self._open_export,
-                    ).props("outline")
+            with ui.row().classes(
+                "w-full items-center justify-end gap-2"
+            ):
+                ui.button(
+                    "Export",
+                    icon="download",
+                    on_click=self._open_export,
+                ).props("outline")
 
-                    ui.button(
-                        "Exit Fullscreen",
-                        icon="close",
-                        on_click=self.fullscreen_dialog.close,
-                    ).props("outline")
+                ui.button(
+                    "Exit Fullscreen",
+                    icon="close",
+                    on_click=self.fullscreen_dialog.close,
+                ).props("outline")
 
-                self.popup_calendar_content = ui.column().classes(
-                    "w-full gap-0"
-                ).style("flex: 1; min-height: 0; overflow-x: auto; overflow-y: auto;")
+            self.popup_calendar_content = ui.column().classes(
+                "w-full gap-0"
+            ).style("flex: 1; min-height: 0; overflow-x: auto; overflow-y: auto;")
     # ---------------------------------------------------------
     # Fullscreen Calendar Methods
     # ---------------------------------------------------------
@@ -294,12 +305,14 @@ class ScheduleCalendarView:
             scroll_style = ""
 
         # Creates the calendar grid with day headings, time labels, and event blocks for each course
-        with target:
-            with ui.element("div").classes("schedule-calendar-scroll").style(scroll_style):
-                with ui.element("div").classes("schedule-calendar-grid").style(
+        with (
+            target,
+            ui.element("div").classes("schedule-calendar-scroll").style(scroll_style),
+            ui.element("div").classes("schedule-calendar-grid").style(
                     # changes number of columns based on the number of visible days
                     grid_style
-                    ):
+                    ),
+        ):
                     ui.element("div").classes("schedule-calendar-heading").style(
                         "grid-column: 1; grid-row: 1;"
                     ).props("aria-label='Time'")
@@ -467,29 +480,43 @@ class ScheduleCalendarView:
     # only shown when matching configuration details exist for the selected meeting.
     def _show_details(
         self,
-        row: dict,
+        row: ScheduleRow,
         start: int,
         end: int,
-        cluster: list[tuple[dict, int, int]],
+        cluster: OverlapCluster,
     ) -> None:
-        selected = {"row": row, "start": start, "end": end, "cluster": cluster}
+        selected: SelectedMeeting = {
+            "row": row,
+            "start": start,
+            "end": end,
+            "cluster": cluster,
+        }
         active_section = {"value": "Overview"}
 
         # create and format pop-up dialog
-        with ui.dialog() as dialog:
-            with ui.card().classes("w-[min(900px,95vw)] max-w-none bg-[#101820] text-[#d8e7e8]"):
-                heading = ui.label().classes("text-xl font-bold")
-                with ui.row().classes("w-full items-stretch gap-4"):
-                    navigation = ui.column().classes(
-                        "w-44 shrink-0 gap-2 border-r border-[#29404b] pr-3"
-                    )
-                    content = ui.column().classes("min-w-0 flex-1 gap-3")
+        with (
+            ui.dialog() as dialog,
+            ui.card().classes(
+                "w-[min(900px,95vw)] max-w-none bg-[#101820] text-[#d8e7e8]"
+            ),
+        ):
+            heading = ui.label().classes("text-xl font-bold")
+            with ui.row().classes("w-full items-stretch gap-4"):
+                navigation = ui.column().classes(
+                    "w-44 shrink-0 gap-2 border-r border-[#29404b] pr-3"
+                )
+                content = ui.column().classes("min-w-0 flex-1 gap-3")
 
-                with ui.row().classes("w-full justify-end"):
-                    ui.button("Close", on_click=dialog.close).props("outline")
+            with ui.row().classes("w-full justify-end"):
+                ui.button("Close", on_click=dialog.close).props("outline")
 
         # Return available course/faculty/resource details for the selected meeting.
-        def configuration_details() -> tuple[object | None, object | None, object | None, str | None]:
+        def configuration_details() -> tuple[
+            Course | None,
+            FacultyConfig | None,
+            RoomConfig | LabConfig | None,
+            str | None,
+        ]:
             current = controller.current
             if current is None or current.config is None:
                 return None, None, None, None
@@ -640,7 +667,12 @@ class ScheduleCalendarView:
                     ui.label(f"Features: {features}")
 
         # Change the selected meeting inside the existing dialog.
-        def select_meeting(new_row: dict, new_start: int, new_end: int, new_cluster: list[tuple[dict, int, int]]) -> None:
+        def select_meeting(
+            new_row: ScheduleRow,
+            new_start: int,
+            new_end: int,
+            new_cluster: OverlapCluster,
+        ) -> None:
             selected["row"] = new_row
             selected["start"] = new_start
             selected["end"] = new_end

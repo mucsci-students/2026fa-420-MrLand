@@ -4,8 +4,8 @@ Used by: GUI."""
 
 import copy
 from collections.abc import Callable
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 from threading import RLock
 from typing import TypeVar
 

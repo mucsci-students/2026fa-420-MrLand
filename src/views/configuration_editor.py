@@ -5,15 +5,17 @@ Used by: GUI."""
 from __future__ import annotations
 
 from collections.abc import Callable
+from typing import TypedDict
 
 from nicegui import ui
+from nicegui.elements.badge import Badge
+from nicegui.elements.button import Button
+from scheduler.config import CombinedConfig
 
 from src.controllers.configuration_controller import (
     ConfigurationController,
     ConfigurationMemento,
 )
-from src.models.configuration_repository import ConfigLoadError
-from src.controllers.configuration_controller import ConfigurationController
 from src.models.configuration_model import ConfigValidationError, validate_config_name
 from src.models.configuration_repository import ConfigLoadError
 from src.views.class_patterns_gui import class_patterns_gui
@@ -24,7 +26,6 @@ from src.views.global_settings_gui import global_settings_gui
 from src.views.labs_gui import labs_gui
 from src.views.rooms_gui import rooms_gui
 from src.views.time_blocks_gui import time_blocks_gui
-
 
 controller = ConfigurationController()
 TOP_HAT_COMBINATION = ("Rooms", "Time blocks", "Faculty", "Faculty")
@@ -58,6 +59,17 @@ class ConfigurationEditorRefresh:
         self._refresh(saved=saved)
 
 
+class EditorState(TypedDict):
+    config: CombinedConfig | None
+    name: str | None
+    saved: bool
+    pending_forms: set[str]
+    status_badge: Badge | None
+    undo_button: Button | None
+    redo_button: Button | None
+    flush_pending_settings: Callable[[], bool]
+
+
 # Return the uploaded file name and contents.
 async def read_upload(event) -> tuple[str, bytes]:
     if hasattr(event, "file"):  # NiceGUI 3.x
@@ -70,7 +82,7 @@ def configuration_editor(
 ) -> ConfigurationEditorRefresh:
     """Build the editor workspace and coordinate configuration lifecycle actions."""
     # Keep the selected draft and save state shared by the editor callbacks.
-    state = {
+    state: EditorState = {
         "config": None,
         "name": None,
         "saved": False,
@@ -438,26 +450,25 @@ def configuration_editor(
         )
 
         # dialog for saving a config
-        with ui.dialog() as save_dialog:
-            with ui.card().classes(
-                "border border-[#29404b] bg-[#182630] w-[480px] gap-3"
-            ):
-                ui.label("Save Configuration").classes(
-                    "text-lg font-semibold text-white"
-                )
-                ui.label(
-                    "A copy will be downloaded to your browser's default location. " \
+        with ui.dialog() as save_dialog, ui.card().classes(
+            "border border-[#29404b] bg-[#182630] w-[480px] gap-3"
+        ):
+            ui.label("Save Configuration").classes(
+                "text-lg font-semibold text-white"
+            )
+            ui.label(
+                "A copy will be downloaded to your browser's default location. " \
                     "Check your browser settings to manually choose the save location."
-                ).classes("text-sm text-[#9fb2b8]")
-                save_name = ui.input("File Name").props("outlined dark").classes("w-full")
-                save_status = ui.label("").classes("text-sm text-red-400")
-                with ui.row().classes("w-full justify-end gap-2"):
-                    ui.button("Cancel", on_click=save_dialog.close).props("flat")
-                    ui.button(
-                        "Save",
-                        icon="download",
-                        on_click=save_current_config,
-                    ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
+            ).classes("text-sm text-[#9fb2b8]")
+            save_name = ui.input("File Name").props("outlined dark").classes("w-full")
+            save_status = ui.label("").classes("text-sm text-red-400")
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button("Cancel", on_click=save_dialog.close).props("flat")
+                ui.button(
+                    "Save",
+                    icon="download",
+                    on_click=save_current_config,
+                ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
         
         # Upload a configuration file from the user's computer.
         async def handle_config_upload(event) -> None:
@@ -496,31 +507,30 @@ def configuration_editor(
                     config_upload.reset()
 
         # Dialog for uploading a configuration from the user's computer.
-        with ui.dialog() as load_dialog:
-            with ui.card().classes(
-                "w-[480px] max-w-full border border-[#29404b] bg-[#182630] gap-4"
-            ):
-                ui.label("Load Configuration").classes(
-                    "text-lg font-semibold text-white"
-                )
-                ui.label(
-                    "Select a JSON configuration file from your computer."
-                ).classes("text-sm text-[#9fb2b8]")
+        with ui.dialog() as load_dialog, ui.card().classes(
+            "w-[480px] max-w-full border border-[#29404b] bg-[#182630] gap-4"
+        ):
+            ui.label("Load Configuration").classes(
+                "text-lg font-semibold text-white"
+            )
+            ui.label(
+                "Select a JSON configuration file from your computer."
+            ).classes("text-sm text-[#9fb2b8]")
 
-                config_upload = ui.upload(
-                    label="Choose configuration file",
-                    auto_upload=True,
-                    on_upload=handle_config_upload,
-                    max_files=1,
-                ).props("accept=.json flat bordered").classes(
-                    "w-full configuration-load-upload"
-                )
+            config_upload = ui.upload(
+                label="Choose configuration file",
+                auto_upload=True,
+                on_upload=handle_config_upload,
+                max_files=1,
+            ).props("accept=.json flat bordered").classes(
+                "w-full configuration-load-upload"
+            )
 
-                with ui.row().classes("w-full justify-end"):
-                    ui.button(
-                        "Cancel",
-                        on_click=lambda: cancel_load(),
-                    ).props("flat")
+            with ui.row().classes("w-full justify-end"):
+                ui.button(
+                    "Cancel",
+                    on_click=lambda: cancel_load(),
+                ).props("flat")
 
         def open_load_dialog() -> None:
             nonlocal load_generation

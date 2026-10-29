@@ -9,16 +9,17 @@ from nicegui.client import Client
 from nicegui.elements.upload_files import SmallFileUpload
 from nicegui.testing import UserInteraction, user_simulation
 
-import src.views.configuration_editor as configuration_editor
 from src.controllers.configuration_controller import ConfigurationController
 from src.models import configuration_repository as config_repo
+from src.views import configuration_editor
+from tests.conftest import active_client
 from tests.test_configuration import make_valid_config
 
 
 @pytest.fixture
 def app_gui(monkeypatch):
     ai_assistant_stub = ModuleType("src.views.ai_assistant")
-    ai_assistant_stub.scheduler_ai_assistant = lambda *_args: lambda: None
+    ai_assistant_stub.__dict__["scheduler_ai_assistant"] = lambda *_args: lambda: None
     monkeypatch.setitem(
         sys.modules, "src.views.ai_assistant", ai_assistant_stub
     )
@@ -41,11 +42,14 @@ def test_leaving_configuration_tab_requires_confirmation(
     def fake_configuration_editor(_on_unlock):
         ui.label("Fake configuration editor")
 
-        def refresh(*, saved_status=False):
-            pass
+        class FakeRefresh:
+            def __call__(self, *, saved=False):
+                pass
 
-        refresh.is_saved = lambda: saved["value"]
-        return refresh
+            def is_saved(self):
+                return saved["value"]
+
+        return FakeRefresh()
 
     monkeypatch.setattr(
         app_gui, "configuration_editor", fake_configuration_editor
@@ -73,7 +77,7 @@ def test_leaving_configuration_tab_requires_confirmation(
             user.find("Schedule Generator").click()
             await user.should_see("Unsaved configuration")
             dialog = click_open_dialog_button(user, choice)
-            with user.client:
+            with active_client(user):
                 assert (
                     next(iter(user.find(ui.tabs).elements)).value
                     == expected_tab
@@ -109,14 +113,16 @@ def test_leaving_edited_loaded_configuration_requires_confirmation(
             await user.open("/")
             user.find("Load configuration").click()
             await user.should_see("Load Configuration")
-            with user.client:
+            with active_client(user):
                 upload = next(iter(ElementFilter(kind=ui.upload)))
+                config = controller.configuration
+                assert config is not None
                 await upload.handle_uploads(
                     [
                         SmallFileUpload(
                             "demo.json",
                             "application/json",
-                            controller.configuration.model_dump_json().encode(),
+                            config.model_dump_json().encode(),
                         )
                     ]
                 )
@@ -127,7 +133,7 @@ def test_leaving_edited_loaded_configuration_requires_confirmation(
             user.find("Configuration Editor").click()
 
             user.find("Labs").click()
-            with user.client:
+            with active_client(user):
                 edit_button = next(
                     iter(
                         ElementFilter(
@@ -141,7 +147,7 @@ def test_leaving_edited_loaded_configuration_requires_confirmation(
             user.find("Configuration Editor").click()
 
             user.find("Labs").click()
-            with user.client:
+            with active_client(user):
                 capacity = next(
                     iter(
                         ElementFilter(
@@ -159,7 +165,7 @@ def test_leaving_edited_loaded_configuration_requires_confirmation(
 
 
 def find_dialog_with_label(user, label):
-    with user.client:
+    with active_client(user):
         for dialog in user.find(ui.dialog).elements:
             if next(
                 iter(ElementFilter(kind=ui.label, content=label).within(instance=dialog)),
@@ -170,7 +176,7 @@ def find_dialog_with_label(user, label):
 
 
 def click_open_dialog_button(user, label):
-    with user.client:
+    with active_client(user):
         dialogs = [dialog for dialog in user.find(ui.dialog).elements if dialog.value]
         assert len(dialogs) == 1
         dialog = dialogs[0]
