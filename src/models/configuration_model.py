@@ -120,9 +120,7 @@ def load_uploaded(self, content: bytes) -> CombinedConfig:
     try:
         config = CombinedConfig.model_validate_json(content)
     except Exception as exc:
-        raise ValueError(
-            f"Unable to load configuration: {exc}"
-        ) from exc
+        raise ValueError(f"Unable to load configuration: {exc}") from exc
 
     problems = validate_config(config)
     if problems:
@@ -213,15 +211,13 @@ class ConfigService:
 
     def list_names(self) -> list[str]:
         return list_configs()
-    
+
     # Parse and validate an uploaded JSON configuration
     def load_uploaded(self, content: bytes) -> CombinedConfig:
         try:
             config = CombinedConfig.model_validate_json(content)
         except Exception as exc:
-            raise ValueError(
-                f"Unable to parse configuration JSON: {exc}"
-            ) from exc
+            raise ValueError(f"Unable to parse configuration JSON: {exc}") from exc
 
         problems = validate_config(config)
         if problems:

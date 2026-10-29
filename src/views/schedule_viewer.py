@@ -6,7 +6,6 @@ Used by: GUI."""
 # Primary author: Dylan Groff
 # Secondary Author: Micah Schafer
 
-
 from collections.abc import Callable
 
 from nicegui import ui
@@ -126,22 +125,19 @@ def schedule_viewer() -> Callable[[], None]:
     syncing = False
     load_generation = 0
 
-    with ui.column().classes("w-full min-h-screen px-6 py-8").style(
-        "background-color: var(--app-background);"
+    with (
+        ui.column()
+        .classes("w-full min-h-screen px-6 py-8")
+        .style("background-color: var(--app-background);")
     ):
-
         # ---------------------------------------------------------
         # Title
         # ---------------------------------------------------------
 
         with ui.row().classes("w-full items-center gap-3 mb-6"):
-            ui.icon("calendar_view_week", size="30px").style(
-                "color: var(--accent-color);"
-            )
+            ui.icon("calendar_view_week", size="30px").style("color: var(--accent-color);")
 
-            ui.label("Schedule Viewer").classes(
-                "text-2xl font-semibold text-white"
-            )
+            ui.label("Schedule Viewer").classes("text-2xl font-semibold text-white")
 
         # ---------------------------------------------------------
         # Load dialog
@@ -155,15 +151,17 @@ def schedule_viewer() -> Callable[[], None]:
 
             load_status = ui.label("").classes("text-sm text-red-400")
 
-            ui.label(
-                "Upload a CSV or JSON schedule from your computer."
-            ).classes("text-sm text-gray-400")
+            ui.label("Upload a CSV or JSON schedule from your computer.").classes(
+                "text-sm text-gray-400"
+            )
 
-            upload = ui.upload(
-                auto_upload=True,
-                max_files=1,
-            ).props("accept=.csv,.json dark flat bordered").classes(
-                "w-full schedule-load-upload"
+            upload = (
+                ui.upload(
+                    auto_upload=True,
+                    max_files=1,
+                )
+                .props("accept=.csv,.json dark flat bordered")
+                .classes("w-full schedule-load-upload")
             )
 
             with ui.row().classes("w-full justify-end"):
@@ -183,15 +181,23 @@ def schedule_viewer() -> Callable[[], None]:
             ui.label("Export Schedule").classes("text-lg font-semibold text-white")
             export_description = ui.label("").classes("text-sm text-gray-400")
 
-            export_format = ui.select(
-                {"csv": "CSV", "json": "JSON"},
-                value="csv",
-                label="File Format",
-            ).props("outlined dark").classes("schedule-dropdown w-full")
+            export_format = (
+                ui.select(
+                    {"csv": "CSV", "json": "JSON"},
+                    value="csv",
+                    label="File Format",
+                )
+                .props("outlined dark")
+                .classes("schedule-dropdown w-full")
+            )
 
-            export_name = ui.input(
-                label="File Name",
-            ).props("outlined dark").classes("schedule-dropdown w-full")
+            export_name = (
+                ui.input(
+                    label="File Name",
+                )
+                .props("outlined dark")
+                .classes("schedule-dropdown w-full")
+            )
 
             export_status = ui.label("").classes("text-sm text-red-400")
 
@@ -203,32 +209,29 @@ def schedule_viewer() -> Callable[[], None]:
             ui.dialog() as export_all_dialog,
             ui.card().classes("bg-[#101820] border border-[#29404b] w-[480px] gap-3"),
         ):
-            ui.label("Export All Generated Schedules").classes(
-                "text-lg font-semibold text-white"
+            ui.label("Export All Generated Schedules").classes("text-lg font-semibold text-white")
+            ui.label("Download every generated schedule together in one ZIP archive.").classes(
+                "text-sm text-gray-400"
             )
-            ui.label(
-                "Download every generated schedule together in one ZIP archive."
-            ).classes("text-sm text-gray-400")
-            export_all_format = ui.select(
-                {"csv": "CSV", "json": "JSON"},
-                value="csv",
-                label="Schedule File Format",
-            ).props("outlined dark").classes("schedule-dropdown w-full")
+            export_all_format = (
+                ui.select(
+                    {"csv": "CSV", "json": "JSON"},
+                    value="csv",
+                    label="Schedule File Format",
+                )
+                .props("outlined dark")
+                .classes("schedule-dropdown w-full")
+            )
             export_all_status = ui.label("").classes("text-sm text-red-400")
             with ui.row().classes("w-full justify-end gap-2"):
-                ui.button(
-                    "Cancel", on_click=export_all_dialog.close
-                ).props("flat")
-                export_all_button = ui.button(
-                    "Export All", icon="folder_zip"
-                )
+                ui.button("Cancel", on_click=export_all_dialog.close).props("flat")
+                export_all_button = ui.button("Export All", icon="folder_zip")
 
         # ---------------------------------------------------------
         # Schedule controls
         # ---------------------------------------------------------
 
         with ui.row().classes("w-full items-center gap-3 mb-6"):
-
             # Load button
             ui.button(
                 "Load",
@@ -280,14 +283,15 @@ def schedule_viewer() -> Callable[[], None]:
             ).props("flat")
 
             # dropdown to select the schedule to view
-            schedule_select = ui.select(
-                {},
-                value=None,
-                label="Schedule",
-            ).props(
-                "outlined dark"
-            ).classes("schedule-dropdown").style(
-                "min-width: 320px;"
+            schedule_select = (
+                ui.select(
+                    {},
+                    value=None,
+                    label="Schedule",
+                )
+                .props("outlined dark")
+                .classes("schedule-dropdown")
+                .style("min-width: 320px;")
             )
 
             # button to iterate right through the schedules
@@ -305,39 +309,47 @@ def schedule_viewer() -> Callable[[], None]:
         # ---------------------------------------------------------
 
         with ui.row().classes("w-full items-center gap-4 mb-6 flex-nowrap"):
-
             # drop down to select the type of filter to apply to the schedule table
-            filter_select = ui.select(
-                ["None", "Course", "Faculty", "Room / Lab"],
-                value="None",
-                label="Filter By",
-            ).props("outlined").classes("schedule-dropdown").style(
-                "width: 180px;"
+            filter_select = (
+                ui.select(
+                    ["None", "Course", "Faculty", "Room / Lab"],
+                    value="None",
+                    label="Filter By",
+                )
+                .props("outlined")
+                .classes("schedule-dropdown")
+                .style("width: 180px;")
             )
 
             # drop down to select the value of the filter to apply to the schedule table
-            filter_value_select = ui.select(
-                [],
-                value=None,
-                label="Filter Value",
-            ).props("outlined").classes("schedule-dropdown").style(
-                "width: 200px;"
+            filter_value_select = (
+                ui.select(
+                    [],
+                    value=None,
+                    label="Filter Value",
+                )
+                .props("outlined")
+                .classes("schedule-dropdown")
+                .style("width: 200px;")
             )
 
             # drop down to select the day of the week to filter the schedule table
-            day_filter_select = ui.select(
-                {
-                    None: "All Days",
-                    "MON": "Monday",
-                    "TUE": "Tuesday",
-                    "WED": "Wednesday",
-                    "THU": "Thursday",
-                    "FRI": "Friday",
-                },
-                value=None,
-                label="Day",
-            ).props("outlined").classes("schedule-dropdown").style(
-                "width: 180px;"
+            day_filter_select = (
+                ui.select(
+                    {
+                        None: "All Days",
+                        "MON": "Monday",
+                        "TUE": "Tuesday",
+                        "WED": "Wednesday",
+                        "THU": "Thursday",
+                        "FRI": "Friday",
+                    },
+                    value=None,
+                    label="Day",
+                )
+                .props("outlined")
+                .classes("schedule-dropdown")
+                .style("width: 180px;")
             )
 
         # ---------------------------------------------------------
@@ -353,7 +365,7 @@ def schedule_viewer() -> Callable[[], None]:
 
             with ui.tab_panel(table_tab):
                 table_view = schedule_table_view()
-            
+
         # ---------------------------------------------------------
         # Update filter values
         # ---------------------------------------------------------
@@ -423,8 +435,7 @@ def schedule_viewer() -> Callable[[], None]:
 
             if selected_day:
                 updated_schedule = [
-                    row for row in updated_schedule
-                    if row.get("day") == selected_day
+                    row for row in updated_schedule if row.get("day") == selected_day
                 ]
 
             # Send the filtered rows to the table.
@@ -453,12 +464,8 @@ def schedule_viewer() -> Callable[[], None]:
             empty_label.visible = not has_schedules
             schedule_select.set_enabled(has_schedules)
             export_open_button.set_enabled(has_schedules)
-            export_all_open_button.set_enabled(
-                controller.has_generated_schedules
-            )
-            clear_generated_button.set_enabled(
-                controller.has_generated_schedules
-            )
+            export_all_open_button.set_enabled(controller.has_generated_schedules)
+            clear_generated_button.set_enabled(controller.has_generated_schedules)
             previous_button.set_enabled(controller.can_step(-1))
             next_button.set_enabled(controller.can_step(1))
 
@@ -522,7 +529,7 @@ def schedule_viewer() -> Callable[[], None]:
                 f"Loaded {entry.file_name} ({len(entry.records)} sections)",
                 type="positive",
             )
-            
+
         async def on_upload(event):
             generation = load_generation
             if not load_dialog.value:
@@ -532,7 +539,6 @@ def schedule_viewer() -> Callable[[], None]:
                 return
             upload.reset()
             finish_load(*controller.load_uploaded_file(file_name, content))
-
 
         upload.on_upload(on_upload)
 
@@ -545,12 +551,10 @@ def schedule_viewer() -> Callable[[], None]:
             if entry is None:
                 return
             export_description.text = (
-                f"Download '{entry.label}' to your browser's default location. " \
+                f"Download '{entry.label}' to your browser's default location. "
                 f"Check your browser settings to manually choose the save location."
             )
-            export_name.value = controller.default_export_file_name(
-                export_format.value
-            )
+            export_name.value = controller.default_export_file_name(export_format.value)
             export_status.text = ""
             export_dialog.open()
 
@@ -592,13 +596,9 @@ def schedule_viewer() -> Callable[[], None]:
             )
 
         def on_export_all():
-            export, error = controller.export_all_generated(
-                export_all_format.value
-            )
+            export, error = controller.export_all_generated(export_all_format.value)
             if error or export is None:
-                export_all_status.text = (
-                    error or "Could not export generated schedules."
-                )
+                export_all_status.text = error or "Could not export generated schedules."
                 return
             content, file_name, media_type = export
             ui.download(content, filename=file_name, media_type=media_type)
@@ -628,19 +628,13 @@ def schedule_viewer() -> Callable[[], None]:
         )
 
         # updates when a new filter value is selected
-        filter_value_select.on_value_change(
-            lambda _: update_table()
-        )
+        filter_value_select.on_value_change(lambda _: update_table())
 
         # updates when a new day filter is selected
-        day_filter_select.on_value_change(
-            lambda _: update_table()
-        )
+        day_filter_select.on_value_change(lambda _: update_table())
 
         # resets all filters to their default values when the reset button is clicked
-        reset_filters_button.on_click(
-            lambda _: reset_filters()
-        )
+        reset_filters_button.on_click(lambda _: reset_filters())
 
         # ---------------------------------------------------------
         # Initial state

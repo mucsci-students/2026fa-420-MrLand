@@ -20,88 +20,88 @@ class TestGlobalSettingsCRUD(unittest.TestCase):
         self.config = CombinedConfig.model_validate(
             {
                 "config": {
-                "rooms": [
-                    {
-                        "name": "Room 101",
-                        "capacity": 30,
-                    }
-                ],
-                "labs": [],
-                "courses": [
-                    {
-                        "course_id": "CS 101",
-                        "credits": 3,
-                        "capacity": 20,
-                        "room": ["Room 101"],
-                        "lab": [],
-                        "conflicts": [],
-                        "faculty": ["Dr. Smith"],
-                    }
-                ],
-                "faculty": [
-                    {
-                        "name": "Dr. Smith",
-                        "maximum_credits": 12,
-                        "minimum_credits": 3,
-                        "unique_course_limit": 3,
-                        "times": {
-                            "MON": ["09:00-17:00"],
-                        },
-                        "course_preferences": {
-                            "CS 101": 5,
-                        },
-                    }
-                ],
+                    "rooms": [
+                        {
+                            "name": "Room 101",
+                            "capacity": 30,
+                        }
+                    ],
+                    "labs": [],
+                    "courses": [
+                        {
+                            "course_id": "CS 101",
+                            "credits": 3,
+                            "capacity": 20,
+                            "room": ["Room 101"],
+                            "lab": [],
+                            "conflicts": [],
+                            "faculty": ["Dr. Smith"],
+                        }
+                    ],
+                    "faculty": [
+                        {
+                            "name": "Dr. Smith",
+                            "maximum_credits": 12,
+                            "minimum_credits": 3,
+                            "unique_course_limit": 3,
+                            "times": {
+                                "MON": ["09:00-17:00"],
+                            },
+                            "course_preferences": {
+                                "CS 101": 5,
+                            },
+                        }
+                    ],
                 },
                 "time_slot_config": {
-                "times": {
-                    "MON": [
-                        {
-                            "start": "09:00",
-                            "spacing": 60,
-                            "end": "17:00",
-                        }
-                    ],
-                    "TUE": [
-                        {
-                            "start": "09:00",
-                            "spacing": 60,
-                            "end": "17:00",
-                        }
-                    ],
-                    "WED": [
-                        {
-                            "start": "09:00",
-                            "spacing": 60,
-                            "end": "17:00",
-                        }
-                    ],
-                    "THU": [
-                        {
-                            "start": "09:00",
-                            "spacing": 60,
-                            "end": "17:00",
-                        }
-                    ],
-                    "FRI": [
-                        {
-                            "start": "09:00",
-                            "spacing": 60,
-                            "end": "17:00",
-                        }
-                    ],
-                },
-                "classes": [
-                    {
-                        "credits": 3,
-                        "meetings": [
+                    "times": {
+                        "MON": [
                             {
-                                "day": "MON",
-                                "duration": 60,
+                                "start": "09:00",
+                                "spacing": 60,
+                                "end": "17:00",
                             }
                         ],
-                    }
-                ],
+                        "TUE": [
+                            {
+                                "start": "09:00",
+                                "spacing": 60,
+                                "end": "17:00",
+                            }
+                        ],
+                        "WED": [
+                            {
+                                "start": "09:00",
+                                "spacing": 60,
+                                "end": "17:00",
+                            }
+                        ],
+                        "THU": [
+                            {
+                                "start": "09:00",
+                                "spacing": 60,
+                                "end": "17:00",
+                            }
+                        ],
+                        "FRI": [
+                            {
+                                "start": "09:00",
+                                "spacing": 60,
+                                "end": "17:00",
+                            }
+                        ],
+                    },
+                    "classes": [
+                        {
+                            "credits": 3,
+                            "meetings": [
+                                {
+                                    "day": "MON",
+                                    "duration": 60,
+                                }
+                            ],
+                        }
+                    ],
                 },
             }
         )

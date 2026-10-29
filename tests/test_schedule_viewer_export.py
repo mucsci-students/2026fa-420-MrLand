@@ -86,25 +86,31 @@ def test_export_all_generated_returns_zip_without_loaded_schedules(tmp_path):
             ScheduleResult(
                 config_name="fall",
                 schedule=[
-                    cast(CourseInstance, SimpleNamespace(
-                        course="CS101",
-                        faculty="Dr. Smith",
-                        room="Room 101",
-                        lab=None,
-                        time="MON 09:00-09:50",
-                    ))
+                    cast(
+                        CourseInstance,
+                        SimpleNamespace(
+                            course="CS101",
+                            faculty="Dr. Smith",
+                            room="Room 101",
+                            lab=None,
+                            time="MON 09:00-09:50",
+                        ),
+                    )
                 ],
             ),
             ScheduleResult(
                 config_name="fall",
                 schedule=[
-                    cast(CourseInstance, SimpleNamespace(
-                        course="CS102",
-                        faculty="Dr. Jones",
-                        room="Room 202",
-                        lab=None,
-                        time="TUE 10:00-10:50",
-                    ))
+                    cast(
+                        CourseInstance,
+                        SimpleNamespace(
+                            course="CS102",
+                            faculty="Dr. Jones",
+                            room="Room 202",
+                            lab=None,
+                            time="TUE 10:00-10:50",
+                        ),
+                    )
                 ],
             ),
         ]
@@ -156,13 +162,16 @@ def test_export_all_generated_supports_json_and_avoids_existing_names(tmp_path):
             ScheduleResult(
                 config_name="fall",
                 schedule=[
-                    cast(CourseInstance, SimpleNamespace(
-                        course="CS101",
-                        faculty="Dr. Smith",
-                        room="Room 101",
-                        lab=None,
-                        time="MON 09:00-09:50",
-                    ))
+                    cast(
+                        CourseInstance,
+                        SimpleNamespace(
+                            course="CS101",
+                            faculty="Dr. Smith",
+                            room="Room 101",
+                            lab=None,
+                            time="MON 09:00-09:50",
+                        ),
+                    )
                 ],
             )
         ]

@@ -8,9 +8,7 @@ from src.models.schedule_generator_model import ScheduleGenerationState
 class ScheduleGenerationProgress:
     def __init__(self, container_classes: str) -> None:
         with ui.column().classes(container_classes) as self.container:
-            self.message = ui.label("Starting scheduler...").classes(
-                "text-sm text-gray-300"
-            )
+            self.message = ui.label("Starting scheduler...").classes("text-sm text-gray-300")
             self.bar = ui.linear_progress(value=0).classes("w-full")
             with ui.row().classes("w-full items-center justify-between"):
                 self.percentage = ui.label("0%").classes("text-sm text-gray-300")
@@ -19,9 +17,9 @@ class ScheduleGenerationProgress:
                 )
             with ui.row().classes("items-center gap-2"):
                 self.spinner = ui.spinner(size="24px")
-                self.spinner_label = ui.label(
-                    "Z3 is searching for schedules..."
-                ).classes("text-sm text-gray-400")
+                self.spinner_label = ui.label("Z3 is searching for schedules...").classes(
+                    "text-sm text-gray-400"
+                )
             self.destination = ui.label("").classes("text-sm text-gray-400")
         self.container.set_visibility(False)
         self.destination.set_visibility(False)
@@ -59,9 +57,7 @@ class ScheduleGenerationProgress:
         self.percentage.text = f"{percentage * 100:.0f}%"
         self.message.text = state.message
         if state.requested > 0:
-            self.status.text = (
-                f"Generated {state.generated} of {state.requested} schedules"
-            )
+            self.status.text = f"Generated {state.generated} of {state.requested} schedules"
         self.spinner.set_visibility(state.running)
         self.spinner_label.set_visibility(state.running)
 
@@ -79,12 +75,7 @@ class ScheduleGenerationProgress:
         self.bar.value = 1
         self.percentage.text = "100%"
         self.message.text = "Schedule generation complete."
-        self.status.text = (
-            f"Generated {state.generated} of "
-            f"{state.requested} requested schedules"
-        )
-        self.destination.text = (
-            "View the generated schedules in the Schedule Viewer tab."
-        )
+        self.status.text = f"Generated {state.generated} of {state.requested} requested schedules"
+        self.destination.text = "View the generated schedules in the Schedule Viewer tab."
         self.destination.set_visibility(True)
         return "complete"

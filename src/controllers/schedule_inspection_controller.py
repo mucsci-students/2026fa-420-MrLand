@@ -10,9 +10,7 @@ from scheduler.models.course import Course, CourseInstance
 
 
 # function used to get course details from the config file based on the course_id
-def get_course_details(
-    schedule: list[CourseInstance] | None, course_id: str
-) -> Course | None:
+def get_course_details(schedule: list[CourseInstance] | None, course_id: str) -> Course | None:
     if schedule is None:
         return None
     for course_instance in schedule:

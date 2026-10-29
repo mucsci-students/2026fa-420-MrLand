@@ -65,20 +65,26 @@ class ScheduleTableView:
 
         # Creates buttons for the user to sort the table by different columns and order
         with ui.row().classes("w-full items-center gap-4"):
-            self.sort_select = ui.select(
-                ["Day", "Start Time", "Course", "Faculty", "Room / Lab"],
-                value="Day",
-                label="Sort",
-            ).props("outlined").classes("schedule-dropdown").style(
-                "width: 180px;"
+            self.sort_select = (
+                ui.select(
+                    ["Day", "Start Time", "Course", "Faculty", "Room / Lab"],
+                    value="Day",
+                    label="Sort",
+                )
+                .props("outlined")
+                .classes("schedule-dropdown")
+                .style("width: 180px;")
             )
 
-            self.order_select = ui.select(
-                ["Ascending", "Descending"],
-                value="Ascending",
-                label="Order",
-            ).props("outlined").classes("schedule-dropdown").style(
-                "width: 180px;"
+            self.order_select = (
+                ui.select(
+                    ["Ascending", "Descending"],
+                    value="Ascending",
+                    label="Order",
+                )
+                .props("outlined")
+                .classes("schedule-dropdown")
+                .style("width: 180px;")
             )
 
         # ---------------------------------------------------------
@@ -130,11 +136,15 @@ class ScheduleTableView:
         ]
 
         # create the table object
-        self.table = ui.table(
-            columns=columns,
-            rows=[],
-            row_key="id",
-        ).props("flat bordered").classes("w-full")
+        self.table = (
+            ui.table(
+                columns=columns,
+                rows=[],
+                row_key="id",
+            )
+            .props("flat bordered")
+            .classes("w-full")
+        )
 
         self._add_clickable_cells()
 
@@ -200,8 +210,8 @@ class ScheduleTableView:
 
     # ---------------------------------------------------------
     # Inspect Element Controls
-    # --------------------------------------------------------- 
-       
+    # ---------------------------------------------------------
+
     def _add_clickable_cells(self) -> None:
         """Make selected table cells open their detail dialogs."""
 
@@ -359,11 +369,7 @@ class ScheduleTableView:
             return
 
         # format the features for more user-friendly display
-        features = (
-            ", ".join(str(feature) for feature in room.features)
-            if room.features
-            else "None"
-        )
+        features = ", ".join(str(feature) for feature in room.features) if room.features else "None"
 
         # create a dialog to display the room details
         with ui.dialog() as dialog, ui.card():
@@ -385,11 +391,7 @@ class ScheduleTableView:
             return
 
         # format the features for more user-friendly display
-        features = (
-            ", ".join(str(feature) for feature in lab.features)
-            if lab.features
-            else "None"
-        )
+        features = ", ".join(str(feature) for feature in lab.features) if lab.features else "None"
 
         # create a dialog to display the lab details
         with ui.dialog() as dialog, ui.card():
@@ -418,7 +420,6 @@ class ScheduleTableView:
             self._inspect_lab(resource)
         else:
             self._inspect_room(resource)
-
 
     def _inspect_time(self, row: dict) -> None:
         # The displayed row already has 12-hour formatted start/end values.
@@ -454,6 +455,7 @@ class ScheduleTableView:
         suffix = "AM" if hour < 12 else "PM"
         display_hour = hour % 12 or 12
         return f"{display_hour}:{minute:02d} {suffix}"
+
 
 # ---------------------------------------------------------
 # Create Table View

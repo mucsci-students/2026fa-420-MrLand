@@ -17,9 +17,7 @@ class FakeScheduler:
 
     schedules: ClassVar[list[Any] | Exception] = []
     audit_valid: ClassVar[bool] = True
-    diagnosis_result: ClassVar[dict[str, str]] = {
-        "reason": "No compatible room assignments"
-    }
+    diagnosis_result: ClassVar[dict[str, str]] = {"reason": "No compatible room assignments"}
 
     def __init__(self, config):
         self.config = config
@@ -54,9 +52,7 @@ def patch_scheduler(monkeypatch):
     """Install a fresh fake scheduler for each test."""
     FakeScheduler.schedules = []
     FakeScheduler.audit_valid = True
-    FakeScheduler.diagnosis_result = {
-        "reason": "No compatible room assignments"
-    }
+    FakeScheduler.diagnosis_result = {"reason": "No compatible room assignments"}
 
     monkeypatch.setattr(
         "src.models.schedule_generator_model.Scheduler",
@@ -121,9 +117,7 @@ class TestBeginGeneration:
 
 
 class TestGenerateConfiguration:
-    def test_success_clears_running_state(
-        self, model, config, patch_scheduler
-    ):
+    def test_success_clears_running_state(self, model, config, patch_scheduler):
         FakeScheduler.schedules = ["schedule-a", "schedule-b"]
 
         model.begin_generation("test-config", config.limit)
@@ -139,13 +133,9 @@ class TestGenerateConfiguration:
         assert len(model.generated_schedules) == 2
         assert state.message == "Generated 2 of 2 schedules."
 
-    def test_no_feasible_schedules_clears_running_state(
-        self, model, config, patch_scheduler
-    ):
+    def test_no_feasible_schedules_clears_running_state(self, model, config, patch_scheduler):
         FakeScheduler.schedules = []
-        expected_diagnosis = {
-            "reason": "No compatible room assignments"
-        }
+        expected_diagnosis = {"reason": "No compatible room assignments"}
         FakeScheduler.diagnosis_result = expected_diagnosis
 
         model.begin_generation("test-config", config.limit)
@@ -161,9 +151,7 @@ class TestGenerateConfiguration:
         assert state.message == "No valid schedules could be generated."
         assert model.generated_schedules == []
 
-    def test_scheduler_exception_clears_running_state(
-        self, model, config, patch_scheduler
-    ):
+    def test_scheduler_exception_clears_running_state(self, model, config, patch_scheduler):
         FakeScheduler.schedules = RuntimeError("scheduler failed")
 
         model.begin_generation("test-config", config.limit)
@@ -176,9 +164,7 @@ class TestGenerateConfiguration:
         assert state.error == "scheduler failed"
         assert state.message == "Schedule generation failed."
 
-    def test_audit_exception_clears_running_state(
-        self, model, config, patch_scheduler
-    ):
+    def test_audit_exception_clears_running_state(self, model, config, patch_scheduler):
         FakeScheduler.schedules = ["schedule-a"]
 
         def fail_audit(self, schedule):
@@ -196,9 +182,7 @@ class TestGenerateConfiguration:
         assert state.error == "audit failed"
         assert state.message == "Schedule generation failed."
 
-    def test_records_invalid_schedules_in_valid_count(
-        self, model, config, patch_scheduler
-    ):
+    def test_records_invalid_schedules_in_valid_count(self, model, config, patch_scheduler):
         FakeScheduler.schedules = ["schedule-a"]
         FakeScheduler.audit_valid = False
 
@@ -214,9 +198,7 @@ class TestGenerateConfiguration:
 
 
 class TestGenerate:
-    def test_configuration_load_failure_clears_running_state(
-        self, model
-    ):
+    def test_configuration_load_failure_clears_running_state(self, model):
         model.begin_generation("missing-config", 2)
 
         def fail_load(config_name):

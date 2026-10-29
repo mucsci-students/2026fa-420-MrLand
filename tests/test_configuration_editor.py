@@ -33,9 +33,7 @@ def run_editor_simulation(action, on_unlock=None):
     refresh_callbacks = []
 
     def root():
-        refresh = editor.configuration_editor(
-            on_unlock or (lambda _name, _emoji: None)
-        )
+        refresh = editor.configuration_editor(on_unlock or (lambda _name, _emoji: None))
         refresh_callbacks.append(refresh)
 
     async def simulate():
@@ -46,12 +44,8 @@ def run_editor_simulation(action, on_unlock=None):
     asyncio.run(simulate())
 
 
-@pytest.mark.parametrize(
-    "combination_name,panels,hat_emoji", editor.PANEL_COMBINATIONS
-)
-def test_each_panel_combination_unlocks(
-    editor_controller, combination_name, panels, hat_emoji
-):
+@pytest.mark.parametrize("combination_name,panels,hat_emoji", editor.PANEL_COMBINATIONS)
+def test_each_panel_combination_unlocks(editor_controller, combination_name, panels, hat_emoji):
     on_unlock = Mock()
 
     async def action(user, _refresh):
@@ -107,9 +101,7 @@ def click_open_dialog_button(user, label):
         dialogs = [dialog for dialog in user.find(ui.dialog).elements if dialog.value]
         assert len(dialogs) == 1
         dialog = dialogs[0]
-        buttons = set(
-            ElementFilter(kind=ui.button, content=label).within(instance=dialog)
-        )
+        buttons = set(ElementFilter(kind=ui.button, content=label).within(instance=dialog))
         assert len(buttons) == 1
         UserInteraction(user, buttons, label).click()
     return dialog
@@ -246,7 +238,8 @@ def test_failed_upload_resets_control_and_allows_retry(
         reset.assert_called_once_with()
         await upload_config(user, file_name, content)
         await user.should_see(
-            "Please select a .json file." if file_name.endswith(".txt")
+            "Please select a .json file."
+            if file_name.endswith(".txt")
             else "Unable to load configuration"
         )
         assert reset.call_count == 2
@@ -264,9 +257,7 @@ def test_failed_upload_resets_control_and_allows_retry(
 
 
 @pytest.mark.parametrize("choice", ["Cancel", "Discard and Load", "Save Configuration"])
-def test_edited_uploaded_draft_requires_confirmation_before_replacement(
-    editor_controller, choice
-):
+def test_edited_uploaded_draft_requires_confirmation_before_replacement(editor_controller, choice):
     content = editor_controller.configuration.model_dump_json().encode()
 
     async def action(user, _refresh):
@@ -303,9 +294,7 @@ def test_edited_uploaded_draft_requires_confirmation_before_replacement(
     run_editor_simulation(action)
 
 
-def test_canceling_upload_prevents_late_configuration_replacement(
-    editor_controller, monkeypatch
-):
+def test_canceling_upload_prevents_late_configuration_replacement(editor_controller, monkeypatch):
     content = editor_controller.configuration.model_dump_json().encode()
     original_config = editor_controller.configuration
     read_upload = editor.read_upload
@@ -330,8 +319,7 @@ def test_canceling_upload_prevents_late_configuration_replacement(
             with client:
                 upload = next(iter(ElementFilter(kind=ui.upload)))
                 load_dialog = next(
-                    ancestor for ancestor in upload.ancestors()
-                    if isinstance(ancestor, ui.dialog)
+                    ancestor for ancestor in upload.ancestors() if isinstance(ancestor, ui.dialog)
                 )
                 event = UploadEventArguments(
                     sender=upload,

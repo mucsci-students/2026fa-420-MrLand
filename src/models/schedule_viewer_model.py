@@ -189,9 +189,7 @@ class ScheduleViewerModel:
 
         next_number_by_config: dict[str, int] = {}
         archive = io.BytesIO()
-        with zipfile.ZipFile(
-            archive, mode="w", compression=zipfile.ZIP_DEFLATED
-        ) as bundle:
+        with zipfile.ZipFile(archive, mode="w", compression=zipfile.ZIP_DEFLATED) as bundle:
             for entry in self._generated:
                 config_name = re.sub(
                     r'[<>:"/\\|?*\x00-\x1f]',

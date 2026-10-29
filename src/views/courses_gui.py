@@ -56,32 +56,30 @@ def courses_gui(
         ).classes("bg-[#75e6da] text-[#101820]")
 
     # Form fields and callbacks for creating or editing a course.
-    with ui.column().classes("w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4") as form_container:
+    with ui.column().classes(
+        "w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4"
+    ) as form_container:
         form_container.set_visibility(False)
-        form_heading = ui.label("Add New Course").classes(
-            "text-lg font-semibold text-white"
-        )
+        form_heading = ui.label("Add New Course").classes("text-lg font-semibold text-white")
 
         with ui.row().classes("w-full flex-wrap gap-4"):
             course_id = ui.input("Course ID").classes("min-w-48 flex-1")
-            section_id = ui.input("Section ID", placeholder="Optional").classes(
-                "min-w-40 flex-1"
-            )
+            section_id = ui.input("Section ID", placeholder="Optional").classes("min-w-40 flex-1")
             credits = ui.number("Credits", value=3, min=1, step=1).classes("w-36")
             capacity = ui.number("Capacity", value=30, min=1, step=1).classes("w-36")
-            modality = ui.select(
-                list(MODALITIES), value="in_person", label="Modality"
-            ).classes("min-w-40 flex-1")
+            modality = ui.select(list(MODALITIES), value="in_person", label="Modality").classes(
+                "min-w-40 flex-1"
+            )
 
         resource_fields = []
         with ui.column().classes("w-full gap-3") as resource_section:
             with ui.row().classes("w-full flex-wrap gap-4"):
-                rooms = ui.input(
-                    "Available rooms", placeholder="Room 101, Room 202"
-                ).classes("min-w-56 flex-1")
-                labs = ui.input(
-                    "Available labs", placeholder="Lab 101, Lab 202"
-                ).classes("min-w-56 flex-1")
+                rooms = ui.input("Available rooms", placeholder="Room 101, Room 202").classes(
+                    "min-w-56 flex-1"
+                )
+                labs = ui.input("Available labs", placeholder="Lab 101, Lab 202").classes(
+                    "min-w-56 flex-1"
+                )
             with ui.row().classes("w-full flex-wrap gap-4"):
                 required_room_features = ui.input(
                     "Required room features", placeholder="Projector, accessible"
@@ -90,12 +88,14 @@ def courses_gui(
                     "Required lab features", placeholder="GPU, specialized software"
                 ).classes("min-w-56 flex-1")
             reserve_room = ui.checkbox("Reserve the room during lab meetings", value=True)
-        resource_fields.extend([rooms, labs, required_room_features, required_lab_features, reserve_room])
+        resource_fields.extend(
+            [rooms, labs, required_room_features, required_lab_features, reserve_room]
+        )
 
         with ui.row().classes("w-full flex-wrap gap-4"):
-            conflicts = ui.input(
-                "Conflicting course IDs", placeholder="CS 101, MATH 205"
-            ).classes("min-w-56 flex-1")
+            conflicts = ui.input("Conflicting course IDs", placeholder="CS 101, MATH 205").classes(
+                "min-w-56 flex-1"
+            )
             faculty_names = ui.input(
                 "Faculty candidates (optional)", placeholder="Dr. Smith, Dr. Jones"
             ).classes("min-w-56 flex-1")
@@ -159,17 +159,11 @@ def courses_gui(
             else:
                 selected_rooms = _csv_values(rooms.value, "Rooms")
                 selected_labs = _csv_values(labs.value, "Labs")
-                room_features = _csv_values(
-                    required_room_features.value, "Required room features"
-                )
-                lab_features = _csv_values(
-                    required_lab_features.value, "Required lab features"
-                )
+                room_features = _csv_values(required_room_features.value, "Required room features")
+                lab_features = _csv_values(required_lab_features.value, "Required lab features")
                 reserve_room_during_lab = bool(reserve_room.value)
             selected_conflicts = _csv_values(conflicts.value, "Conflicts")
-            selected_faculty = _faculty_candidates(
-                bool(derive_faculty.value), faculty_names.value
-            )
+            selected_faculty = _faculty_candidates(bool(derive_faculty.value), faculty_names.value)
             if selected_faculty == []:
                 raise ValueError("Enter faculty candidates or select derive mode.")
 
@@ -278,12 +272,8 @@ def courses_gui(
                 apply_modality(course.modality)
                 rooms.value = ", ".join(course.room)
                 labs.value = ", ".join(course.lab)
-                required_room_features.value = ", ".join(
-                    sorted(course.required_room_features)
-                )
-                required_lab_features.value = ", ".join(
-                    sorted(course.required_lab_features)
-                )
+                required_room_features.value = ", ".join(sorted(course.required_room_features))
+                required_lab_features.value = ", ".join(sorted(course.required_lab_features))
                 reserve_room.value = course.reserve_room_during_lab
                 conflicts.value = ", ".join(course.conflicts)
                 derive_faculty.value = course.faculty is None
@@ -309,16 +299,22 @@ def courses_gui(
             refresh_courses()
 
         with ui.row().classes("w-full flex-wrap items-center gap-2"):
-            add_submit_button = ui.button("Create course", icon="add", on_click=add_course).props(
-                "unelevated"
-            ).classes("bg-[#75e6da] text-[#101820]")
-            update_button = ui.button(
-                "Apply changes", icon="save", on_click=update_course
-            ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
+            add_submit_button = (
+                ui.button("Create course", icon="add", on_click=add_course)
+                .props("unelevated")
+                .classes("bg-[#75e6da] text-[#101820]")
+            )
+            update_button = (
+                ui.button("Apply changes", icon="save", on_click=update_course)
+                .props("unelevated")
+                .classes("bg-[#75e6da] text-[#101820]")
+            )
             update_button.set_visibility(False)
-            cancel_button = ui.button("Cancel", on_click=reset_form).props(
-                "outline"
-            ).classes("border-[#45616b] text-[#d8e7e8]")
+            cancel_button = (
+                ui.button("Cancel", on_click=reset_form)
+                .props("outline")
+                .classes("border-[#45616b] text-[#d8e7e8]")
+            )
             cancel_button.set_visibility(False)
 
     # Rebuild the course summaries and their edit/delete controls.
@@ -348,15 +344,14 @@ def courses_gui(
                             icon="edit",
                             on_click=lambda selected=course: begin_edit(selected),
                         ).props("flat round dense").tooltip("Edit course")
-                        with ui.dialog() as dialog, ui.card().classes(
-                            "border border-[#29404b] bg-[#182630]"
+                        with (
+                            ui.dialog() as dialog,
+                            ui.card().classes("border border-[#29404b] bg-[#182630]"),
                         ):
                             ui.label(f"Delete {course.course_id}?").classes(
                                 "text-lg font-semibold text-white"
                             )
-                            ui.label("This cannot be undone.").classes(
-                                "text-sm text-[#9fb2b8]"
-                            )
+                            ui.label("This cannot be undone.").classes("text-sm text-[#9fb2b8]")
                             with ui.row().classes("mt-4 w-full justify-end gap-2"):
                                 ui.button("Cancel", on_click=dialog.close).props("flat")
                                 ui.button(

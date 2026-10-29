@@ -504,9 +504,7 @@ def test_controller_new_configuration_returns_draft(controller):
     assert config.config.courses == []
 
 
-def test_controller_memento_restores_an_independent_configuration(
-    controller, valid_config
-):
+def test_controller_memento_restores_an_independent_configuration(controller, valid_config):
     controller.configuration = valid_config
     controller._has_valid_configuration = True
     memento = controller.create_memento()

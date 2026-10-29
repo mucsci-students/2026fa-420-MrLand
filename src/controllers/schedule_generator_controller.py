@@ -120,10 +120,7 @@ class ScheduleGeneratorController:
             limit_override,
             optimizer_override,
         )
-        if (
-            max_time_gap_override is not None
-            or min_time_overlap_override is not None
-        ):
+        if max_time_gap_override is not None or min_time_overlap_override is not None:
             generation_args += (
                 max_time_gap_override,
                 min_time_overlap_override,
@@ -144,9 +141,7 @@ class ScheduleGeneratorController:
         if value is None or not str(value).strip():
             return None, None
 
-        error_message = (
-            f"Temporary {setting_name} must be a positive whole number."
-        )
+        error_message = f"Temporary {setting_name} must be a positive whole number."
         try:
             parsed_value = int(value)
         except (OverflowError, TypeError, ValueError):

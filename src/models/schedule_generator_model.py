@@ -62,8 +62,7 @@ class ScheduleGeneratorModel:
             return sorted(
                 filename[:-5]
                 for filename in os.listdir(config_directory)
-                if filename.endswith(".json")
-                and config_exists(filename[:-5])
+                if filename.endswith(".json") and config_exists(filename[:-5])
             )
         except OSError:
             return []
@@ -115,9 +114,7 @@ class ScheduleGeneratorModel:
             if max_time_gap_override is not None:
                 full_config.time_slot_config.max_time_gap = max_time_gap_override
             if min_time_overlap_override is not None:
-                full_config.time_slot_config.min_time_overlap = (
-                    min_time_overlap_override
-                )
+                full_config.time_slot_config.min_time_overlap = min_time_overlap_override
         except (ConfigLoadError, FileNotFoundError, ValueError) as error:
             self.update_state(
                 error=str(error),
@@ -148,8 +145,7 @@ class ScheduleGeneratorModel:
                 self.update_state(
                     generated=count,
                     message=(
-                        f"Generated {count} of {limit} schedules. "
-                        "Searching for another schedule..."
+                        f"Generated {count} of {limit} schedules. Searching for another schedule..."
                     ),
                 )
                 if count >= limit:
@@ -166,9 +162,7 @@ class ScheduleGeneratorModel:
                 return
 
             valid_count = sum(
-                1
-                for schedule in generated
-                if scheduler.audit_schedule(schedule).is_valid
+                1 for schedule in generated if scheduler.audit_schedule(schedule).is_valid
             )
 
             with self._lock:
@@ -182,9 +176,7 @@ class ScheduleGeneratorModel:
                 )
                 self._state.generated = len(generated)
                 self._state.valid = valid_count
-                self._state.message = (
-                    f"Generated {len(generated)} of {limit} schedules."
-                )
+                self._state.message = f"Generated {len(generated)} of {limit} schedules."
                 self._state.finished = True
                 self._state.running = False
         except Exception as error:  # noqa: BLE001 - worker boundary must publish scheduler failures

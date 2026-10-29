@@ -17,14 +17,10 @@ from tests.conftest import active_client
 def test_generation_limit_override_is_grouped_before_time_slot_settings(
     monkeypatch,
 ):
-    monkeypatch.setattr(
-        schedule_generator_view.controller, "list_config_names", list
-    )
+    monkeypatch.setattr(schedule_generator_view.controller, "list_config_names", list)
 
     async def simulate():
-        async with user_simulation(
-            root=schedule_generator_view.schedule_generator
-        ) as user:
+        async with user_simulation(root=schedule_generator_view.schedule_generator) as user:
             await user.open("/")
             with active_client(user):
                 configured_limit = next(
@@ -52,11 +48,7 @@ def test_generation_limit_override_is_grouped_before_time_slot_settings(
                     )
                 )
 
-                assert (
-                    configured_limit.id
-                    < generation_override.id
-                    < time_slot_heading.id
-                )
+                assert configured_limit.id < generation_override.id < time_slot_heading.id
 
     asyncio.run(simulate())
 
@@ -105,9 +97,7 @@ def test_controller_passes_time_slot_overrides_to_generation(monkeypatch):
         ("min_time_overlap_override_value", "nope", "minimum time overlap"),
     ],
 )
-def test_controller_rejects_invalid_time_slot_overrides(
-    setting, value, expected_error
-):
+def test_controller_rejects_invalid_time_slot_overrides(setting, value, expected_error):
     controller = ScheduleGeneratorController()
     max_time_gap = value if setting == "max_time_gap_override_value" else ""
     min_time_overlap = value if setting == "min_time_overlap_override_value" else ""
@@ -121,9 +111,7 @@ def test_controller_rejects_invalid_time_slot_overrides(
     )
 
     assert requested is None
-    assert error == (
-        f"Temporary {expected_error} must be a positive whole number."
-    )
+    assert error == (f"Temporary {expected_error} must be a positive whole number.")
 
 
 def test_model_applies_time_slot_overrides(monkeypatch):

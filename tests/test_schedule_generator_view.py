@@ -66,12 +66,8 @@ def test_current_editor_configuration_disables_upload_and_generates(
     monkeypatch,
 ):
     config = make_valid_config()
-    editor_config_controller = type(
-        "EditorController", (), {"configuration": config}
-    )()
-    monkeypatch.setattr(
-        generator, "editor_controller", editor_config_controller
-    )
+    editor_config_controller = type("EditorController", (), {"configuration": config})()
+    monkeypatch.setattr(generator, "editor_controller", editor_config_controller)
     generation_calls = []
 
     def start_generation(*args):

@@ -24,10 +24,17 @@ from tests.conftest import active_client
 def test_cancel_pending_upload_preserves_schedule_and_allows_next_load(
     monkeypatch, tmp_path, reopen
 ):
-    content = records_to_csv([{
-        "course": "CMSC 420", "faculty": "Dr. Smith", "room": "Room 101",
-        "lab": "", "times": "MON 09:00-09:50",
-    }])
+    content = records_to_csv(
+        [
+            {
+                "course": "CMSC 420",
+                "faculty": "Dr. Smith",
+                "room": "Room 101",
+                "lab": "",
+                "times": "MON 09:00-09:50",
+            }
+        ]
+    )
     controller = ScheduleController(
         model=ScheduleViewerModel(directory=tmp_path),
         generator=cast(
@@ -62,7 +69,8 @@ def test_cancel_pending_upload_preserves_schedule_and_allows_next_load(
                 load_dialog = next(a for a in upload.ancestors() if isinstance(a, ui.dialog))
                 assert load_dialog.value
                 event = UploadEventArguments(
-                    sender=upload, client=client,
+                    sender=upload,
+                    client=client,
                     file=SmallFileUpload("canceled.csv", "text/csv", content),
                 )
                 upload_handler = cast(
@@ -96,9 +104,11 @@ def test_cancel_pending_upload_preserves_schedule_and_allows_next_load(
                 user.find(kind=ui.button, content="Load").click()
                 await user.should_see("Load Schedule")
             with active_client(user):
-                await upload.handle_uploads([
-                    SmallFileUpload("next.csv", "text/csv", content),
-                ])
+                await upload.handle_uploads(
+                    [
+                        SmallFileUpload("next.csv", "text/csv", content),
+                    ]
+                )
             await user.should_see("Loaded next.csv")
             load.assert_called_once_with("next.csv", content)
             assert controller.current is not None

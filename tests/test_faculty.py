@@ -358,9 +358,7 @@ class TestFacultyGetters(unittest.TestCase):
         self.assertIn("already exists", printed_text)
 
     def test_get_max_credits_invalid_then_valid(self):
-        with patch("builtins.input", side_effect=["not_a_number", "12"]), patch(
-            "builtins.print"
-        ):
+        with patch("builtins.input", side_effect=["not_a_number", "12"]), patch("builtins.print"):
             result = faculty.get_max_credits()
 
         self.assertEqual(result, 12)
@@ -653,9 +651,10 @@ class TestDeleteFacultyEdgeCases(unittest.TestCase):
         )
 
     def test_delete_faculty_invalid_input_leaves_list_unchanged(self):
-        with patch("builtins.input", return_value="not_a_number"), patch(
-            "builtins.print"
-        ) as mock_print:
+        with (
+            patch("builtins.input", return_value="not_a_number"),
+            patch("builtins.print") as mock_print,
+        ):
             faculty.delete_faculty(self.faculty_members)
 
         printed_text = "\n".join(str(c.args[0]) for c in mock_print.call_args_list)

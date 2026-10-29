@@ -2,6 +2,7 @@
 Tests for ScheduleController.py
 
 """
+
 from typing import cast
 
 import pytest
@@ -136,9 +137,7 @@ class TestScheduleNavigation:
 
 
 class TestCurrentRows:
-    def test_converts_schedule_records_into_meeting_rows(
-        self, controller
-    ):
+    def test_converts_schedule_records_into_meeting_rows(self, controller):
         rows = controller.current_rows()
 
         assert len(rows) == 2

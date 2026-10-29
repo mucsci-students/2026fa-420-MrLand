@@ -17,6 +17,7 @@ from src.controllers.schedule_filters_controller import (
 # Schedule Stub
 # ---------------------------------------------------------
 
+
 @pytest.fixture
 def meeting_schedule():
     """Example schedule containing room, lab, and online meetings."""
@@ -37,9 +38,11 @@ def meeting_schedule():
         },
     ]
 
+
 # ---------------------------------------------------------
 # Formatted Schedule Stub
 # ---------------------------------------------------------
+
 
 @pytest.fixture
 def resource_schedule():
@@ -87,9 +90,11 @@ def resource_schedule():
         },
     ]
 
+
 # ---------------------------------------------------------
 # Formatting Tests
 # ---------------------------------------------------------
+
 
 class TestCreateResourceSchedule:
     def test_creates_one_row_per_meeting(self, meeting_schedule):
@@ -102,8 +107,7 @@ class TestCreateResourceSchedule:
         result = create_resource_schedule(meeting_schedule)
 
         monday_meeting = next(
-            row for row in result
-            if row["course"] == "CS101" and row["day"] == "MON"
+            row for row in result if row["course"] == "CS101" and row["day"] == "MON"
         )
 
         assert monday_meeting["resource"] == "Room 101"
@@ -111,22 +115,16 @@ class TestCreateResourceSchedule:
     def test_assigns_labs_to_lab_meetings(self, meeting_schedule):
         result = create_resource_schedule(meeting_schedule)
 
-        lab_meetings = [
-            row for row in result
-            if row["resource"].startswith("Lab")
-        ]
+        lab_meetings = [row for row in result if row["resource"].startswith("Lab")]
 
         assert len(lab_meetings) == 2
-        assert {
-            row["resource"] for row in lab_meetings
-        } == {"Lab A", "Lab B"}
+        assert {row["resource"] for row in lab_meetings} == {"Lab A", "Lab B"}
 
     def test_assigns_online_resource(self, meeting_schedule):
         result = create_resource_schedule(meeting_schedule)
 
         online_meeting = next(
-            row for row in result
-            if row["course"] == "CS102" and row["day"] == "MON"
+            row for row in result if row["course"] == "CS102" and row["day"] == "MON"
         )
 
         assert online_meeting["resource"] == "Online"
@@ -152,9 +150,11 @@ class TestCreateResourceSchedule:
     def test_empty_schedule_returns_empty_list(self):
         assert create_resource_schedule([]) == []
 
+
 # ---------------------------------------------------------
 # Filtering
 # ---------------------------------------------------------
+
 
 class TestScheduleFilters:
     def test_filters_by_resource(self, resource_schedule):
@@ -178,25 +178,15 @@ class TestScheduleFilters:
     def test_resource_and_day_filter_together(self, resource_schedule):
         # The controller filters by resource; the viewer can then
         # restrict those results to the selected day.
-        resource_results = filter_by_resource(
-            resource_schedule, "Room 101"
-        )
-        result = [
-            row for row in resource_results
-            if row["day"] == "MON"
-        ]
+        resource_results = filter_by_resource(resource_schedule, "Room 101")
+        result = [row for row in resource_results if row["day"] == "MON"]
 
         assert len(result) == 1
         assert result[0]["start"] == "09:00"
 
     def test_faculty_and_day_filter_together(self, resource_schedule):
-        faculty_results = filter_by_faculty(
-            resource_schedule, "Dr. Smith"
-        )
-        result = [
-            row for row in faculty_results
-            if row["day"] == "WED"
-        ]
+        faculty_results = filter_by_faculty(resource_schedule, "Dr. Smith")
+        result = [row for row in faculty_results if row["day"] == "WED"]
 
         assert len(result) == 1
         assert result[0]["course"] == "CS101"
@@ -217,15 +207,12 @@ class TestScheduleFilters:
 # Sorting
 # ---------------------------------------------------------
 
+
 class TestSortSchedule:
-    def test_default_sort_orders_by_day_then_start_time(
-        self, resource_schedule
-    ):
+    def test_default_sort_orders_by_day_then_start_time(self, resource_schedule):
         result = sort_schedule(resource_schedule)
 
-        assert [
-            (row["day"], row["start"]) for row in result
-        ] == [
+        assert [(row["day"], row["start"]) for row in result] == [
             ("MON", "09:00"),
             ("MON", "11:00"),
             ("TUE", "09:00"),
@@ -234,20 +221,14 @@ class TestSortSchedule:
         ]
 
     def test_sorts_by_day_descending(self, resource_schedule):
-        result = sort_schedule(
-            resource_schedule, column="day", descending=True
-        )
+        result = sort_schedule(resource_schedule, column="day", descending=True)
 
-        assert [row["day"] for row in result] == [
-            "FRI", "WED", "TUE", "MON", "MON"
-        ]
+        assert [row["day"] for row in result] == ["FRI", "WED", "TUE", "MON", "MON"]
 
     def test_sorts_by_course(self, resource_schedule):
         result = sort_schedule(resource_schedule, column="course")
 
-        assert [row["course"] for row in result] == [
-            "CS101", "CS101", "CS101", "CS102", "CS102"
-        ]
+        assert [row["course"] for row in result] == ["CS101", "CS101", "CS101", "CS102", "CS102"]
 
     def test_empty_schedule_returns_empty_list(self):
         assert sort_schedule([]) == []

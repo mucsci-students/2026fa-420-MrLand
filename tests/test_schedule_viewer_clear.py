@@ -18,21 +18,22 @@ from src.models.schedule_viewer_model import ScheduleViewerModel
 from tests.conftest import active_client
 
 
-def test_clear_generated_results_preserves_uploaded_schedules(
-    monkeypatch, tmp_path
-):
+def test_clear_generated_results_preserves_uploaded_schedules(monkeypatch, tmp_path):
     generator_model = ScheduleGeneratorModel()
     generator_model._generated_schedules.append(
         ScheduleResult(
             config_name="generated",
             schedule=[
-                cast(CourseInstance, SimpleNamespace(
-                    course="CS101",
-                    faculty="Dr. Smith",
-                    room="Room 101",
-                    lab=None,
-                    time="MON 09:00-09:50",
-                ))
+                cast(
+                    CourseInstance,
+                    SimpleNamespace(
+                        course="CS101",
+                        faculty="Dr. Smith",
+                        room="Room 101",
+                        lab=None,
+                        time="MON 09:00-09:50",
+                    ),
+                )
             ],
         )
     )
