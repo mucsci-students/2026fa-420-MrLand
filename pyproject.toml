@@ -1,7 +1,7 @@
 [project]
 name = "2026fa-420-mrland"
 version = "0.1.0"
-description = "CLI interface for generating and viewing class schedules"
+description = "GUI application for generating and viewing class schedules"
 requires-python = ">=3.12"
 dependencies = [
     "course-constraint-scheduler",
@@ -10,11 +10,15 @@ dependencies = [
     "langchain-openai>=0.3.0",
     "nicegui>=3.17.1",
     "pydantic",
+    "python-dotenv>=1.2.3",
 ]
 
 [project.scripts]
-mrland-cli = "src.views.navmenu:main"
 mrland-gui = "src.views.gui:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
 
 [build-system]
 requires = ["hatchling"]

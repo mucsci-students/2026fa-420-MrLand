@@ -5,7 +5,12 @@ Used by: GUI."""
 from nicegui import ui
 
 from src.controllers.room_controller import RoomController
-from src.views.common import ConfigurationChangeHandler, run_configuration_change
+from src.views.common import (
+    ConfigurationChangeHandler,
+    PendingChangeHandler,
+    PendingFormChanges,
+    run_crud_mutation,
+)
 
 controller = RoomController()
 
@@ -25,31 +30,32 @@ def _availability_text(times) -> str:
 def rooms_gui(
     rooms: list,
     on_change: ConfigurationChangeHandler | None = None,
+    on_pending_change: PendingChangeHandler | None = None,
 ) -> None:
     """Build the room editor, including its add, edit, and delete controls."""
     ui.label("Rooms").classes("text-xl font-semibold text-white")
-    ui.label("Add a room and its scheduling constraints.").classes("text-sm text-[#9fb2b8]")
+    ui.label("Add a room and its scheduling constraints.").classes(
+        "text-sm text-[#9fb2b8]"
+    )
     ui.label("Existing rooms").classes("mt-4 text-lg font-semibold text-white")
     room_list = ui.column().classes("w-full gap-1")
 
     with ui.row().classes("w-full flex-wrap items-center gap-2"):
-        ui.button("Add new room", icon="add", on_click=lambda: show_form()) \
-            .props("unelevated") \
-            .classes("bg-[#75e6da] text-[#101820]")
+        add_button = ui.button("Add new room", icon="add", on_click=lambda: show_form()).props(
+            "unelevated"
+        ).classes("bg-[#75e6da] text-[#101820]")
 
     # Form fields and callbacks for creating or editing a room.
-    with ui.column().classes(
-        "w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4"
-    ) as form_container:
+    with ui.column().classes("w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4") as form_container:
         form_container.set_visibility(False)
         form_heading = ui.label("Add New Room").classes("text-lg font-semibold text-white")
 
         with ui.row().classes("w-full flex-wrap gap-4"):
             name = ui.input("Room name").classes("min-w-56 flex-1")
             capacity = ui.number("Capacity", value=1, min=1, step=1).classes("w-40")
-            features = ui.input("Features", placeholder="Projector, whiteboard").classes(
-                "min-w-56 flex-1"
-            )
+            features = ui.input(
+                "Features", placeholder="Projector, whiteboard"
+            ).classes("min-w-56 flex-1")
 
         unrestricted = ui.checkbox("Unrestricted availability", value=True).classes(
             "text-[#d8e7e8]"
@@ -61,6 +67,15 @@ def rooms_gui(
                     f"{day} availability",
                     placeholder="09:00-12:00, 13:00-17:00",
                 ).classes("w-full")
+
+        pending_changes = PendingFormChanges(form_container, on_pending_change)
+        pending_changes.watch(
+            name,
+            capacity,
+            features,
+            unrestricted,
+            *availability_fields.values(),
+        )
 
         # Toggle day inputs when the room has restricted availability.
         def set_availability_enabled(event) -> None:
@@ -82,27 +97,36 @@ def rooms_gui(
             availability = None
             if not unrestricted.value:
                 availability = {
-                    day: [value.strip() for value in field.value.split(",") if value.strip()]
+                    day: [
+                        value.strip()
+                        for value in field.value.split(",")
+                        if value.strip()
+                    ]
                     for day, field in availability_fields.items()
                 }
 
             parsed_features = [
-                feature.strip() for feature in (features.value or "").split(",") if feature.strip()
+                feature.strip()
+                for feature in (features.value or "").split(",")
+                if feature.strip()
             ]
             return name.value or "", int(capacity_value), parsed_features, availability
 
         # Prepare the form for a new room and show its create controls.
         def show_form() -> None:
+            form_container.set_visibility(False)
+            pending_changes.clear()
             editing_room["room"] = None
             form_heading.set_text("Add New Room")
-            name.value = ""
-            capacity.value = 1
-            features.value = ""
-            unrestricted.value = True
-            for field in availability_fields.values():
-                field.value = ""
-            for field in availability_fields.values():
-                field.set_enabled(False)
+            with pending_changes.suspend():
+                name.value = ""
+                capacity.value = 1
+                features.value = ""
+                unrestricted.value = True
+                for field in availability_fields.values():
+                    field.value = ""
+                for field in availability_fields.values():
+                    field.set_enabled(False)
             form_container.set_visibility(True)
             add_submit_button.set_visibility(True)
             update_button.set_visibility(False)
@@ -110,29 +134,27 @@ def rooms_gui(
 
         # Clear the form and return it to its closed, create-ready state.
         def reset_form() -> None:
+            form_container.set_visibility(False)
             editing_room["room"] = None
             form_heading.set_text("Add New Room")
-            name.value = ""
-            capacity.value = 1
-            features.value = ""
-            unrestricted.value = True
-            for field in availability_fields.values():
-                field.value = ""
-                field.set_enabled(False)
-            form_container.set_visibility(False)
+            with pending_changes.suspend():
+                name.value = ""
+                capacity.value = 1
+                features.value = ""
+                unrestricted.value = True
+                for field in availability_fields.values():
+                    field.value = ""
+                    field.set_enabled(False)
+            pending_changes.clear()
             add_submit_button.set_visibility(True)
             update_button.set_visibility(False)
             cancel_button.set_visibility(False)
 
         # Apply a new room to the current configuration.
         def add_room() -> None:
-            try:
-                if not run_configuration_change(
-                    on_change, lambda: controller.add_room(rooms, *form_values())
-                ):
-                    return
-            except (TypeError, ValueError) as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change, lambda: controller.add_room(rooms, *form_values())
+            ):
                 return
             reset_form()
             refresh_rooms()
@@ -140,14 +162,12 @@ def rooms_gui(
 
         # Save edits to the room currently being modified.
         def update_room() -> None:
-            try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: controller.update_room(rooms, editing_room["room"], *form_values()),
-                ):
-                    return
-            except (TypeError, ValueError) as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change,
+                lambda: controller.update_room(
+                    rooms, editing_room["room"], *form_values()
+                ),
+            ):
                 return
             reset_form()
             refresh_rooms()
@@ -155,16 +175,20 @@ def rooms_gui(
 
         # Populate the form with a selected room's current values.
         def begin_edit(room) -> None:
+            form_container.set_visibility(False)
+            pending_changes.clear()
             editing_room["room"] = room
             form_heading.set_text("Modifying Room")
-            name.value = room.name
-            capacity.value = room.capacity
-            features.value = ", ".join(sorted(room.features))
-            unrestricted.value = room.times is None
-            for day, field in availability_fields.items():
-                field.value = ", ".join(
-                    f"{item.start}-{item.end}" for item in (room.times or {}).get(day, [])
-                )
+            with pending_changes.suspend():
+                name.value = room.name
+                capacity.value = room.capacity
+                features.value = ", ".join(sorted(room.features))
+                unrestricted.value = room.times is None
+                for day, field in availability_fields.items():
+                    field.value = ", ".join(
+                        f"{item.start}-{item.end}"
+                        for item in (room.times or {}).get(day, [])
+                    )
             form_container.set_visibility(True)
             add_submit_button.set_visibility(False)
             update_button.set_visibility(True)
@@ -172,14 +196,11 @@ def rooms_gui(
 
         # Delete the selected room after the user confirms the action.
         def delete_room(room, dialog) -> None:
-            try:
-                if not run_configuration_change(
-                    on_change, lambda: controller.delete_room(rooms, room)
-                ):
-                    dialog.close()
-                    return
-            except ValueError as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change,
+                lambda: controller.delete_room(rooms, room),
+                handled_errors=(ValueError,),
+            ):
                 dialog.close()
                 return
             if editing_room["room"] is room:
@@ -189,22 +210,16 @@ def rooms_gui(
             refresh_rooms()
 
         with ui.row().classes("w-full flex-wrap items-center gap-2"):
-            add_submit_button = (
-                ui.button("Create room", icon="add", on_click=add_room)
-                .props("unelevated")
-                .classes("bg-[#75e6da] text-[#101820]")
-            )
-            update_button = (
-                ui.button("Save changes", icon="save", on_click=update_room)
-                .props("unelevated")
-                .classes("bg-[#75e6da] text-[#101820]")
-            )
+            add_submit_button = ui.button("Create room", icon="add", on_click=add_room).props(
+                "unelevated"
+            ).classes("bg-[#75e6da] text-[#101820]")
+            update_button = ui.button(
+                "Apply changes", icon="save", on_click=update_room
+            ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
             update_button.set_visibility(False)
-            cancel_button = (
-                ui.button("Cancel", on_click=reset_form)
-                .props("outline")
-                .classes("border-[#45616b] text-[#d8e7e8]")
-            )
+            cancel_button = ui.button("Cancel", on_click=reset_form).props(
+                "outline"
+            ).classes("border-[#45616b] text-[#d8e7e8]")
             cancel_button.set_visibility(False)
 
     # Rebuild the room summaries and their edit/delete controls.
@@ -231,14 +246,15 @@ def rooms_gui(
                             icon="edit",
                             on_click=lambda selected=room: begin_edit(selected),
                         ).props("flat round dense").tooltip("Edit room")
-                        with (
-                            ui.dialog() as dialog,
-                            ui.card().classes("border border-[#29404b] bg-[#182630]"),
+                        with ui.dialog() as dialog, ui.card().classes(
+                            "border border-[#29404b] bg-[#182630]"
                         ):
                             ui.label(f"Delete {room.name}?").classes(
                                 "text-lg font-semibold text-white"
                             )
-                            ui.label("This cannot be undone.").classes("text-sm text-[#9fb2b8]")
+                            ui.label("This cannot be undone.").classes(
+                                "text-sm text-[#9fb2b8]"
+                            )
                             with ui.row().classes("mt-4 w-full justify-end gap-2"):
                                 ui.button("Cancel", on_click=dialog.close).props("flat")
                                 ui.button(

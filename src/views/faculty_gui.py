@@ -5,7 +5,13 @@ Used by: GUI."""
 from nicegui import ui
 
 from src.controllers.faculty_controller import FacultyController
-from src.views.common import ConfigurationChangeHandler, run_configuration_change
+from src.views.common import (
+    ConfigurationChangeHandler,
+    PendingChangeHandler,
+    PendingFormChanges,
+    parse_whole_number,
+    run_crud_mutation,
+)
 
 controller = FacultyController()
 
@@ -45,38 +51,37 @@ def _availability_text(times) -> str:
 def faculty_gui(
     faculty_members: list,
     on_change: ConfigurationChangeHandler | None = None,
+    on_pending_change: PendingChangeHandler | None = None,
 ) -> None:
     """Build the faculty editor, including its add, edit, and delete controls."""
     ui.label("Faculty").classes("text-xl font-semibold text-white")
-    ui.label("Add a faculty member and teaching constraints.").classes("text-sm text-[#9fb2b8]")
+    ui.label("Add a faculty member and teaching constraints.").classes(
+        "text-sm text-[#9fb2b8]"
+    )
     ui.label("Existing faculty").classes("mt-4 text-lg font-semibold text-white")
     faculty_list = ui.column().classes("w-full gap-1")
 
     with ui.row().classes("w-full flex-wrap items-center gap-2"):
-        ui.button("Add new faculty member", icon="add", on_click=lambda: show_form()) \
-            .props("unelevated") \
-            .classes("bg-[#75e6da] text-[#101820]")
+        add_button = ui.button("Add new faculty member", icon="add", on_click=lambda: show_form()).props(
+            "unelevated"
+        ).classes("bg-[#75e6da] text-[#101820]")
 
     # Form fields and callbacks for creating or editing a faculty member.
-    with ui.column().classes(
-        "w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4"
-    ) as form_container:
+    with ui.column().classes("w-full gap-4 mt-6 rounded-lg border border-[#45616b] bg-[#17232b] p-4") as form_container:
         form_container.set_visibility(False)
-        form_heading = ui.label("Add New Faculty Member").classes(
-            "text-lg font-semibold text-white"
-        )
+        form_heading = ui.label("Add New Faculty Member").classes("text-lg font-semibold text-white")
 
         with ui.row().classes("w-full flex-wrap gap-4"):
             name = ui.input("Faculty name").classes("min-w-56 flex-1")
-            maximum_credits = ui.number("Maximum credits", value=12, min=0, step=1).classes(
-                "min-w-40 flex-1"
-            )
-            minimum_credits = ui.number("Minimum credits", value=3, min=0, step=1).classes(
-                "min-w-40 flex-1"
-            )
-            course_limit = ui.number("Course limit", value=3, min=1, step=1).classes(
-                "min-w-40 flex-1"
-            )
+            maximum_credits = ui.number(
+                "Maximum credits", value=12, min=0, step=1
+            ).classes("min-w-40 flex-1")
+            minimum_credits = ui.number(
+                "Minimum credits", value=3, min=0, step=1
+            ).classes("min-w-40 flex-1")
+            course_limit = ui.number(
+                "Course limit", value=3, min=1, step=1
+            ).classes("min-w-40 flex-1")
             maximum_days = ui.number(
                 "Maximum teaching days", value=5, min=0, max=5, step=1
             ).classes("min-w-40 flex-1")
@@ -101,20 +106,31 @@ def faculty_gui(
                 "Lab preferences", placeholder="Lab 101=8, Lab 202=5"
             ).classes("w-full")
 
-        mandatory_days = (
-            ui.select(list(DAYS), multiple=True, label="Mandatory teaching days")
-            .props("use-chips clearable")
-            .classes("mandatory-days w-full")
+        mandatory_days = ui.select(
+            list(DAYS), multiple=True, label="Mandatory teaching days"
+        ).props("use-chips clearable").classes("mandatory-days w-full")
+
+        pending_changes = PendingFormChanges(form_container, on_pending_change)
+        pending_changes.watch(
+            name,
+            maximum_credits,
+            minimum_credits,
+            course_limit,
+            maximum_days,
+            *availability_fields.values(),
+            course_preferences,
+            room_preferences,
+            lab_preferences,
+            mandatory_days,
         )
 
         editing_member = {"member": None}
 
         # Validate whole-number form fields against their allowed bounds.
         def integer_value(field, label, minimum, maximum=None):
-            value = field.value
-            if value is None or not float(value).is_integer():
-                raise ValueError(f"{label} must be a whole number.")
-            value = int(value)
+            value = parse_whole_number(
+                field.value, f"{label} must be a whole number."
+            )
             if value < minimum or (maximum is not None and value > maximum):
                 if maximum is None:
                     raise ValueError(f"{label} must be at least {minimum}.")
@@ -143,19 +159,22 @@ def faculty_gui(
 
         # Reset the controls to defaults and open a new-faculty form.
         def show_form() -> None:
+            form_container.set_visibility(False)
+            pending_changes.clear()
             editing_member["member"] = None
             form_heading.set_text("Add New Faculty Member")
-            name.value = ""
-            maximum_credits.value = 12
-            minimum_credits.value = 3
-            course_limit.value = 3
-            maximum_days.value = 5
-            for field in availability_fields.values():
-                field.value = ""
-            course_preferences.value = ""
-            room_preferences.value = ""
-            lab_preferences.value = ""
-            mandatory_days.value = []
+            with pending_changes.suspend():
+                name.value = ""
+                maximum_credits.value = 12
+                minimum_credits.value = 3
+                course_limit.value = 3
+                maximum_days.value = 5
+                for field in availability_fields.values():
+                    field.value = ""
+                course_preferences.value = ""
+                room_preferences.value = ""
+                lab_preferences.value = ""
+                mandatory_days.value = []
             form_container.set_visibility(True)
             add_submit_button.set_visibility(True)
             update_button.set_visibility(False)
@@ -163,34 +182,32 @@ def faculty_gui(
 
         # Clear the controls and close the form after an action or cancellation.
         def reset_form() -> None:
+            form_container.set_visibility(False)
             editing_member["member"] = None
             form_heading.set_text("Add New Faculty Member")
-            name.value = ""
-            maximum_credits.value = 12
-            minimum_credits.value = 3
-            course_limit.value = 3
-            maximum_days.value = 5
-            for field in availability_fields.values():
-                field.value = ""
-            course_preferences.value = ""
-            room_preferences.value = ""
-            lab_preferences.value = ""
-            mandatory_days.value = []
-            form_container.set_visibility(False)
+            with pending_changes.suspend():
+                name.value = ""
+                maximum_credits.value = 12
+                minimum_credits.value = 3
+                course_limit.value = 3
+                maximum_days.value = 5
+                for field in availability_fields.values():
+                    field.value = ""
+                course_preferences.value = ""
+                room_preferences.value = ""
+                lab_preferences.value = ""
+                mandatory_days.value = []
+            pending_changes.clear()
             add_submit_button.set_visibility(True)
             update_button.set_visibility(False)
             cancel_button.set_visibility(False)
 
         # Add the validated faculty details to the current configuration.
         def add_member() -> None:
-            try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: controller.add_member(faculty_members, *form_values()),
-                ):
-                    return
-            except (TypeError, ValueError) as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change,
+                lambda: controller.add_member(faculty_members, *form_values()),
+            ):
                 return
             reset_form()
             refresh_faculty()
@@ -198,16 +215,12 @@ def faculty_gui(
 
         # Save edits to the faculty member currently being modified.
         def update_member() -> None:
-            try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: controller.update_member(
-                        faculty_members, editing_member["member"], *form_values()
-                    ),
-                ):
-                    return
-            except (TypeError, ValueError) as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change,
+                lambda: controller.update_member(
+                    faculty_members, editing_member["member"], *form_values()
+                ),
+            ):
                 return
             reset_form()
             refresh_faculty()
@@ -215,27 +228,32 @@ def faculty_gui(
 
         # Populate the form with a selected faculty member's current values.
         def begin_edit(member) -> None:
+            form_container.set_visibility(False)
+            pending_changes.clear()
             editing_member["member"] = member
             form_heading.set_text("Modifying Faculty Member")
-            name.value = member.name
-            maximum_credits.value = member.maximum_credits
-            minimum_credits.value = member.minimum_credits
-            course_limit.value = member.unique_course_limit
-            maximum_days.value = member.maximum_days
-            for day, field in availability_fields.items():
-                field.value = ", ".join(
-                    f"{item.start}-{item.end}" for item in member.times.get(day, [])
+            with pending_changes.suspend():
+                name.value = member.name
+                maximum_credits.value = member.maximum_credits
+                minimum_credits.value = member.minimum_credits
+                course_limit.value = member.unique_course_limit
+                maximum_days.value = member.maximum_days
+                for day, field in availability_fields.items():
+                    field.value = ", ".join(
+                        f"{item.start}-{item.end}"
+                        for item in member.times.get(day, [])
+                    )
+                course_preferences.value = ", ".join(
+                    f"{key}={score}"
+                    for key, score in member.course_preferences.items()
                 )
-            course_preferences.value = ", ".join(
-                f"{key}={score}" for key, score in member.course_preferences.items()
-            )
-            room_preferences.value = ", ".join(
-                f"{key}={score}" for key, score in member.room_preferences.items()
-            )
-            lab_preferences.value = ", ".join(
-                f"{key}={score}" for key, score in member.lab_preferences.items()
-            )
-            mandatory_days.value = sorted(member.mandatory_days)
+                room_preferences.value = ", ".join(
+                    f"{key}={score}" for key, score in member.room_preferences.items()
+                )
+                lab_preferences.value = ", ".join(
+                    f"{key}={score}" for key, score in member.lab_preferences.items()
+                )
+                mandatory_days.value = sorted(member.mandatory_days)
             form_container.set_visibility(True)
             add_submit_button.set_visibility(False)
             update_button.set_visibility(True)
@@ -243,15 +261,11 @@ def faculty_gui(
 
         # Delete the selected faculty member after confirmation.
         def delete_member(member, dialog) -> None:
-            try:
-                if not run_configuration_change(
-                    on_change,
-                    lambda: controller.delete_member(faculty_members, member),
-                ):
-                    dialog.close()
-                    return
-            except ValueError as exc:
-                ui.notify(str(exc), type="negative")
+            if not run_crud_mutation(
+                on_change,
+                lambda: controller.delete_member(faculty_members, member),
+                handled_errors=(ValueError,),
+            ):
                 dialog.close()
                 return
             if editing_member["member"] is member:
@@ -261,22 +275,16 @@ def faculty_gui(
             refresh_faculty()
 
         with ui.row().classes("w-full flex-wrap items-center gap-2"):
-            add_submit_button = (
-                ui.button("Create faculty member", icon="add", on_click=add_member)
-                .props("unelevated")
-                .classes("bg-[#75e6da] text-[#101820]")
-            )
-            update_button = (
-                ui.button("Save changes", icon="save", on_click=update_member)
-                .props("unelevated")
-                .classes("bg-[#75e6da] text-[#101820]")
-            )
+            add_submit_button = ui.button("Create faculty member", icon="add", on_click=add_member).props(
+                "unelevated"
+            ).classes("bg-[#75e6da] text-[#101820]")
+            update_button = ui.button(
+                "Apply changes", icon="save", on_click=update_member
+            ).props("unelevated").classes("bg-[#75e6da] text-[#101820]")
             update_button.set_visibility(False)
-            cancel_button = (
-                ui.button("Cancel", on_click=reset_form)
-                .props("outline")
-                .classes("border-[#45616b] text-[#d8e7e8]")
-            )
+            cancel_button = ui.button("Cancel", on_click=reset_form).props(
+                "outline"
+            ).classes("border-[#45616b] text-[#d8e7e8]")
             cancel_button.set_visibility(False)
 
     # Rebuild the faculty summaries and their edit/delete controls.
@@ -284,7 +292,9 @@ def faculty_gui(
         faculty_list.clear()
         with faculty_list:
             if not faculty_members:
-                ui.label("No faculty members added yet.").classes("text-sm text-[#9fb2b8]")
+                ui.label("No faculty members added yet.").classes(
+                    "text-sm text-[#9fb2b8]"
+                )
                 return
             for member in faculty_members:
                 with ui.row().classes(
@@ -304,14 +314,15 @@ def faculty_gui(
                             icon="edit",
                             on_click=lambda selected=member: begin_edit(selected),
                         ).props("flat round dense").tooltip("Edit faculty member")
-                        with (
-                            ui.dialog() as dialog,
-                            ui.card().classes("border border-[#29404b] bg-[#182630]"),
+                        with ui.dialog() as dialog, ui.card().classes(
+                            "border border-[#29404b] bg-[#182630]"
                         ):
                             ui.label(f"Delete {member.name}?").classes(
                                 "text-lg font-semibold text-white"
                             )
-                            ui.label("This cannot be undone.").classes("text-sm text-[#9fb2b8]")
+                            ui.label("This cannot be undone.").classes(
+                                "text-sm text-[#9fb2b8]"
+                            )
                             with ui.row().classes("mt-4 w-full justify-end gap-2"):
                                 ui.button("Cancel", on_click=dialog.close).props("flat")
                                 ui.button(

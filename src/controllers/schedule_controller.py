@@ -27,9 +27,17 @@ class ScheduleController:
         """Pull the generator's latest results. True if the viewer should redraw."""
         return self.model.set_generated(self.generator.generated_schedules)
 
+    def clear_generated_schedules(self) -> bool:
+        """Clear generated results without affecting schedules loaded from files."""
+        return self.generator.clear_generated_schedules()
+
     @property
     def has_schedules(self) -> bool:
         return bool(self.model.entries)
+
+    @property
+    def has_generated_schedules(self) -> bool:
+        return self.model.has_generated_schedules
 
     @property
     def current(self) -> ScheduleEntry | None:
@@ -102,6 +110,15 @@ class ScheduleController:
             return None, "There is no schedule to export."
         try:
             return self.model.export(entry, file_format, file_name), None
+        except ValueError as error:
+            return None, str(error)
+
+    def export_all_generated(
+        self, file_format: str
+    ) -> tuple[tuple[bytes, str, str] | None, str | None]:
+        """(archive, file name, media type) for all generated schedules."""
+        try:
+            return self.model.export_all_generated(file_format), None
         except ValueError as error:
             return None, str(error)
 

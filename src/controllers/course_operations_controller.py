@@ -1,6 +1,6 @@
 """Course creation, editing, and interactive management operations.
 
-Used by: GUI and CLI."""
+Used by: GUI."""
 
 # File name: course_operations_controller.py
 # Primary Author: Dylan Groff

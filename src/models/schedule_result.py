@@ -1,6 +1,6 @@
 """Data model associating a generated schedule with its source configuration.
 
-Used by: GUI and CLI."""
+Used by: GUI."""
 
 # schedule_result.py
 

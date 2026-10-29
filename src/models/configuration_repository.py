@@ -1,6 +1,6 @@
 """Reads and writes validated scheduler configuration files.
 
-Used by: GUI and CLI."""
+Used by: GUI."""
 
 import json
 import os

@@ -10,6 +10,7 @@
 - Logan Kaufman
 - Dylan Groff
 - Micah Schafer
+- Sohil Ramani
 
 ---
 
@@ -35,10 +36,13 @@ This project is a schedule-planning application for creating and managing course
 - **Schedule Viewer**
   - Load generated schedules from disk
   - Review schedule details and exported results
+  - Clear generated results without removing schedules loaded from files
 - **Scheduler AI Assistant**
   - Use the floating chat box from any GUI screen to inspect or edit the active configuration in natural language
-  - AI edits pass through the same configuration validation as manual edits and remain unsaved until saved in the editor
-  - Set `OPENAI_API_KEY` or enter a key in the assistant; model requests may incur API charges
+  - Inspect and manage rooms, labs, courses, faculty, class patterns, meetings, time blocks, and global settings; validate and generate schedules with defined scheduler tools
+  - A failed multi-operation request is rolled back; delete and overwrite actions require confirmation
+  - The chat reports whether edits are applied to the editor or saved to disk; generated results appear in the Schedule Viewer
+  - Requires `OPENAI_API_KEY` in a `.env` file (see AI assistant setup below); model requests may incur API charges
 
 - **Domain Management**
   - Add, modify, view, and delete faculty, courses, rooms, labs, class patterns, and time blocks
@@ -50,6 +54,36 @@ This project is a schedule-planning application for creating and managing course
   - Validate edits against the published [combined configuration JSON Schema](https://raw.githubusercontent.com/mucsci/scheduler/main/fern/docs/assets/combined-config.schema.json) and scheduler model rules
   - Preserve incomplete new drafts until valid; reject edits that would invalidate an already-valid configuration
 
+## Design pattern: Strategy
+
+The Schedule Viewer supports exporting the selected schedule or all generated
+schedules as either CSV or JSON. Each format requires different serialization,
+so keeping format-specific branches in the viewer model would couple export
+workflows to every supported format. The Strategy pattern lets those workflows
+use the selected serialization behavior through a shared interface.
+
+- **Relevant code:** [`schedule_files.py`](src/models/schedule_files.py) defines
+  `ScheduleExportStrategy`, `CsvScheduleExportStrategy`,
+  `JsonScheduleExportStrategy`, and the `SCHEDULE_EXPORT_STRATEGIES` registry.
+  [`schedule_viewer_model.py`](src/models/schedule_viewer_model.py) selects and
+  invokes the strategy in `ScheduleViewerModel.serialize`; both single-schedule
+  exports and ZIP exports use that method. The format choice is passed from
+  [`schedule_viewer.py`](src/views/schedule_viewer.py) through
+  [`schedule_controller.py`](src/controllers/schedule_controller.py).
+- **Participants and interaction:** `ScheduleViewerModel` is the context. It
+  requests serialization from the `ScheduleExportStrategy` interface. The
+  CSV and JSON concrete strategies delegate to their respective record
+  serializers, and the registry selects the concrete strategy by the user's
+  format choice.
+- **Why this fits:** CSV and JSON are interchangeable ways to serialize the
+  same schedule records. The viewer uses each strategy in actual download
+  behavior without needing format-specific serialization branches.
+
+## AI assistant setup
+1. Run `uv sync` to install dependencies.
+2. Copy `.env.example` to a new file named `.env` in the project root.
+3. Replace `your-key-here` with your OpenAI API key found in the resources page on discord.
+
 ---
 
 ## Project Structure
@@ -57,7 +91,6 @@ This project is a schedule-planning application for creating and managing course
 .
 ├── LICENSE
 ├── README.md
-├── pytest.ini
 ├── pyproject.toml
 ├── uv.lock
 ├── src
@@ -80,10 +113,8 @@ This project is a schedule-planning application for creating and managing course
 │   │   ├── settings_operations_controller.py
 │   │   ├── schedule_generator_controller.py
 │   │   ├── schedule_controller.py
-│   │   ├── run_scheduler_controller.py
 │   │   └── ...
 │   ├── models/
-│   │   ├── configuration.py
 │   │   ├── configuration_model.py
 │   │   ├── configuration_repository.py
 │   │   ├── schedule_generator_model.py
@@ -91,8 +122,6 @@ This project is a schedule-planning application for creating and managing course
 │   ├── views/
 │   │   ├── common.py
 │   │   ├── configuration_editor.py
-│   │   ├── legacy_schedule.py
-│   │   ├── navmenu.py
 │   │   ├── gui.py
 │   │   ├── schedule_generator.py
 │   │   ├── schedule_viewer.py
@@ -104,8 +133,6 @@ This project is a schedule-planning application for creating and managing course
 │   ├── test_rooms.py
 │   ├── test_class_patterns.py
 │   ├── test_time_blocks.py
-│   ├── tests_conflicts.py
-│   ├── test_run_scheduler.py
 │   └── ...
 └── .venv/
 ```
@@ -113,8 +140,8 @@ This project is a schedule-planning application for creating and managing course
 Application implementations are organized into MVC packages. Configuration
 validation and persistence live in `models`, domain actions in `controllers`,
 and user interfaces in `views`. The former services implementations have been
-moved into those MVC packages. Use the `mrland-cli` and `mrland-gui` project
-commands to launch the respective interfaces.
+moved into those MVC packages. Use the `mrland-gui` project command to launch the
+application.
 
 ---
 
@@ -138,7 +165,7 @@ git clone https://github.com/mucsci-students/2026fa-420-MrLand.git
 cd 2026fa-420-MrLand
 ```
 
-2. Launch the GUI or CLI from the project directory. `uv run` creates and
+2. Launch the GUI from the project directory. `uv run` creates and
    synchronizes the environment from `pyproject.toml`, installing dependencies
    if needed.
 
@@ -150,11 +177,6 @@ cd 2026fa-420-MrLand
    Open the GUI in your browser at:
    ```text
    http://localhost:8080
-   ```
-
-   Or start the interactive CLI:
-   ```bash
-   uv run mrland-cli
    ```
 
    Or run the tests

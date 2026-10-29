@@ -6,23 +6,20 @@ Used by: GUI."""
 # Primary author: Dylan Groff
 # Secondary Author: Micah Schafer
 
-from nicegui import ui
 
+from collections.abc import Callable
+
+from nicegui import ui
 from src.controllers.schedule_controller import (
     schedule_controller as controller,
 )
 from src.controllers.schedule_filters_controller import (
-    filter_by_course,
-    filter_by_faculty,
     filter_by_resource,
-    sort_schedule,
+    filter_by_faculty,
+    filter_by_course,
 )
-from src.controllers.schedule_inspection_controller import (
-    get_course_details,
-    get_faculty_details,
-    get_lab_details,
-    get_room_details,
-)
+from src.views.schedule_table_view import schedule_table_view
+from src.views.schedule_calendar_view import schedule_calendar_view
 
 # set the background and accent colors for the schedule viewer
 BACKGROUND = "#101820"
@@ -36,80 +33,85 @@ async def read_upload(event) -> tuple[str, bytes]:
     return event.name, event.content.read()  # NiceGUI 2.x
 
 
-def schedule_viewer() -> None:
+def schedule_viewer() -> Callable[[], None]:
     # adds custom CSS to the web elements to style the schedule viewer
     ui.add_head_html(
-        """
+        f"""
         <style>
-            body {
+            body {{
                 background: var(--app-background) !important;
-            }
+            }}
 
-            .q-page {
+            .q-page {{
                 background: var(--app-background) !important;
-            }
+            }}
 
             /* Dropdowns */
-            .schedule-dropdown .q-field__control:before {
+            .schedule-dropdown .q-field__control:before {{
                 border-color: var(--border-strong) !important;
-            }
+            }}
 
-            .schedule-dropdown .q-field__control:hover:before {
-                border-color: var(--accent-color) !important;
-            }
+            .schedule-dropdown .q-field__control:hover:before {{
+                border-color: {ACCENT} !important;
+            }}
 
-            .schedule-dropdown .q-field--focused .q-field__control:after {
+            .schedule-dropdown .q-field--focused .q-field__control:after {{
+                border-color: {ACCENT} !important;
                 border-color: var(--accent-color) !important;
-            }
+            }}
+
+            .schedule-dropdown .q-field--focused .q-field__control:after {{
+                border-color: var(--accent-color) !important;
+            }}
 
             .schedule-dropdown .q-field__native,
             .schedule-dropdown .q-field__input,
             .schedule-dropdown .q-field__label,
-            .schedule-dropdown .q-select__dropdown-icon {
+            .schedule-dropdown .q-select__dropdown-icon {{
                 color: var(--app-foreground) !important;
-            }
+            }}
 
             /* Table */
             .q-table__container,
             .q-table__middle,
-            .q-table {
+            .q-table {{
                 background: var(--app-background) !important;
-            }
+            }}
 
-            .q-table thead tr {
+            .q-table thead tr {{
                 background: var(--surface-raised) !important;
-            }
+            }}
 
-            .q-table tbody tr {
+            .q-table tbody tr {{
                 background: var(--app-background) !important;
-            }
+            }}
 
-            .q-table tbody tr:hover {
+            .q-table tbody tr:hover {{
                 background: var(--surface-hover) !important;
-            }
+            }}
 
             .q-table th,
-            .q-table td {
+            .q-table td {{
                 color: var(--app-foreground) !important;
-            }
+            }}
 
             /* Table pagination */
-            .q-table__bottom {
+            .q-table__bottom {{
                 background: var(--app-background) !important;
                 color: var(--app-foreground) !important;
                 border-top: 1px solid var(--border-color) !important;
-            }
+            }}
 
             .q-table__bottom .q-field__native,
             .q-table__bottom .q-field__input,
             .q-table__bottom .q-field__label,
-            .q-table__bottom .q-select__dropdown-icon {
+            .q-table__bottom .q-select__dropdown-icon {{
                 color: var(--app-foreground) !important;
-            }
+            }}
 
-            .q-table__bottom .q-btn {
+            .q-table__bottom .q-btn {{
                 color: var(--app-foreground) !important;
-            }
+            }}
         </style>
         """
     )
@@ -121,102 +123,105 @@ def schedule_viewer() -> None:
 
     # set while the code itself changes the dropdown, so it doesn't re-trigger
     syncing = False
+    load_generation = 0
 
-    with (
-        ui.column()
-        .classes("w-full min-h-screen px-6 py-8")
-        .style("background-color: var(--app-background);")
+    with ui.column().classes("w-full min-h-screen px-6 py-8").style(
+        "background-color: var(--app-background);"
     ):
+
         # ---------------------------------------------------------
         # Title
         # ---------------------------------------------------------
 
         with ui.row().classes("w-full items-center gap-3 mb-6"):
-            ui.icon("calendar_view_week", size="30px").style("color: var(--accent-color);")
+            ui.icon("calendar_view_week", size="30px").style(
+                "color: var(--accent-color);"
+            )
 
-            ui.label("Schedule Viewer").classes("text-2xl font-semibold text-white")
+            ui.label("Schedule Viewer").classes(
+                "text-2xl font-semibold text-white"
+            )
 
         # ---------------------------------------------------------
         # Load dialog
         # ---------------------------------------------------------
 
-        with ui.dialog() as load_dialog, ui.card().classes(
-            "bg-[#101820] border border-[#29404b] w-[480px] gap-3"
-        ):
-            ui.label("Load Schedule").classes("text-lg font-semibold text-white")
-            ui.label("Choose a saved schedule from the schedules folder.").classes(
-                "text-sm text-gray-400"
-            )
+        with ui.dialog() as load_dialog:
+            with ui.card().classes("bg-[#101820] border border-[#29404b] w-[480px] gap-3"):
+                ui.label("Load Schedule").classes("text-lg font-semibold text-white")
 
-            saved_file_select = (
-                ui.select(
-                    [],
-                    label="Saved schedules",
-                    with_input=True,
-                )
-                .props("outlined dark")
-                .classes("schedule-dropdown w-full")
-            )
+                load_status = ui.label("").classes("text-sm text-red-400")
 
-            load_status = ui.label("").classes("text-sm text-red-400")
+                ui.label(
+                    "Upload a CSV or JSON schedule from your computer."
+                ).classes("text-sm text-gray-400")
 
-            with ui.row().classes("w-full justify-end gap-2"):
-                ui.button("Cancel", on_click=load_dialog.close).props("flat")
-                load_button = ui.button("Load", icon="upload_file")
-
-            ui.separator().classes("bg-[#29404b]")
-            ui.label("Or upload a CSV or JSON schedule from your computer.").classes(
-                "text-sm text-gray-400"
-            )
-
-            upload = (
-                ui.upload(
+                upload = ui.upload(
                     auto_upload=True,
                     max_files=1,
+                ).props("accept=.csv,.json dark flat bordered").classes(
+                    "w-full schedule-load-upload"
                 )
-                .props("accept=.csv,.json dark flat bordered")
-                .classes("w-full")
-            )
+                
+                with ui.row().classes("w-full justify-end"):
+                    ui.button(
+                        "Cancel",
+                        on_click=lambda: cancel_load(),
+                    ).props("flat")
 
         # ---------------------------------------------------------
         # Export dialog
         # ---------------------------------------------------------
 
-        with ui.dialog() as export_dialog, ui.card().classes(
-            "bg-[#101820] border border-[#29404b] w-[480px] gap-3"
-        ):
-            ui.label("Export Schedule").classes("text-lg font-semibold text-white")
-            export_description = ui.label("").classes("text-sm text-gray-400")
+        with ui.dialog() as export_dialog:
+            with ui.card().classes("bg-[#101820] border border-[#29404b] w-[480px] gap-3"):
+                ui.label("Export Schedule").classes("text-lg font-semibold text-white")
+                export_description = ui.label("").classes("text-sm text-gray-400")
 
-            export_format = (
-                ui.select(
+                export_format = ui.select(
                     {"csv": "CSV", "json": "JSON"},
                     value="csv",
                     label="File Format",
-                )
-                .props("outlined dark")
-                .classes("schedule-dropdown w-full")
-            )
+                ).props("outlined dark").classes("schedule-dropdown w-full")
 
-            export_name = (
-                ui.input(
+                export_name = ui.input(
                     label="File Name",
+                ).props("outlined dark").classes("schedule-dropdown w-full")
+
+                export_status = ui.label("").classes("text-sm text-red-400")
+
+                with ui.row().classes("w-full justify-end gap-2"):
+                    ui.button("Cancel", on_click=export_dialog.close).props("flat")
+                    export_button = ui.button("Export", icon="download")
+
+        with ui.dialog() as export_all_dialog:
+            with ui.card().classes("bg-[#101820] border border-[#29404b] w-[480px] gap-3"):
+                ui.label("Export All Generated Schedules").classes(
+                    "text-lg font-semibold text-white"
                 )
-                .props("outlined dark")
-                .classes("schedule-dropdown w-full")
-            )
-
-            export_status = ui.label("").classes("text-sm text-red-400")
-
-            with ui.row().classes("w-full justify-end gap-2"):
-                ui.button("Cancel", on_click=export_dialog.close).props("flat")
-                export_button = ui.button("Export", icon="download")
+                ui.label(
+                    "Download every generated schedule together in one ZIP archive."
+                ).classes("text-sm text-gray-400")
+                export_all_format = ui.select(
+                    {"csv": "CSV", "json": "JSON"},
+                    value="csv",
+                    label="Schedule File Format",
+                ).props("outlined dark").classes("schedule-dropdown w-full")
+                export_all_status = ui.label("").classes("text-sm text-red-400")
+                with ui.row().classes("w-full justify-end gap-2"):
+                    ui.button(
+                        "Cancel", on_click=export_all_dialog.close
+                    ).props("flat")
+                    export_all_button = ui.button(
+                        "Export All", icon="folder_zip"
+                    )
 
         # ---------------------------------------------------------
         # Schedule controls
         # ---------------------------------------------------------
 
         with ui.row().classes("w-full items-center gap-3 mb-6"):
+
             # Load button
             ui.button(
                 "Load",
@@ -231,6 +236,34 @@ def schedule_viewer() -> None:
                 on_click=lambda: open_export_dialog(),
             ).props("outline")
 
+            export_all_open_button = ui.button(
+                "Export All Generated",
+                icon="folder_zip",
+                on_click=lambda: open_export_all_dialog(),
+            ).props("outline")
+
+            clear_generated_button = ui.button(
+                "Clear Generated Results",
+                icon="delete_sweep",
+                on_click=lambda: clear_generated_results(),
+            ).props("outline")
+
+            # helper to reset filter values to default
+            def reset_filters():
+                filter_select.set_value("None")
+                filter_value_select.set_value(None)
+                day_filter_select.set_value(None)
+
+                update_filter_values()
+                update_table()
+
+            # Button to reset all filters to their default values
+            reset_filters_button = ui.button(
+                "Reset Filters",
+                icon="filter_alt_off",
+                on_click=reset_filters,
+            ).props("outline")
+
             ui.space()
 
             # button to iterate left through the schedules
@@ -240,15 +273,14 @@ def schedule_viewer() -> None:
             ).props("flat")
 
             # dropdown to select the schedule to view
-            schedule_select = (
-                ui.select(
-                    {},
-                    value=None,
-                    label="Schedule",
-                )
-                .props("outlined")
-                .classes("schedule-dropdown")
-                .style("min-width: 320px;")
+            schedule_select = ui.select(
+                {},
+                value=None,
+                label="Schedule",
+            ).props(
+                "outlined dark"
+            ).classes("schedule-dropdown").style(
+                "min-width: 320px;"
             )
 
             # button to iterate right through the schedules
@@ -266,414 +298,55 @@ def schedule_viewer() -> None:
         # ---------------------------------------------------------
 
         with ui.row().classes("w-full items-center gap-4 mb-6 flex-nowrap"):
-            sort_select = (
-                ui.select(
-                    [
-                        "Day",
-                        "Start Time",
-                        "Course",
-                        "Faculty",
-                        "Room / Lab",
-                    ],
-                    value="Day",
-                    label="Sort",
-                )
-                .props("outlined")
-                .classes("schedule-dropdown")
-                .style("width: 180px;")
+
+            # drop down to select the type of filter to apply to the schedule table
+            filter_select = ui.select(
+                ["None", "Course", "Faculty", "Room / Lab"],
+                value="None",
+                label="Filter By",
+            ).props("outlined").classes("schedule-dropdown").style(
+                "width: 180px;"
             )
 
-            filter_select = (
-                ui.select(
-                    [
-                        "None",
-                        "Course",
-                        "Faculty",
-                        "Room / Lab",
-                    ],
-                    value="None",
-                    label="Filter By",
-                )
-                .props("outlined")
-                .classes("schedule-dropdown")
-                .style("width: 180px;")
+            # drop down to select the value of the filter to apply to the schedule table
+            filter_value_select = ui.select(
+                [],
+                value=None,
+                label="Filter Value",
+            ).props("outlined").classes("schedule-dropdown").style(
+                "width: 200px;"
             )
 
-            filter_value_select = (
-                ui.select(
-                    [],
-                    value=None,
-                    label="Filter Value",
-                )
-                .props("outlined")
-                .classes("schedule-dropdown")
-                .style("width: 200px;")
-            )
-
-            order_select = (
-                ui.select(
-                    [
-                        "Ascending",
-                        "Descending",
-                    ],
-                    value="Ascending",
-                    label="Order",
-                )
-                .props("outlined")
-                .classes("schedule-dropdown")
-                .style("width: 180px;")
+            # drop down to select the day of the week to filter the schedule table
+            day_filter_select = ui.select(
+                {
+                    None: "All Days",
+                    "MON": "Monday",
+                    "TUE": "Tuesday",
+                    "WED": "Wednesday",
+                    "THU": "Thursday",
+                    "FRI": "Friday",
+                },
+                value=None,
+                label="Day",
+            ).props("outlined").classes("schedule-dropdown").style(
+                "width: 180px;"
             )
 
         # ---------------------------------------------------------
-        # Table columns
+        # Calendar and Table tabs
         # ---------------------------------------------------------
+        with ui.tabs() as view_tabs:
+            calendar_tab = ui.tab("Calendar")
+            table_tab = ui.tab("Table")
 
-        # create the columns the table will use
-        columns = [
-            {
-                "name": "course",
-                "label": "Course",
-                "field": "course",
-                "align": "left",
-                "sortable": True,
-            },
-            {
-                "name": "faculty",
-                "label": "Faculty",
-                "field": "faculty",
-                "align": "left",
-                "sortable": True,
-            },
-            {
-                "name": "resource",
-                "label": "Room / Lab",
-                "field": "resource",
-                "align": "left",
-                "sortable": True,
-            },
-            {
-                "name": "day",
-                "label": "Day",
-                "field": "day",
-                "align": "left",
-                "sortable": True,
-            },
-            {
-                "name": "start",
-                "label": "Start",
-                "field": "start",
-                "align": "left",
-                "sortable": True,
-            },
-            {
-                "name": "end",
-                "label": "End",
-                "field": "end",
-                "align": "left",
-                "sortable": True,
-            },
-        ]
+        with ui.tab_panels(view_tabs, value=calendar_tab).classes("w-full"):
+            with ui.tab_panel(calendar_tab):
+                calendar_view = schedule_calendar_view()
 
-        # create table object
-        table = (
-            ui.table(
-                columns=columns,
-                rows=[],
-                row_key="id",
-            )
-            .props("flat bordered")
-            .classes("w-full")
-        )
-
-        # ---------------------------------------------------------
-        # Add clickable cells to table
-        # ---------------------------------------------------------
-
-        # makes each element in the course column clickable
-        table.add_slot(
-            "body-cell-course",
-            """
-            <q-td :props="props">
-                <q-btn
-                    flat
-                    dense
-                    no-caps
-                    :label="props.value"
-                    @click="$parent.$emit('inspect-course', props.value)"
-                />
-            </q-td>
-            """,
-        )
-        # calls the inspect_course function when course is clicked
-        table.on("inspect-course", lambda event: inspect_course(event.args))
-
-        # makes each element in the faculty column clickable
-        table.add_slot(
-            "body-cell-faculty",
-            """
-            <q-td :props="props">
-                <q-btn
-                    flat
-                    dense
-                    no-caps
-                    :label="props.value"
-                    @click="$parent.$emit('inspect-faculty', props.value)"
-                />
-            </q-td>
-            """,
-        )
-        # calls the inspect_faculty function when faculty is clicked
-        table.on("inspect-faculty", lambda event: inspect_faculty(event.args))
-
-        # makes each element in the resource column clickable
-        table.add_slot(
-            "body-cell-resource",
-            """
-            <q-td :props="props">
-                <q-btn
-                    flat
-                    dense
-                    no-caps
-                    :label="props.value"
-                    @click="$parent.$emit('inspect-resource', props.row)"
-                />
-            </q-td>
-            """,
-        )
-        # calls the inspect_resource function when resource is clicked
-        table.on("inspect-resource", lambda event: inspect_resource(event.args))
-
-        # makes each element in the day column clickable
-        table.add_slot(
-            "body-cell-day",
-            """
-            <q-td :props="props">
-                <q-btn
-                    flat
-                    dense
-                    no-caps
-                    :label="props.value"
-                    @click="$parent.$emit('inspect-time', props.row)"
-                />
-            </q-td>
-            """,
-        )
-        # makes each element in the start column clickable
-        table.on("inspect-time", lambda event: inspect_time(event.args))
-
-        # ---------------------------------------------------------
-        # Inspect Elements Methods
-        # ---------------------------------------------------------
-
-        # method to get course elements from the config and display them in a dialog box
-        def inspect_course(course_id):
-            # handles csv and JSON schedule file imports
-            if controller.current is None or controller.current.config is None:
-                ui.notify(
-                    "Configuration details are unavailable for this schedule.",
-                    type="warning",
-                )
-                return
-
-            course = get_course_details(controller.current.schedule, course_id)
-
-            if course is None:
-                ui.notify("Course details not found", type="negative")
-                return
-
-            # hekps to make modailty more user friendly
-            # takes it from in_person to in person for example
-            modality_names = {
-                "in_person": "In Person",
-                "online": "Online",
-                "hybrid": "Hybrid",
-            }
-            modality = modality_names.get(
-                str(course.modality),
-                str(course.modality),
-            )
-
-            # helps make conflicts more user friendly so its not [__, __] or []
-            # instead it becomes ____, ____
-            if course.conflicts:
-                conflicts = ", ".join(str(conflict) for conflict in course.conflicts)
-            else:
-                conflicts = "None"
-
-            # creates dialog box to be displayed
-            with ui.dialog() as dialog, ui.card():
-                ui.label("Course Details").classes("text-xl font-bold")
-
-                ui.label(f"Course ID: {course.course_id}")
-                ui.label(f"Section: {course.section_id}")
-                ui.label(f"Credits: {course.credits}")
-                ui.label(f"Capacity: {course.capacity}")
-                ui.label(f"Modality: {modality}")
-                ui.label(f"Conflicts: {conflicts}")
-
-                ui.button("Close", on_click=dialog.close)
-
-            dialog.open()
-
-        # method to get faculty elements from the config and display them in a dialog box
-        def inspect_faculty(faculty_name):
-            # handles csv and JSON schedule file imports
-            if controller.current is None or controller.current.config is None:
-                ui.notify(
-                    "Configuration details are unavailable for this schedule.",
-                    type="warning",
-                )
-                return
-
-            faculty = get_faculty_details(controller.current.config, faculty_name)
-
-            if faculty is None:
-                ui.notify("Faculty details not found", type="negative")
-                return
-
-            # creates dialog box to be displayed
-            with ui.dialog() as dialog, ui.card():
-                ui.label("Faculty Details").classes("text-xl font-bold")
-
-                ui.label(f"Name: {faculty.name}")
-                ui.label(f"Minimum Credits: {faculty.minimum_credits}")
-                ui.label(f"Maximum Credits: {faculty.maximum_credits}")
-                ui.label(f"Maximum Days: {faculty.maximum_days}")
-                ui.label(f"Unique Course Limit: {faculty.unique_course_limit}")
-
-                ui.button("Close", on_click=dialog.close)
-
-            dialog.open()
-
-        # method to get room elements from the config and display them in a dialog box
-        def inspect_room(room_name):
-            entry = controller.current
-            if entry is None or entry.config is None:
-                ui.notify(
-                    "Configuration details are unavailable for this schedule.", type="negative"
-                )
-                return
-            room = get_room_details(entry.config, room_name)
-
-            if room is None:
-                ui.notify("Room details not found", type="negative")
-                return
-
-            # helps make room features more user friendly so its not [__, __] or []
-            # instead it becomes ____, ____
-            if room.features:
-                features = ", ".join(str(feature) for feature in room.features)
-            else:
-                features = "None"
-
-            # creates dialog box to be displayed
-            with ui.dialog() as dialog, ui.card():
-                ui.label("Room Details").classes("text-xl font-bold")
-
-                ui.label(f"Name: {room.name}")
-                ui.label(f"Capacity: {room.capacity}")
-                ui.label(f"Features: {features}")
-
-                ui.button("Close", on_click=dialog.close)
-
-            dialog.open()
-
-        # method to get lab elements from the config and display them in a dialog box
-        def inspect_lab(lab_name):
-            entry = controller.current
-            if entry is None or entry.config is None:
-                ui.notify(
-                    "Configuration details are unavailable for this schedule.", type="negative"
-                )
-                return
-            lab = get_lab_details(entry.config, lab_name)
-
-            if lab is None:
-                ui.notify("Lab details not found", type="negative")
-                return
-
-            # helps make room features more user friendly so its not [__, __] or []
-            # instead it becomes ____, ____
-            if lab.features:
-                features = ", ".join(str(feature) for feature in lab.features)
-            else:
-                features = "None"
-
-            # creates dialog box to be displayed
-            with ui.dialog() as dialog, ui.card():
-                ui.label("Lab Details").classes("text-xl font-bold")
-
-                ui.label(f"Name: {lab.name}")
-                ui.label(f"Capacity: {lab.capacity}")
-                ui.label(f"Features: {features}")
-
-                ui.button("Close", on_click=dialog.close)
-
-            dialog.open()
-
-        # method to determine whether the resource is a room or lab and calls the respective function
-        def inspect_resource(row):
-            # handles csv and JSON schedule file imports
-            if controller.current is None or controller.current.config is None:
-                ui.notify(
-                    "Configuration details are unavailable for this schedule.",
-                    type="warning",
-                )
-                return
-
-            resource = row["resource"]
-
-            if not resource:
-                ui.notify("This course has no room or lab assignment.", type="info")
-                return
-
-            # Lab meetings have a lab resource.
-            # The resource itself doesn't tell us whether it is a lab, so we check the configuration.
-            if get_lab_details(controller.current.config, resource) is not None:
-                inspect_lab(resource)
-            else:
-                inspect_room(resource)
-
-        # method to create the dialog box to display the time assignment for a course
-        def inspect_time(row):
-            with ui.dialog() as dialog, ui.card():
-                ui.label("Time Assignment").classes("text-xl font-bold")
-
-                ui.label(f"Course: {row['course']}")
-                ui.label(f"Faculty: {row['faculty']}")
-                ui.label(f"Day: {format_day(row['day'])}")
-                ui.label(f"Start: {row['start']}")
-                ui.label(f"End: {row['end']}")
-
-                ui.button("Close", on_click=dialog.close)
-
-            dialog.open()
-
-        # helper to format the day from the schedule to a more user friendly format
-        # ex. MON --> Monday
-        def format_day(day):
-            days = {
-                "MON": "Monday",
-                "TUE": "Tuesday",
-                "WED": "Wednesday",
-                "THU": "Thursday",
-                "FRI": "Friday",
-            }
-            return days.get(day, day)
-
-        # helper to format the time from the schedule to a more user friendly format
-        # ex. 13:30 --> 1:30 PM
-        def format_time(time):
-            hour, minute = map(int, time.split(":"))
-
-            suffix = "AM" if hour < 12 else "PM"
-            display_hour = hour % 12
-
-            if display_hour == 0:
-                display_hour = 12
-
-            return f"{display_hour}:{minute:02d} {suffix}"
-
+            with ui.tab_panel(table_tab):
+                table_view = schedule_table_view()
+            
         # ---------------------------------------------------------
         # Update filter values
         # ---------------------------------------------------------
@@ -683,13 +356,19 @@ def schedule_viewer() -> None:
             filter_type = filter_select.value
 
             if filter_type == "Course":
-                values = sorted({course["course"] for course in schedule})
+                values = sorted(
+                    set(course["course"] for course in schedule)
+                )
 
             elif filter_type == "Faculty":
-                values = sorted({course["faculty"] for course in schedule})
+                values = sorted(
+                    set(course["faculty"] for course in schedule)
+                )
 
             elif filter_type == "Room / Lab":
-                values = sorted({course["resource"] for course in schedule})
+                values = sorted(
+                    set(course["resource"] for course in schedule)
+                )
 
             else:
                 values = []
@@ -714,14 +393,10 @@ def schedule_viewer() -> None:
         # ---------------------------------------------------------
 
         def update_table():
-            # ALWAYS start with the original schedule.
-            # This prevents filters and sorting from stacking.
+            # Always start with the unfiltered schedule.
             updated_schedule = schedule.copy()
 
-            # -----------------------------
-            # Apply filter
-            # -----------------------------
-
+            # Apply the shared filter.
             filter_type = filter_select.value
             filter_value = filter_value_select.value
 
@@ -743,65 +418,18 @@ def schedule_viewer() -> None:
                     filter_value,
                 )
 
-            # -----------------------------
-            # Apply sort
-            # -----------------------------
+            selected_day = day_filter_select.value
 
-            sort_type = sort_select.value
+            if selected_day:
+                updated_schedule = [
+                    row for row in updated_schedule
+                    if row.get("day") == selected_day
+                ]
 
-            descending = order_select.value == "Descending"
-
-            if sort_type == "Day":
-                # Default chronological schedule:
-                # Day -> Start Time
-                updated_schedule = sort_schedule(
-                    updated_schedule,
-                    descending=descending,
-                )
-
-            elif sort_type == "Start Time":
-                updated_schedule = sort_schedule(
-                    updated_schedule,
-                    "start",
-                    descending=descending,
-                )
-
-            elif sort_type == "Course":
-                updated_schedule = sort_schedule(
-                    updated_schedule,
-                    "course",
-                    descending=descending,
-                )
-
-            elif sort_type == "Faculty":
-                updated_schedule = sort_schedule(
-                    updated_schedule,
-                    "faculty",
-                    descending=descending,
-                )
-
-            elif sort_type == "Room / Lab":
-                updated_schedule = sort_schedule(
-                    updated_schedule,
-                    "resource",
-                    descending=descending,
-                )
-
-            # -----------------------------
-            # Update table
-            # -----------------------------
-
-            display_schedule = []
-
-            # this adds time formatting for the displayed value only so it is more user friendly
-            for row in updated_schedule:
-                display_row = row.copy()
-                display_row["start"] = format_time(row["start"])
-                display_row["end"] = format_time(row["end"])
-                display_schedule.append(display_row)
-
-            table.rows = display_schedule
-            table.update()
+            # Send the filtered rows to the table.
+            # The table handles its own sorting and time formatting.
+            table_view.update(updated_schedule)
+            calendar_view.update(updated_schedule, selected_day)
 
         # ---------------------------------------------------------
         # Show the selected schedule
@@ -824,6 +452,12 @@ def schedule_viewer() -> None:
             empty_label.visible = not has_schedules
             schedule_select.set_enabled(has_schedules)
             export_open_button.set_enabled(has_schedules)
+            export_all_open_button.set_enabled(
+                controller.has_generated_schedules
+            )
+            clear_generated_button.set_enabled(
+                controller.has_generated_schedules
+            )
             previous_button.set_enabled(controller.can_step(-1))
             next_button.set_enabled(controller.can_step(1))
 
@@ -840,24 +474,42 @@ def schedule_viewer() -> None:
             controller.step(offset)
             show_selected_schedule()
 
+        def clear_generated_results():
+            if not controller.clear_generated_schedules():
+                ui.notify(
+                    "Cannot clear generated results while generation is in progress.",
+                    type="negative",
+                )
+                return
+            controller.sync_generated()
+            show_selected_schedule()
+            ui.notify("Generated results cleared.", type="positive")
+
         def check_for_generated_schedules():
             # The generator runs in the background; pick up its results
             # whenever a run finishes.
             if controller.sync_generated():
                 show_selected_schedule()
 
+        def refresh_viewer() -> None:
+            controller.sync_generated()
+            show_selected_schedule()
+
         # ---------------------------------------------------------
         # Loading
         # ---------------------------------------------------------
 
         def open_load_dialog():
-            saved_files = controller.list_saved_files()
-            saved_file_select.set_options(saved_files, value=None)
-            load_status.text = (
-                "" if saved_files else "No saved schedules found in the schedules folder."
-            )
+            nonlocal load_generation
+            load_generation += 1
             upload.reset()
             load_dialog.open()
+
+        def cancel_load():
+            nonlocal load_generation
+            load_generation += 1
+            upload.reset()
+            load_dialog.close()
 
         def finish_load(entry, error):
             if error:
@@ -869,16 +521,18 @@ def schedule_viewer() -> None:
                 f"Loaded {entry.file_name} ({len(entry.records)} sections)",
                 type="positive",
             )
-
-        def on_load_saved_file():
-            finish_load(*controller.load_saved_file(saved_file_select.value))
-
+            
         async def on_upload(event):
+            generation = load_generation
+            if not load_dialog.value:
+                return
             file_name, content = await read_upload(event)
+            if generation != load_generation or not load_dialog.value:
+                return
             upload.reset()
             finish_load(*controller.load_uploaded_file(file_name, content))
 
-        load_button.on_click(on_load_saved_file)
+
         upload.on_upload(on_upload)
 
         # ---------------------------------------------------------
@@ -890,11 +544,23 @@ def schedule_viewer() -> None:
             if entry is None:
                 return
             export_description.text = (
-                f"Export '{entry.label}' as a file downloaded by your browser."
+                f"Download '{entry.label}' to your browser's default location. " \
+                f"Check your browser settings to manually choose the save location."
             )
-            export_name.value = controller.default_export_file_name(export_format.value)
+            export_name.value = controller.default_export_file_name(
+                export_format.value
+            )
             export_status.text = ""
             export_dialog.open()
+
+        def open_export_all_dialog():
+            if not controller.has_generated_schedules:
+                return
+            export_all_status.text = ""
+            export_all_dialog.open()
+
+        # Give the calendar fullscreen toolbar access to the existing export dialog.
+        calendar_view.set_export_callback(open_export_dialog)
 
         def on_export_format_changed(event):
             name = (export_name.value or "").strip()
@@ -913,19 +579,34 @@ def schedule_viewer() -> None:
             if error:
                 export_status.text = error
                 return
-            if export is None:
-                export_status.text = "No schedule export is available."
-                return
             content, file_name, media_type = export
             ui.download(content, filename=file_name, media_type=media_type)
             export_dialog.close()
             ui.notify(
-                f"Exported {file_name}; your browser will download the file.",
+                f"Exporting {file_name};",
+                type="positive",
+            )
+
+        def on_export_all():
+            export, error = controller.export_all_generated(
+                export_all_format.value
+            )
+            if error or export is None:
+                export_all_status.text = (
+                    error or "Could not export generated schedules."
+                )
+                return
+            content, file_name, media_type = export
+            ui.download(content, filename=file_name, media_type=media_type)
+            export_all_dialog.close()
+            ui.notify(
+                f"Exporting all generated schedules as {file_name}.",
                 type="positive",
             )
 
         export_format.on_value_change(on_export_format_changed)
         export_button.on_click(on_export)
+        export_all_button.on_click(on_export_all)
 
         # ---------------------------------------------------------
         # Dropdown events
@@ -933,12 +614,6 @@ def schedule_viewer() -> None:
 
         # updates when a different schedule is selected
         schedule_select.on_value_change(on_schedule_selected)
-
-        # updates when a new sort is selected
-        sort_select.on_value_change(lambda _: update_table())
-
-        # updates when a new order is selected
-        order_select.on_value_change(lambda _: update_table())
 
         # updates when a new filter type is selected
         filter_select.on_value_change(
@@ -949,7 +624,19 @@ def schedule_viewer() -> None:
         )
 
         # updates when a new filter value is selected
-        filter_value_select.on_value_change(lambda _: update_table())
+        filter_value_select.on_value_change(
+            lambda _: update_table()
+        )
+
+        # updates when a new day filter is selected
+        day_filter_select.on_value_change(
+            lambda _: update_table()
+        )
+
+        # resets all filters to their default values when the reset button is clicked
+        reset_filters_button.on_click(
+            lambda _: reset_filters()
+        )
 
         # ---------------------------------------------------------
         # Initial state
@@ -958,3 +645,5 @@ def schedule_viewer() -> None:
         controller.sync_generated()
         show_selected_schedule()
         ui.timer(1.0, check_for_generated_schedules)
+
+    return refresh_viewer

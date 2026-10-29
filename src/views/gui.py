@@ -31,12 +31,19 @@ def build_app() -> None:
                     : window.matchMedia('(prefers-color-scheme: light)').matches
                         ? 'light'
                         : 'dark';
+            window.addEventListener('beforeunload', event => {
+                const status = document.getElementById('configuration-draft-status');
+                if (status?.textContent.trim() === 'Draft - not saved') {
+                    event.preventDefault();
+                    event.returnValue = '';
+                }
+            });
         </script>
         <style>
             /* Shared dark-theme tokens and base component styling. */
             :root {
                 --app-background: #101820;
-                --app-foreground: #d8e7e8;
+                --app-foreground: #b8c9cb;
                 --text-primary: #ffffff;
                 --text-muted: #9fb2b8;
                 --accent-color: #75e6da;
@@ -60,7 +67,8 @@ def build_app() -> None:
                 --surface-raised: #ffffff;
                 --surface-hover: #e7eef5;
             }
-            body, .q-layout, .q-page {
+            body, .q-layout, .q-page-container, .q-page,
+            .q-tab-panels, .q-tab-panel {
                 background: var(--app-background);
                 color: var(--app-foreground);
             }
@@ -72,6 +80,14 @@ def build_app() -> None:
             .q-field__label, .q-field__native, .q-field__input, .q-placeholder,
             .q-select__dropdown-icon, .q-table th, .q-table td,
             .q-expansion-item__toggle-icon { color: var(--app-foreground) !important; }
+            html[data-theme="dark"] .q-menu {
+                background: var(--surface) !important;
+                color: var(--app-foreground) !important;
+            }
+            html[data-theme="dark"] .q-menu .q-item,
+            html[data-theme="dark"] .q-menu .q-item__label {
+                color: var(--app-foreground) !important;
+            }
             .configuration-panel { color: var(--app-foreground); }
             .configuration-panel .q-checkbox__label { color: var(--app-foreground) !important; }
             .mandatory-days .q-chip--selected { background: var(--app-foreground) !important; }
@@ -84,7 +100,10 @@ def build_app() -> None:
             /* Light-mode corrections for components that carry Quasar dark classes. */
             html[data-theme="light"] body,
             html[data-theme="light"] .q-layout,
-            html[data-theme="light"] .q-page {
+            html[data-theme="light"] .q-page-container,
+            html[data-theme="light"] .q-page,
+            html[data-theme="light"] .q-tab-panels,
+            html[data-theme="light"] .q-tab-panel {
                 background: var(--app-background) !important;
                 color: var(--app-foreground);
             }
@@ -103,7 +122,8 @@ def build_app() -> None:
             html[data-theme="light"] [class~="text-[#75e6da]"] {
                 color: var(--accent-color) !important;
             }
-            html[data-theme="light"] [class~="bg-[#101820]"] {
+            html[data-theme="light"] [class~="bg-[#101820]"],
+            html[data-theme="light"] [class~="bg-[#203b42]"] {
                 background-color: var(--app-background) !important;
             }
             html[data-theme="light"] [class~="bg-[#17232b]"],
@@ -148,6 +168,9 @@ def build_app() -> None:
                 html[data-theme="light"] [class~="text-[#9fb2b8]"],
                 html[data-theme="light"] .text-gray-400 {
                     color: var(--text-muted) !important;
+                }
+                html[data-theme="light"] .text-green-400 {
+                    color: #15803d !important;
                 }
                 html[data-theme="light"] [class~="text-[#75e6da]"],
                 html[data-theme="light"] .text-primary {
@@ -209,8 +232,30 @@ def build_app() -> None:
                 html[data-theme="light"] .q-menu .q-item:hover {
                     background-color: var(--surface-hover) !important;
                 }
-                html[data-theme="light"] .q-menu .q-item--active {
+                html[data-theme="light"] .q-menu .q-item--active,
+                html[data-theme="light"] .q-menu .q-item--selected {
                     background-color: var(--surface-accent) !important;
+                    color: var(--accent-color) !important;
+                }
+                html[data-theme="light"] .configuration-load-upload .q-uploader__header,
+                html[data-theme="light"] .schedule-load-upload .q-uploader__header {
+                    background-color: var(--accent-color) !important;
+                }
+                html[data-theme="light"] .configuration-load-upload,
+                html[data-theme="light"] .schedule-load-upload,
+                html[data-theme="light"] .configuration-load-upload .q-uploader__list,
+                html[data-theme="light"] .schedule-load-upload .q-uploader__list {
+                    background-color: var(--surface) !important;
+                    color: var(--app-foreground) !important;
+                }
+                html[data-theme="light"] .configuration-load-upload.q-uploader--bordered,
+                html[data-theme="light"] .schedule-load-upload.q-uploader--bordered {
+                    border-color: var(--border-strong) !important;
+                }
+                html[data-theme="light"] .configuration-load-upload .q-uploader__header .q-btn,
+                html[data-theme="light"] .schedule-load-upload .q-uploader__header .q-btn {
+                    background-color: var(--accent-color) !important;
+                    color: #ffffff !important;
                 }
             }
         </style>
@@ -241,55 +286,129 @@ def build_app() -> None:
 
     # Read the current browser theme, apply its opposite, and update the button label.
     async def toggle_theme() -> None:
-        current = await ui.run_javascript("document.documentElement.dataset.theme")
+        current = await ui.run_javascript(
+            "document.documentElement.dataset.theme"
+        )
         next_theme = Theme.DARK if current == Theme.LIGHT.value else Theme.LIGHT
         await ui.run_javascript(theme.script(next_theme))
         toggle_button.set_text(f"{next_theme.value.title()} Mode")
 
     # Keep the button label aligned with the saved or system-selected theme on connect.
     async def sync_theme_label() -> None:
-        current = await ui.run_javascript("document.documentElement.dataset.theme")
+        current = await ui.run_javascript(
+            "document.documentElement.dataset.theme"
+        )
         toggle_button.set_text(f"{Theme(current).value.title()} Mode")
 
     # Shared application header and theme control.
-    with (
-        ui.header()
-        .props("data-theme-region=header")
-        .classes("border-b border-[#29404b] bg-[#101820] px-6 py-4"),
-        ui.row().classes("w-full items-center justify-between"),
+    with ui.header().props("data-theme-region=header").classes(
+        "border-b border-[#29404b] bg-[#101820] px-6 py-4"
     ):
-        ui.icon("calendar_month", size="32px").classes("text-[#75e6da]")
-        ui.label("Scheduler").classes("text-lg font-semibold text-white")
-        toggle_button = (
-            ui.button("Dark Mode", icon="contrast", on_click=toggle_theme)
-            .props("unelevated aria-label=Toggle color theme")
-            .classes("bg-[#75e6da] text-[#101820]")
-        )
-        ui.context.client.on_connect(sync_theme_label)
+        with ui.row().classes("w-full items-center justify-between"):
+            with ui.row().classes("items-center gap-3"):
+                ui.icon("calendar_month", size="32px").classes("text-[#75e6da]")
+                with ui.column().classes("gap-0"):
+                    ui.label("Scheduler").classes("text-lg font-semibold text-white")
+            toggle_button = ui.button(
+                "Dark Mode", icon="contrast", on_click=toggle_theme
+            ).props("unelevated aria-label=Toggle color theme").classes(
+                "bg-[#75e6da] text-[#101820]"
+            )
+            ui.context.client.on_connect(sync_theme_label)
 
     # Main tabbed area containing configuration, generation, and schedule views.
-    with (
-        ui.column()
-        .props("data-theme-region=content")
-        .classes("mx-auto w-full max-w-7xl gap-0 px-6 py-8")
+    with ui.column().props("data-theme-region=content").classes(
+        "mx-auto w-full max-w-7xl gap-0 px-6 py-8"
     ):
-        tabs = ui.tabs().classes("w-full border-b border-[#29404b]")
+        tabs = ui.tabs(value="configuration").classes("w-full border-b border-[#29404b]")
         with tabs:
             ui.tab("configuration", label="Configuration Editor", icon="tune")
             ui.tab("generator", label="Schedule Generator", icon="auto_awesome")
             ui.tab("viewer", label="Schedule Viewer", icon="calendar_view_week")
-        tabs.value = "configuration"
 
         editor_refresh: Callable[[], None]
+        viewer_refresh: Callable[[], None]
+        unlock_assistant: Callable[[str, str], None] = lambda _name, _emoji: None
+        active_tab = {"value": "configuration"}
+        pending_tab = {"value": None}
+        rejected_tab = {"value": None}
+
+        def request_assistant_unlock(combination_name: str, hat_emoji: str) -> None:
+            unlock_assistant(combination_name, hat_emoji)
+
         with ui.tab_panels(tabs, value="configuration").classes("w-full bg-transparent pt-8"):
             with ui.tab_panel("configuration"):
-                editor_refresh = configuration_editor()
+                editor_refresh = configuration_editor(request_assistant_unlock)
+                editor_is_saved = editor_refresh.is_saved
             with ui.tab_panel("generator"):
                 schedule_generator()
             with ui.tab_panel("viewer"):
-                schedule_viewer()
+                viewer_refresh = schedule_viewer()
 
-        scheduler_ai_assistant(controller, editor_refresh)
+        def on_tab_change(event) -> None:
+            next_tab = event.value
+            if next_tab == active_tab["value"]:
+                return
+            if next_tab == pending_tab["value"]:
+                return
+            if next_tab == rejected_tab["value"]:
+                rejected_tab["value"] = None
+                tabs.value = active_tab["value"]
+                return
+            if (
+                active_tab["value"] == "configuration"
+                and not editor_is_saved()
+            ):
+                pending_tab["value"] = next_tab
+                rejected_tab["value"] = next_tab
+                unsaved_navigation_dialog.open()
+                return
+            active_tab["value"] = next_tab
+            if next_tab == "viewer":
+                viewer_refresh()
+
+        def leave_editor_without_saving() -> None:
+            next_tab = pending_tab["value"]
+            pending_tab["value"] = None
+            rejected_tab["value"] = None
+            unsaved_navigation_dialog.close()
+            if next_tab is None:
+                return
+            active_tab["value"] = next_tab
+            if next_tab == "viewer":
+                viewer_refresh()
+
+        def stay_in_configuration() -> None:
+            rejected_tab["value"] = pending_tab["value"]
+            pending_tab["value"] = None
+            unsaved_navigation_dialog.close()
+            tabs.value = active_tab["value"]
+
+        with ui.dialog() as unsaved_navigation_dialog, ui.card().classes(
+            "border border-[#29404b] bg-[#182630]"
+        ):
+            ui.label("Unsaved configuration").classes(
+                "text-lg font-semibold text-white"
+            )
+            ui.label(
+                "Your configuration has unsaved changes. Leave this page "
+                "without saving?"
+            ).classes("text-sm text-[#9fb2b8]")
+            with ui.row().classes("mt-4 w-full justify-end gap-2"):
+                ui.button(
+                    "Stay in Configuration",
+                    on_click=stay_in_configuration,
+                ).props("flat")
+                ui.button(
+                    "Leave without saving",
+                    on_click=leave_editor_without_saving,
+                ).props("unelevated color=negative")
+
+        tabs.on_value_change(on_tab_change)
+
+    unlock_assistant = scheduler_ai_assistant(
+        controller, editor_refresh, editor_is_saved
+    )
 
 
 def main() -> None:

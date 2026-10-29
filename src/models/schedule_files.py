@@ -1,6 +1,6 @@
 """Schedule file format: convert generated schedules to records and back.
 
-A *record* is one course section in the same shape as the CLI's CSV export:
+A *record* is one course section in the scheduler's CSV format:
 
     {"course": "CMSC 152.01", "faculty": "Hardy", "room": "Roddy 147",
      "lab": "Mac", "times": "MON 09:00-09:50,THU 09:00-10:50^,FRI 09:00-09:50"}
@@ -10,13 +10,14 @@ A *record* is one course section in the same shape as the CLI's CSV export:
 Records are what get saved, loaded, and turned into viewer rows.
 
 
-Used by: GUI and CLI."""
+Used by: GUI."""
 
 import csv
 import io
 import json
 import re
 from pathlib import Path
+from typing import Protocol
 
 from src.models.schedule_result import ScheduleResult
 
@@ -32,7 +33,7 @@ LEGACY_MEETING_PATTERN = re.compile(
     r"duration=Duration\(duration=(\d+)\)(?:, delivery='(\w+)')?\)"
 )
 
-# "<config>_schedule<n>" (CLI) or "<config>_schedule_<n>" (generator download).
+# Accept older and current schedule filename formats.
 SAVED_NAME_PATTERN = re.compile(r"^(?P<config>.+?)_schedule_?(?P<number>\d+)$")
 
 
@@ -69,7 +70,7 @@ def records_from_result(result: ScheduleResult) -> list[dict[str, str]]:
 
 
 def records_to_csv(records: list[dict[str, str]], extra: dict[str, str] | None = None) -> bytes:
-    """CSV with the CLI header. `extra` adds leading columns (e.g. schedule, config)."""
+    """Write scheduler CSV; `extra` adds leading columns such as schedule and config."""
     extra = extra or {}
     output = io.StringIO(newline="")
     writer = csv.writer(output, lineterminator="\n")
@@ -81,6 +82,35 @@ def records_to_csv(records: list[dict[str, str]], extra: dict[str, str] | None =
 
 def records_to_json(records: list[dict[str, str]]) -> bytes:
     return json.dumps(records, indent=4).encode("utf-8")
+
+
+class ScheduleExportStrategy(Protocol):
+    """Serialize schedule records into one downloadable file format."""
+
+    def serialize(self, records: list[dict[str, str]]) -> bytes: ...
+
+
+class CsvScheduleExportStrategy:
+    def serialize(self, records: list[dict[str, str]]) -> bytes:
+        return records_to_csv(records)
+
+
+class JsonScheduleExportStrategy:
+    def serialize(self, records: list[dict[str, str]]) -> bytes:
+        return records_to_json(records)
+
+
+SCHEDULE_EXPORT_STRATEGIES: dict[str, ScheduleExportStrategy] = {
+    "csv": CsvScheduleExportStrategy(),
+    "json": JsonScheduleExportStrategy(),
+}
+
+
+def schedule_export_strategy(file_format: str) -> ScheduleExportStrategy:
+    try:
+        return SCHEDULE_EXPORT_STRATEGIES[file_format]
+    except KeyError as error:
+        raise ValueError("Please choose CSV or JSON.") from error
 
 
 # ---------------------------------------------------------------------------
@@ -129,7 +159,7 @@ def config_name_from_file_name(file_name: str) -> str:
 def parse_schedule_file(file_name: str, content: bytes) -> tuple[str, list[dict[str, str]]]:
     """Parse a saved CSV or JSON schedule. Returns (config_name, records).
 
-    Accepts the CLI export format, the generator's download format
+    Accepts the scheduler CSV format, the generator's download format
     (JSON wrapped as {"schedule", "config", "meetings"}; CSV with extra
     schedule/config columns), and legacy list-repr times.
     Raises ValueError with a user-readable message if the file can't be used.
