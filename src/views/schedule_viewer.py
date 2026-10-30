@@ -232,7 +232,7 @@ def schedule_viewer() -> Callable[[], None]:
         # Schedule controls
         # ---------------------------------------------------------
 
-        with ui.row().classes("w-full items-center gap-3 mb-6"):
+        with ui.row().classes("w-full items-center gap-3 mb-4 flex-wrap"):
             # Load button
             ui.button(
                 "Load",
@@ -275,15 +275,14 @@ def schedule_viewer() -> Callable[[], None]:
                 on_click=reset_filters,
             ).props("outline")
 
-            ui.space()
-
-            # button to iterate left through the schedules
+        with ui.row().classes(
+            "schedule-navigation w-full items-center justify-center gap-2 mb-6 flex-nowrap"
+        ).style("width: calc(100% + 3rem); margin-left: -1.5rem; margin-right: -1.5rem;"):
             previous_button = ui.button(
                 icon="chevron_left",
                 on_click=lambda: step_schedule(-1),
             ).props("flat")
 
-            # dropdown to select the schedule to view
             schedule_select = (
                 ui.select(
                     {},
@@ -291,11 +290,10 @@ def schedule_viewer() -> Callable[[], None]:
                     label="Schedule",
                 )
                 .props("outlined dark")
-                .classes("schedule-dropdown")
-                .style("min-width: 320px;")
+                .classes("schedule-dropdown min-w-0 flex-1 max-w-md")
+                .style("min-width: 0;")
             )
 
-            # button to iterate right through the schedules
             next_button = ui.button(
                 icon="chevron_right",
                 on_click=lambda: step_schedule(1),
