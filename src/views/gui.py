@@ -237,10 +237,30 @@ def build_app() -> None:
                     background-color: var(--surface-accent) !important;
                     color: var(--accent-color) !important;
                 }
+                /* Light-mode uploader styling */
                 html[data-theme="light"] .configuration-load-upload .q-uploader__header,
                 html[data-theme="light"] .schedule-load-upload .q-uploader__header {
                     background-color: var(--accent-color) !important;
                 }
+
+                html[data-theme="light"] .configuration-load-upload .q-uploader__title,
+                html[data-theme="light"] .schedule-load-upload .q-uploader__title,
+                html[data-theme="light"] .configuration-load-upload .q-uploader__subtitle,
+                html[data-theme="light"] .schedule-load-upload .q-uploader__subtitle {
+                    color: #ffffff !important;
+                }
+
+                html[data-theme="light"] .configuration-load-upload .q-uploader__header .q-btn,
+                html[data-theme="light"] .schedule-load-upload .q-uploader__header .q-btn {
+                    background-color: var(--accent-color) !important;
+                    color: #ffffff !important;
+                }
+
+                html[data-theme="light"] .configuration-load-upload .q-uploader__header .q-icon,
+                html[data-theme="light"] .schedule-load-upload .q-uploader__header .q-icon {
+                    color: #ffffff !important;
+                }
+
                 html[data-theme="light"] .configuration-load-upload,
                 html[data-theme="light"] .schedule-load-upload,
                 html[data-theme="light"] .configuration-load-upload .q-uploader__list,
@@ -248,14 +268,10 @@ def build_app() -> None:
                     background-color: var(--surface) !important;
                     color: var(--app-foreground) !important;
                 }
+
                 html[data-theme="light"] .configuration-load-upload.q-uploader--bordered,
                 html[data-theme="light"] .schedule-load-upload.q-uploader--bordered {
                     border-color: var(--border-strong) !important;
-                }
-                html[data-theme="light"] .configuration-load-upload .q-uploader__header .q-btn,
-                html[data-theme="light"] .schedule-load-upload .q-uploader__header .q-btn {
-                    background-color: var(--accent-color) !important;
-                    color: #ffffff !important;
                 }
             }
         </style>

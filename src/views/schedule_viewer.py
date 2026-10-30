@@ -157,6 +157,7 @@ def schedule_viewer() -> Callable[[], None]:
 
             upload = (
                 ui.upload(
+                    label="Choose configuration file",
                     auto_upload=True,
                     max_files=1,
                 )
