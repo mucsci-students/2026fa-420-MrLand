@@ -501,16 +501,17 @@ def configuration_editor(
         # Dialog for uploading a configuration from the user's computer.
         with (
             ui.dialog() as load_dialog,
-            ui.card().classes("w-[480px] max-w-full gap-4")
+            ui.card()
+            .classes("w-[480px] max-w-full gap-4")
             .style(
                 "background: var(--surface); "
                 "color: var(--app-foreground); "
                 "border: 1px solid var(--border-color);"
             ),
         ):
-            ui.label("Load Configuration").classes(
-                "text-lg font-semibold"
-            ).style("color: var(--text-primary);")
+            ui.label("Load Configuration").classes("text-lg font-semibold").style(
+                "color: var(--text-primary);"
+            )
 
             ui.label("Select a JSON configuration file from your computer.").classes(
                 "text-sm"

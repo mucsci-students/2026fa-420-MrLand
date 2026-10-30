@@ -71,13 +71,13 @@ def schedule_generator() -> None:
             "border: 1px solid var(--border-color);"
         ),
     ):
-        ui.label("Load Configuration").classes(
-            "text-lg font-semibold"
-        ).style("color: var(--text-primary);")
+        ui.label("Load Configuration").classes("text-lg font-semibold").style(
+            "color: var(--text-primary);"
+        )
 
-        ui.label("Select a JSON configuration file from your computer.").classes(
-            "text-sm"
-        ).style("color: var(--text-muted);")
+        ui.label("Select a JSON configuration file from your computer.").classes("text-sm").style(
+            "color: var(--text-muted);"
+        )
 
         config_upload = (
             ui.upload(
