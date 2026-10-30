@@ -386,7 +386,7 @@ class ScheduleCalendarView:
                                 "right: auto;"
                                 f"background: {background}; "
                                 f"border-left-color: {border_color};"
-                                + (f"text-align: center;" if self.selected_day else "")
+                                + ("text-align: center;" if self.selected_day else "")
                             ) as event
                         ):
                             ui.label(course).classes("schedule-calendar-event-title")
