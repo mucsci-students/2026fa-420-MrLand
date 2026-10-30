@@ -61,11 +61,24 @@ def schedule_generator() -> None:
         finally:
             config_upload.reset()
 
-    with ui.dialog() as load_dialog, ui.card().classes("w-[480px] max-w-full gap-4"):
-        ui.label("Load Configuration").classes("text-lg font-semibold text-white")
-        ui.label("Select a JSON configuration file from your computer.").classes(
-            "text-sm text-gray-400"
+    with (
+        ui.dialog() as load_dialog,
+        ui.card()
+        .classes("w-[480px] max-w-full gap-4")
+        .style(
+            "background: var(--surface); "
+            "color: var(--app-foreground); "
+            "border: 1px solid var(--border-color);"
+        ),
+    ):
+        ui.label("Load Configuration").classes("text-lg font-semibold").style(
+            "color: var(--text-primary);"
         )
+
+        ui.label("Select a JSON configuration file from your computer.").classes("text-sm").style(
+            "color: var(--text-muted);"
+        )
+
         config_upload = (
             ui.upload(
                 label="Choose configuration file",
@@ -73,8 +86,8 @@ def schedule_generator() -> None:
                 on_upload=handle_config_upload,
                 max_files=1,
             )
-            .props("accept=.json flat bordered")
-            .classes("w-full")
+            .props("accept=.json dark flat bordered")
+            .classes("w-full configuration-load-upload")
         )
         with ui.row().classes("w-full justify-end"):
             ui.button("Cancel", on_click=load_dialog.close).props("flat")
