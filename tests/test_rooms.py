@@ -5,19 +5,19 @@ from scheduler.config import TimeRange
 
 from src.controllers import room_operations_controller as rooms_service
 
+
 # Unit tests for the rooms_service module
 class TestRoomCRUD(unittest.TestCase):
-
     def setUp(self):
         self.rooms = []
 
     def test_add_room(self):
         # Inputs for add_rooms()
         inputs = [
-            "Room 101",      # room name
-            "30",            # capacity
-            "Projector",     # feature
-            "done",          # finish features
+            "Room 101",  # room name
+            "30",  # capacity
+            "Projector",  # feature
+            "done",  # finish features
             "MON 09:00-17:00",
             "done",
         ]
@@ -35,15 +35,9 @@ class TestRoomCRUD(unittest.TestCase):
         self.assertEqual(new_room.capacity, 30)
         self.assertEqual(new_room.features, {"Projector"})
 
-        self.assertEqual(
-            new_room.times["MON"][0].start,
-            "09:00"
-        )
+        self.assertEqual(new_room.times["MON"][0].start, "09:00")
 
-        self.assertEqual(
-            new_room.times["MON"][0].end,
-            "17:00"
-        )
+        self.assertEqual(new_room.times["MON"][0].end, "17:00")
 
     def test_add_room_from_values(self):
         room = rooms_service.add_room_from_values(
@@ -65,9 +59,7 @@ class TestRoomCRUD(unittest.TestCase):
         first_room = rooms_service.add_room_from_values(
             self.rooms, "Room 101", 30, ["Projector"], None
         )
-        second_room = rooms_service.add_room_from_values(
-            self.rooms, "Room 202", 20, [], None
-        )
+        second_room = rooms_service.add_room_from_values(self.rooms, "Room 202", 20, [], None)
 
         updated_room = rooms_service.update_room_from_values(
             self.rooms,
@@ -85,26 +77,18 @@ class TestRoomCRUD(unittest.TestCase):
         self.assertEqual(updated_room.times["TUE"][0].start, "10:00")
 
     def test_duplicate_room_update_preserves_original(self):
-        original = rooms_service.add_room_from_values(
-            self.rooms, "Room 101", 30, [], None
-        )
+        original = rooms_service.add_room_from_values(self.rooms, "Room 101", 30, [], None)
         rooms_service.add_room_from_values(self.rooms, "Room 202", 20, [], None)
 
         with self.assertRaisesRegex(ValueError, "already exists"):
-            rooms_service.update_room_from_values(
-                self.rooms, original, "Room 202", 40, [], None
-            )
+            rooms_service.update_room_from_values(self.rooms, original, "Room 202", 40, [], None)
 
         self.assertIs(self.rooms[0], original)
         self.assertEqual(original.capacity, 30)
 
     def test_delete_room_from_values_removes_selected_room(self):
-        first_room = rooms_service.add_room_from_values(
-            self.rooms, "Room 101", 30, [], None
-        )
-        second_room = rooms_service.add_room_from_values(
-            self.rooms, "Room 202", 20, [], None
-        )
+        first_room = rooms_service.add_room_from_values(self.rooms, "Room 101", 30, [], None)
+        second_room = rooms_service.add_room_from_values(self.rooms, "Room 202", 20, [], None)
 
         deleted_room = rooms_service.delete_room_from_values(self.rooms, second_room)
 
@@ -117,9 +101,7 @@ class TestRoomCRUD(unittest.TestCase):
             name="Room 101",
             capacity=30,
             features=["Projector"],
-            times={
-                "MON": [TimeRange.from_string("09:00-17:00")]
-            }
+            times={"MON": [TimeRange.from_string("09:00-17:00")]},
         )
 
         self.rooms.append(room)
@@ -129,9 +111,7 @@ class TestRoomCRUD(unittest.TestCase):
             rooms_service.view_rooms(self.rooms)
 
         # Check that the room's information was printed
-        printed_text = "\n".join(
-            str(call.args[0]) for call in mock_print.call_args_list
-        )
+        printed_text = "\n".join(str(call.args[0]) for call in mock_print.call_args_list)
 
         self.assertIn("ROOMS:", printed_text)
         self.assertIn("Room 101", printed_text)
@@ -143,9 +123,7 @@ class TestRoomCRUD(unittest.TestCase):
             name="Room 101",
             capacity=30,
             features=["Projector"],
-            times={
-                "MON": [TimeRange.from_string("09:00-17:00")]
-            }
+            times={"MON": [TimeRange.from_string("09:00-17:00")]},
         )
 
         self.rooms.append(room)
@@ -154,27 +132,17 @@ class TestRoomCRUD(unittest.TestCase):
         # First input = room number
         # Second input = attribute number
         # Third input = new capacity
-        inputs = [
-            "1",
-            "2",
-            "40"
-        ]
+        inputs = ["1", "2", "40"]
 
         with patch("builtins.input", side_effect=inputs):
             rooms_service.modify_rooms(self.rooms)
 
         # Check that capacity changed
-        self.assertEqual(
-            self.rooms[0].capacity,
-            40
-        )
+        self.assertEqual(self.rooms[0].capacity, 40)
 
     def test_modify_room_adds_features(self):
         room = rooms_service.RoomConfig(
-            name="Room 101",
-            capacity=30,
-            features=["Projector"],
-            times={}
+            name="Room 101", capacity=30, features=["Projector"], times={}
         )
         self.rooms.append(room)
 
@@ -186,10 +154,7 @@ class TestRoomCRUD(unittest.TestCase):
 
     def test_modify_room_deletes_feature(self):
         room = rooms_service.RoomConfig(
-            name="Room 101",
-            capacity=30,
-            features=["Projector", "Whiteboard"],
-            times={}
+            name="Room 101", capacity=30, features=["Projector", "Whiteboard"], times={}
         )
         self.rooms.append(room)
         original_features = set(room.features)
@@ -207,9 +172,7 @@ class TestRoomCRUD(unittest.TestCase):
             name="Room 101",
             capacity=30,
             features=["Projector"],
-            times={
-                "MON": [TimeRange.from_string("09:00-17:00")]
-            }
+            times={"MON": [TimeRange.from_string("09:00-17:00")]},
         )
 
         self.rooms.append(room)
@@ -225,7 +188,6 @@ class TestRoomCRUD(unittest.TestCase):
 
 
 class TestGetRoomName(unittest.TestCase):
-
     def setUp(self):
         self.rooms = []
 
@@ -244,12 +206,7 @@ class TestGetRoomName(unittest.TestCase):
     @patch("builtins.print")
     def test_duplicate_name_retries_until_unique(self, mock_print, mock_input):
         self.rooms.append(
-            rooms_service.RoomConfig(
-                name="Room 101",
-                capacity=20,
-                features=[],
-                times={}
-            )
+            rooms_service.RoomConfig(name="Room 101", capacity=20, features=[], times={})
         )
         mock_input.side_effect = ["Room 101", "Room 202"]
 
@@ -261,7 +218,6 @@ class TestGetRoomName(unittest.TestCase):
 
 
 class TestGetRoomCapacity(unittest.TestCase):
-
     @patch("builtins.input")
     def test_valid_capacity(self, mock_input):
         mock_input.return_value = "25"
@@ -284,7 +240,6 @@ class TestGetRoomCapacity(unittest.TestCase):
 
 
 class TestGetRoomFeatures(unittest.TestCase):
-
     @patch("builtins.input")
     def test_collects_non_empty_features_until_done(self, mock_input):
         mock_input.side_effect = ["Projector", "", "Whiteboard", "done"]
@@ -303,13 +258,9 @@ class TestGetRoomFeatures(unittest.TestCase):
 
 
 class TestGetRoomAvailability(unittest.TestCase):
-
     @patch("builtins.input")
     def test_valid_availability_entries_are_collected(self, mock_input):
-        mock_input.side_effect = [
-            "MON 09:00-10:00",
-            "done"
-        ]
+        mock_input.side_effect = ["MON 09:00-10:00", "done"]
 
         result = rooms_service.get_room_availability()
 
@@ -320,18 +271,12 @@ class TestGetRoomAvailability(unittest.TestCase):
     @patch("builtins.input")
     @patch("builtins.print")
     def test_invalid_availability_format_is_rejected(self, mock_print, mock_input):
-        mock_input.side_effect = [
-            "MON",
-            "MON 09:00-10:00",
-            "done"
-        ]
+        mock_input.side_effect = ["MON", "MON 09:00-10:00", "done"]
 
         result = rooms_service.get_room_availability()
 
         self.assertIn("MON", result)
-        mock_print.assert_any_call(
-            "Invalid format. Please use the format: DAY HH:MM-HH:MM"
-        )
+        mock_print.assert_any_call("Invalid format. Please use the format: DAY HH:MM-HH:MM")
 
 
 if __name__ == "__main__":

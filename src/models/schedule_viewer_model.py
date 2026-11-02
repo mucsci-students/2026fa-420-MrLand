@@ -2,21 +2,22 @@
 
 Used by: GUI."""
 
+import io
 import re
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from scheduler.models.course import CourseInstance
 from scheduler.config import CombinedConfig
+from scheduler.models.course import CourseInstance
+
 from src.models.schedule_files import (
     SAVED_NAME_PATTERN,
     parse_schedule_file,
     records_from_result,
-    records_to_csv,
-    records_to_json,
+    schedule_export_strategy,
 )
 from src.models.schedule_result import ScheduleResult
-
 
 SCHEDULE_DIRECTORY = Path(__file__).resolve().parents[1] / "schedules"
 FORMATS = {"csv": "text/csv", "json": "application/json"}
@@ -25,13 +26,14 @@ FORMATS = {"csv": "text/csv", "json": "application/json"}
 @dataclass
 class ScheduleEntry:
     """One schedule the viewer can show."""
+
     label: str
     config_name: str
-    source: str                       # "generated" or "file"
+    source: str  # "generated" or "file"
     records: list[dict[str, str]]
     config: CombinedConfig | None = None
     schedule: list[CourseInstance] | None = None
-    file_name: str | None = None      # set for schedules loaded from a file
+    file_name: str | None = None  # set for schedules loaded from a file
 
 
 def _natural_key(name: str) -> list:
@@ -63,6 +65,10 @@ class ScheduleViewerModel:
             return None
         self.selected_index = max(0, min(self.selected_index, len(entries) - 1))
         return entries[self.selected_index]
+
+    @property
+    def has_generated_schedules(self) -> bool:
+        return bool(self._generated)
 
     def select(self, index: int) -> None:
         self.selected_index = max(0, min(index, len(self.entries) - 1))
@@ -148,15 +154,11 @@ class ScheduleViewerModel:
 
     @staticmethod
     def serialize(entry: ScheduleEntry, file_format: str) -> bytes:
-        if file_format == "csv":
-            return records_to_csv(entry.records)
-        if file_format == "json":
-            return records_to_json(entry.records)
-        raise ValueError("Please choose CSV or JSON.")
+        return schedule_export_strategy(file_format).serialize(entry.records)
 
     def default_export_file_name(self, entry: ScheduleEntry, file_format: str) -> str:
         """A loaded file keeps its name; a generated schedule gets the next free
-        <config>_schedule<n> name, matching the CLI export."""
+        <config>_schedule<n> name, matching older saved schedules."""
         if entry.file_name:
             return f"{Path(entry.file_name).stem}.{file_format}"
 
@@ -170,6 +172,47 @@ class ScheduleViewerModel:
             number += 1
         return f"{entry.config_name}_schedule{number}.{file_format}"
 
+    def export_all_generated(self, file_format: str) -> tuple[bytes, str, str]:
+        """Return a ZIP containing every generated schedule in the selected format."""
+        if file_format not in FORMATS:
+            raise ValueError("Please choose CSV or JSON.")
+        if not self._generated:
+            raise ValueError("There are no generated schedules to export.")
+
+        taken_by_config: dict[str, set[int]] = {}
+        for name in self.list_saved_files():
+            match = SAVED_NAME_PATTERN.match(Path(name).stem)
+            if match:
+                taken_by_config.setdefault(match.group("config"), set()).add(
+                    int(match.group("number"))
+                )
+
+        next_number_by_config: dict[str, int] = {}
+        archive = io.BytesIO()
+        with zipfile.ZipFile(archive, mode="w", compression=zipfile.ZIP_DEFLATED) as bundle:
+            for entry in self._generated:
+                config_name = re.sub(
+                    r'[<>:"/\\|?*\x00-\x1f]',
+                    "_",
+                    entry.config_name,
+                ).strip(" .")
+                config_name = config_name or "schedule"
+                taken = taken_by_config.setdefault(config_name, set())
+                number = next_number_by_config.get(config_name, 1)
+                while number in taken:
+                    number += 1
+                taken.add(number)
+                next_number_by_config[config_name] = number + 1
+
+                file_name = f"{config_name}_schedule{number}.{file_format}"
+                bundle.writestr(file_name, self.serialize(entry, file_format))
+
+        return (
+            archive.getvalue(),
+            "generated_schedules.zip",
+            "application/zip",
+        )
+
     def export(
         self, entry: ScheduleEntry, file_format: str, file_name: str
     ) -> tuple[bytes, str, str]:
@@ -178,8 +221,7 @@ class ScheduleViewerModel:
             raise ValueError("Please choose CSV or JSON.")
 
         file_name = Path(
-            file_name.strip()
-            or self.default_export_file_name(entry, file_format)
+            file_name.strip() or self.default_export_file_name(entry, file_format)
         ).name
         if Path(file_name).suffix.lower() != f".{file_format}":
             file_name = f"{file_name}.{file_format}"

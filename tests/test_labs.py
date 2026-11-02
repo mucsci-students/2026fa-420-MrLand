@@ -1,6 +1,6 @@
-
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from src.controllers import lab_operations_controller as lab_service
 
 MODULE = "src.controllers.lab_operations_controller"
@@ -10,38 +10,24 @@ lab_menu = lab_service
 
 # helper functions
 class TestGetLabName(unittest.TestCase):
-
     def setUp(self):
         self.labs = []
 
     @patch(f"{MODULE}.find_lab")
     @patch("builtins.input")
-    def test_valid_name_returns_stripped_name(
-        self,
-        mock_input,
-        mock_find_lab
-    ):
+    def test_valid_name_returns_stripped_name(self, mock_input, mock_find_lab):
         mock_input.return_value = "  Bio LAB  "
         mock_find_lab.return_value = None
 
         result = lab_menu.get_lab_name(self.labs)
 
         self.assertEqual(result, "Bio LAB")
-        mock_find_lab.assert_called_once_with(
-            self.labs,
-            "Bio LAB",
-            exclude=None
-        )
+        mock_find_lab.assert_called_once_with(self.labs, "Bio LAB", exclude=None)
 
     @patch(f"{MODULE}.find_lab")
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_blank_name_retries_until_valid(
-        self,
-        mock_print,
-        mock_input,
-        mock_find_lab
-    ):
+    def test_blank_name_retries_until_valid(self, mock_print, mock_input, mock_find_lab):
         mock_input.side_effect = ["", "   ", "chem lab"]
         mock_find_lab.return_value = None
 
@@ -54,12 +40,7 @@ class TestGetLabName(unittest.TestCase):
     @patch(f"{MODULE}.find_lab")
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_duplicate_name_retries_until_unique(
-        self,
-        mock_print,
-        mock_input,
-        mock_find_lab
-    ):
+    def test_duplicate_name_retries_until_unique(self, mock_print, mock_input, mock_find_lab):
         mock_input.side_effect = ["chem lab", "physics lab"]
         mock_find_lab.side_effect = [MagicMock(), None]
 
@@ -71,7 +52,6 @@ class TestGetLabName(unittest.TestCase):
 
 
 class TestGetLabCapacity(unittest.TestCase):
-
     @patch("builtins.input")
     def test_valid_capacity(self, mock_input):
         mock_input.return_value = "30"
@@ -82,11 +62,7 @@ class TestGetLabCapacity(unittest.TestCase):
 
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_non_positive_capacity_retries(
-        self,
-        mock_print,
-        mock_input
-    ):
+    def test_non_positive_capacity_retries(self, mock_print, mock_input):
         mock_input.side_effect = ["0", "-5", "20"]
 
         result = lab_menu.get_lab_capacity()
@@ -97,11 +73,7 @@ class TestGetLabCapacity(unittest.TestCase):
 
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_non_integer_capacity_retries(
-        self,
-        mock_print,
-        mock_input
-    ):
+    def test_non_integer_capacity_retries(self, mock_print, mock_input):
         mock_input.side_effect = ["abc", "12.5", "20"]
 
         result = lab_menu.get_lab_capacity()
@@ -112,21 +84,10 @@ class TestGetLabCapacity(unittest.TestCase):
 
 
 class TestGetLabFeatures(unittest.TestCase):
-
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_collects_unique_non_empty_features(
-        self,
-        mock_print,
-        mock_input
-    ):
-        mock_input.side_effect = [
-            "Projector",
-            "",
-            "  ",
-            "Whiteboard",
-            "done"
-        ]
+    def test_collects_unique_non_empty_features(self, mock_print, mock_input):
+        mock_input.side_effect = ["Projector", "", "  ", "Whiteboard", "done"]
 
         result = lab_menu.get_lab_features()
 
@@ -150,7 +111,6 @@ class TestGetLabFeatures(unittest.TestCase):
 
 
 class TestGetLabTimes(unittest.TestCase):
-
     @patch("builtins.input")
     def test_choice_n_returns_none(self, mock_input):
         mock_input.return_value = "n"
@@ -161,11 +121,7 @@ class TestGetLabTimes(unittest.TestCase):
 
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_invalid_choice_retries_until_valid(
-        self,
-        mock_print,
-        mock_input
-    ):
+    def test_invalid_choice_retries_until_valid(self, mock_print, mock_input):
         mock_input.side_effect = ["maybe", "n"]
 
         result = lab_menu.get_lab_times()
@@ -178,7 +134,8 @@ class TestGetLabTimes(unittest.TestCase):
     def test_choice_y_collects_ranges_per_day(self, mock_input):
         mock_input.side_effect = [
             "y",
-            "09:00-10:00", "done",
+            "09:00-10:00",
+            "done",
             "done",
             "13:00-14:00",
             "14:00-15:00",
@@ -212,15 +169,11 @@ class TestGetLabTimes(unittest.TestCase):
 
         result = lab_menu.get_lab_times()
 
-        self.assertEqual(
-            result,
-            {"MON": ["09:00-10:00"]}
-        )
+        self.assertEqual(result, {"MON": ["09:00-10:00"]})
 
 
 # add lab
 class TestAddLab(unittest.TestCase):
-
     def setUp(self):
         self.labs = []
 
@@ -288,7 +241,6 @@ class TestAddLab(unittest.TestCase):
 
 
 class TestLabValueCRUD(unittest.TestCase):
-
     def setUp(self):
         self.labs = []
 
@@ -308,14 +260,10 @@ class TestLabValueCRUD(unittest.TestCase):
         self.assertEqual(lab.times["MON"][0].start, "09:00")
 
     def test_duplicate_lab_name_is_rejected(self):
-        original = lab_service.add_lab_from_values(
-            self.labs, "Chemistry Lab", 24, [], None
-        )
+        original = lab_service.add_lab_from_values(self.labs, "Chemistry Lab", 24, [], None)
 
         with self.assertRaisesRegex(ValueError, "already exists"):
-            lab_service.add_lab_from_values(
-                self.labs, "chemistry lab", 30, [], None
-            )
+            lab_service.add_lab_from_values(self.labs, "chemistry lab", 30, [], None)
 
         self.assertEqual(self.labs, [original])
 
@@ -323,9 +271,7 @@ class TestLabValueCRUD(unittest.TestCase):
         original = lab_service.add_lab_from_values(
             self.labs, "Chemistry Lab", 24, ["Fume hood"], None
         )
-        other = lab_service.add_lab_from_values(
-            self.labs, "Physics Lab", 20, [], None
-        )
+        other = lab_service.add_lab_from_values(self.labs, "Physics Lab", 20, [], None)
 
         updated = lab_service.update_lab_from_values(
             self.labs,
@@ -343,32 +289,23 @@ class TestLabValueCRUD(unittest.TestCase):
         self.assertEqual(updated.times["TUE"][0].start, "10:00")
 
     def test_invalid_lab_update_preserves_original(self):
-        original = lab_service.add_lab_from_values(
-            self.labs, "Chemistry Lab", 24, [], None
-        )
+        original = lab_service.add_lab_from_values(self.labs, "Chemistry Lab", 24, [], None)
 
         with self.assertRaises(ValueError):
-            lab_service.update_lab_from_values(
-                self.labs, original, "Chemistry Lab", 0, [], None
-            )
+            lab_service.update_lab_from_values(self.labs, original, "Chemistry Lab", 0, [], None)
 
         self.assertIs(self.labs[0], original)
         self.assertEqual(original.capacity, 24)
 
     def test_delete_lab_from_values_removes_selected_lab(self):
-        first = lab_service.add_lab_from_values(
-            self.labs, "Chemistry Lab", 24, [], None
-        )
-        selected = lab_service.add_lab_from_values(
-            self.labs, "Physics Lab", 20, [], None
-        )
+        first = lab_service.add_lab_from_values(self.labs, "Chemistry Lab", 24, [], None)
+        selected = lab_service.add_lab_from_values(self.labs, "Physics Lab", 20, [], None)
 
         self.assertIs(lab_service.delete_lab_from_values(self.labs, selected), selected)
         self.assertEqual(self.labs, [first])
 
 
 class TestViewLabs(unittest.TestCase):
-
     def setUp(self):
         self.labs = []
 
@@ -379,10 +316,7 @@ class TestViewLabs(unittest.TestCase):
         mock_print.assert_called_once_with("\nNo Lab Found")
 
     @patch("builtins.print")
-    def test_view_labs_with_features_and_unrestricted_times(
-        self,
-        mock_print
-    ):
+    def test_view_labs_with_features_and_unrestricted_times(self, mock_print):
         lab = MagicMock()
         lab.name = "chem lab"
         lab.capacity = 20
@@ -395,18 +329,11 @@ class TestViewLabs(unittest.TestCase):
 
         mock_print.assert_any_call("\n1. chem lab")
         mock_print.assert_any_call("Capacity: 20")
-        mock_print.assert_any_call(
-            "Features: Projector, Whiteboard"
-        )
-        mock_print.assert_any_call(
-            "Availability: Unrestricted"
-        )
+        mock_print.assert_any_call("Features: Projector, Whiteboard")
+        mock_print.assert_any_call("Availability: Unrestricted")
 
     @patch("builtins.print")
-    def test_view_labs_no_features_and_scheduled_times(
-        self,
-        mock_print
-    ):
+    def test_view_labs_no_features_and_scheduled_times(self, mock_print):
         lab = MagicMock()
         lab.name = "physics lab"
         lab.capacity = 15
@@ -419,15 +346,10 @@ class TestViewLabs(unittest.TestCase):
 
         mock_print.assert_any_call("Features: None")
         mock_print.assert_any_call("Availability: ")
-        mock_print.assert_any_call(
-            " MON: ['09:00-10:00']"
-        )
+        mock_print.assert_any_call(" MON: ['09:00-10:00']")
 
     @patch("builtins.print")
-    def test_view_labs_numbers_multiple_labs_sequentially(
-        self,
-        mock_print
-    ):
+    def test_view_labs_numbers_multiple_labs_sequentially(self, mock_print):
         lab1 = MagicMock()
         lab1.name = "lab one"
         lab1.capacity = 1
@@ -449,30 +371,19 @@ class TestViewLabs(unittest.TestCase):
 
 
 class TestModifyLab(unittest.TestCase):
-
     def setUp(self):
         self.labs = []
 
     @patch("builtins.print")
-    def test_no_labs_prints_message_and_returns(
-        self,
-        mock_print
-    ):
+    def test_no_labs_prints_message_and_returns(self, mock_print):
         lab_menu.modify_lab(self.labs)
 
-        mock_print.assert_called_once_with(
-            "\nNo labs found."
-        )
+        mock_print.assert_called_once_with("\nNo labs found.")
 
     @patch(f"{MODULE}.view_labs")
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_non_integer_index_prints_error(
-        self,
-        mock_print,
-        mock_input,
-        mock_view_labs
-    ):
+    def test_non_integer_index_prints_error(self, mock_print, mock_input, mock_view_labs):
         self.labs = [MagicMock()]
         mock_input.return_value = "abc"
 
@@ -484,12 +395,7 @@ class TestModifyLab(unittest.TestCase):
     @patch(f"{MODULE}.view_labs")
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_out_of_range_index_prints_error(
-        self,
-        mock_print,
-        mock_input,
-        mock_view_labs
-    ):
+    def test_out_of_range_index_prints_error(self, mock_print, mock_input, mock_view_labs):
         self.labs = [MagicMock()]
         mock_input.return_value = "5"
 
@@ -500,12 +406,7 @@ class TestModifyLab(unittest.TestCase):
     @patch(f"{MODULE}.view_labs")
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_zero_index_is_invalid(
-        self,
-        mock_print,
-        mock_input,
-        mock_view_labs
-    ):
+    def test_zero_index_is_invalid(self, mock_print, mock_input, mock_view_labs):
         self.labs = [MagicMock()]
         mock_input.return_value = "0"
 
@@ -518,17 +419,11 @@ class TestModifyLab(unittest.TestCase):
     @patch("builtins.input")
     @patch("builtins.print")
     def test_choice_1_assigns_result_of_get_lab_name(
-        self,
-        mock_print,
-        mock_input,
-        mock_view_labs,
-        mock_get_lab_name
+        self, mock_print, mock_input, mock_view_labs, mock_get_lab_name
     ):
         lab = MagicMock()
         lab.name = "old name"
-        lab.model_dump.return_value = {
-            "name": "old name"
-        }
+        lab.model_dump.return_value = {"name": "old name"}
 
         self.labs = [lab]
 
@@ -537,31 +432,20 @@ class TestModifyLab(unittest.TestCase):
 
         lab_menu.modify_lab(self.labs)
 
-        mock_get_lab_name.assert_called_once_with(
-            self.labs,
-            exclude=lab
-        )
+        mock_get_lab_name.assert_called_once_with(self.labs, exclude=lab)
         self.assertEqual(lab.name, "new name")
-        mock_print.assert_any_call(
-            "Name Updated to 'new name'"
-        )
+        mock_print.assert_any_call("Name Updated to 'new name'")
 
     @patch(f"{MODULE}.get_lab_capacity")
     @patch(f"{MODULE}.view_labs")
     @patch("builtins.input")
     @patch("builtins.print")
     def test_choice_2_assigns_result_of_get_lab_capacity(
-        self,
-        mock_print,
-        mock_input,
-        mock_view_labs,
-        mock_get_lab_capacity
+        self, mock_print, mock_input, mock_view_labs, mock_get_lab_capacity
     ):
         lab = MagicMock()
         lab.capacity = 10
-        lab.model_dump.return_value = {
-            "capacity": 10
-        }
+        lab.model_dump.return_value = {"capacity": 10}
 
         self.labs = [lab]
 
@@ -572,67 +456,38 @@ class TestModifyLab(unittest.TestCase):
 
         mock_get_lab_capacity.assert_called_once()
         self.assertEqual(lab.capacity, 50)
-        mock_print.assert_any_call(
-            "Capacity Updated to '50'"
-        )
+        mock_print.assert_any_call("Capacity Updated to '50'")
 
     @patch(f"{MODULE}.view_labs")
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_choice_3_adds_features(
-        self,
-        mock_print,
-        mock_input,
-        mock_view_labs
-    ):
+    def test_choice_3_adds_features(self, mock_print, mock_input, mock_view_labs):
         lab = MagicMock()
         lab.features = {"Old Feature"}
-        lab.model_dump.return_value = {
-            "features": {"Old Feature"}
-        }
+        lab.model_dump.return_value = {"features": {"Old Feature"}}
 
         self.labs = [lab]
 
-        mock_input.side_effect = [
-            "1",
-            "3",
-            "a",
-            "Projector",
-            "",
-            "done"
-        ]
+        mock_input.side_effect = ["1", "3", "a", "Projector", "", "done"]
 
         lab_menu.modify_lab(self.labs)
 
-        self.assertEqual(
-            lab.features,
-            {"Old Feature", "Projector"}
-        )
+        self.assertEqual(lab.features, {"Old Feature", "Projector"})
 
     @patch(f"{MODULE}.delete_lab_features")
     @patch(f"{MODULE}.view_labs")
     @patch("builtins.input")
     @patch("builtins.print")
     def test_choice_3_delete_features(
-        self,
-        mock_print,
-        mock_input,
-        mock_view_labs,
-        mock_delete_features
+        self, mock_print, mock_input, mock_view_labs, mock_delete_features
     ):
         lab = MagicMock()
         lab.features = {"Projector"}
-        lab.model_dump.return_value = {
-            "features": {"Projector"}
-        }
+        lab.model_dump.return_value = {"features": {"Projector"}}
 
         self.labs = [lab]
 
-        mock_input.side_effect = [
-            "1",
-            "3",
-            "d"
-        ]
+        mock_input.side_effect = ["1", "3", "d"]
 
         lab_menu.modify_lab(self.labs)
 
@@ -643,153 +498,96 @@ class TestModifyLab(unittest.TestCase):
     @patch("builtins.input")
     @patch("builtins.print")
     def test_choice_4_calls_get_lab_times_and_persists(
-        self,
-        mock_print,
-        mock_input,
-        mock_view_labs,
-        mock_get_lab_times
+        self, mock_print, mock_input, mock_view_labs, mock_get_lab_times
     ):
         lab = MagicMock()
         lab.times = None
-        lab.model_dump.return_value = {
-            "times": None
-        }
+        lab.model_dump.return_value = {"times": None}
 
         self.labs = [lab]
 
         mock_input.side_effect = ["1", "4"]
-        mock_get_lab_times.return_value = {
-            "MON": ["09:00-10:00"]
-        }
+        mock_get_lab_times.return_value = {"MON": ["09:00-10:00"]}
 
         lab_menu.modify_lab(self.labs)
 
         mock_get_lab_times.assert_called_once()
-        self.assertEqual(
-            lab.times,
-            {"MON": ["09:00-10:00"]}
-        )
+        self.assertEqual(lab.times, {"MON": ["09:00-10:00"]})
 
     @patch(f"{MODULE}.view_labs")
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_choice_5_cancels(
-        self,
-        mock_print,
-        mock_input,
-        mock_view_labs
-    ):
+    def test_choice_5_cancels(self, mock_print, mock_input, mock_view_labs):
         self.labs = [MagicMock()]
         mock_input.side_effect = ["1", "5"]
 
         lab_menu.modify_lab(self.labs)
 
-        mock_print.assert_any_call(
-            "Modification Cancelled."
-        )
+        mock_print.assert_any_call("Modification Cancelled.")
 
     @patch(f"{MODULE}.view_labs")
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_invalid_choice_prints_error(
-        self,
-        mock_print,
-        mock_input,
-        mock_view_labs
-    ):
+    def test_invalid_choice_prints_error(self, mock_print, mock_input, mock_view_labs):
         self.labs = [MagicMock()]
         mock_input.side_effect = ["1", "9"]
 
         lab_menu.modify_lab(self.labs)
 
-        mock_print.assert_any_call(
-            "Invalid Option."
-        )
+        mock_print.assert_any_call("Invalid Option.")
 
 
 class TestDeleteLab(unittest.TestCase):
-
     def setUp(self):
         self.labs = []
 
     @patch("builtins.print")
-    def test_no_labs_prints_message_and_returns(
-        self,
-        mock_print
-    ):
+    def test_no_labs_prints_message_and_returns(self, mock_print):
         lab_menu.delete_lab(self.labs)
 
-        mock_print.assert_called_once_with(
-            "\nNo Labs Found."
-        )
+        mock_print.assert_called_once_with("\nNo Labs Found.")
 
     @patch(f"{MODULE}.view_labs")
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_non_integer_index_prints_error(
-        self,
-        mock_print,
-        mock_input,
-        mock_view_labs
-    ):
+    def test_non_integer_index_prints_error(self, mock_print, mock_input, mock_view_labs):
         self.labs = [MagicMock()]
         mock_input.return_value = "abc"
 
         lab_menu.delete_lab(self.labs)
 
         mock_view_labs.assert_called_once_with(self.labs)
-        mock_print.assert_any_call(
-            "Enter Valid Number."
-        )
+        mock_print.assert_any_call("Enter Valid Number.")
         self.assertEqual(len(self.labs), 1)
 
     @patch(f"{MODULE}.view_labs")
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_out_of_range_index_prints_error(
-        self,
-        mock_print,
-        mock_input,
-        mock_view_labs
-    ):
+    def test_out_of_range_index_prints_error(self, mock_print, mock_input, mock_view_labs):
         self.labs = [MagicMock()]
         mock_input.return_value = "5"
 
         lab_menu.delete_lab(self.labs)
 
-        mock_print.assert_any_call(
-            "Invalid Selection."
-        )
+        mock_print.assert_any_call("Invalid Selection.")
         self.assertEqual(len(self.labs), 1)
 
     @patch(f"{MODULE}.view_labs")
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_zero_index_is_invalid(
-        self,
-        mock_print,
-        mock_input,
-        mock_view_labs
-    ):
+    def test_zero_index_is_invalid(self, mock_print, mock_input, mock_view_labs):
         self.labs = [MagicMock()]
         mock_input.return_value = "0"
 
         lab_menu.delete_lab(self.labs)
 
-        mock_print.assert_any_call(
-            "Invalid Selection."
-        )
+        mock_print.assert_any_call("Invalid Selection.")
         self.assertEqual(len(self.labs), 1)
 
     @patch(f"{MODULE}.view_labs")
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_confirm_yes_deletes_lab(
-        self,
-        mock_print,
-        mock_input,
-        mock_view_labs
-    ):
+    def test_confirm_yes_deletes_lab(self, mock_print, mock_input, mock_view_labs):
         lab = MagicMock()
         lab.name = "chem lab"
         self.labs = [lab]
@@ -799,18 +597,13 @@ class TestDeleteLab(unittest.TestCase):
         lab_menu.delete_lab(self.labs)
 
         self.assertEqual(self.labs, [])
-        mock_print.assert_any_call(
-            "Deleted 'chem lab'."
-        )
+        mock_print.assert_any_call("Deleted 'chem lab'.")
 
     @patch(f"{MODULE}.view_labs")
     @patch("builtins.input")
     @patch("builtins.print")
     def test_confirm_yes_is_case_insensitive_and_trims_whitespace(
-        self,
-        mock_print,
-        mock_input,
-        mock_view_labs
+        self, mock_print, mock_input, mock_view_labs
     ):
         lab = MagicMock()
         lab.name = "chem lab"
@@ -821,19 +614,12 @@ class TestDeleteLab(unittest.TestCase):
         lab_menu.delete_lab(self.labs)
 
         self.assertEqual(self.labs, [])
-        mock_print.assert_any_call(
-            "Deleted 'chem lab'."
-        )
+        mock_print.assert_any_call("Deleted 'chem lab'.")
 
     @patch(f"{MODULE}.view_labs")
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_confirm_no_cancels_deletion(
-        self,
-        mock_print,
-        mock_input,
-        mock_view_labs
-    ):
+    def test_confirm_no_cancels_deletion(self, mock_print, mock_input, mock_view_labs):
         lab = MagicMock()
         lab.name = "chem lab"
         self.labs = [lab]
@@ -843,19 +629,12 @@ class TestDeleteLab(unittest.TestCase):
         lab_menu.delete_lab(self.labs)
 
         self.assertEqual(self.labs, [lab])
-        mock_print.assert_any_call(
-            "Deletion Cancelled."
-        )
+        mock_print.assert_any_call("Deletion Cancelled.")
 
     @patch(f"{MODULE}.view_labs")
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_confirm_anything_other_than_y_cancels(
-        self,
-        mock_print,
-        mock_input,
-        mock_view_labs
-    ):
+    def test_confirm_anything_other_than_y_cancels(self, mock_print, mock_input, mock_view_labs):
         lab = MagicMock()
         lab.name = "chem lab"
         self.labs = [lab]
@@ -865,19 +644,12 @@ class TestDeleteLab(unittest.TestCase):
         lab_menu.delete_lab(self.labs)
 
         self.assertEqual(self.labs, [lab])
-        mock_print.assert_any_call(
-            "Deletion Cancelled."
-        )
+        mock_print.assert_any_call("Deletion Cancelled.")
 
     @patch(f"{MODULE}.view_labs")
     @patch("builtins.input")
     @patch("builtins.print")
-    def test_deletes_correct_lab_from_multiple(
-        self,
-        mock_print,
-        mock_input,
-        mock_view_labs
-    ):
+    def test_deletes_correct_lab_from_multiple(self, mock_print, mock_input, mock_view_labs):
         lab1 = MagicMock()
         lab2 = MagicMock()
         lab3 = MagicMock()
@@ -892,13 +664,8 @@ class TestDeleteLab(unittest.TestCase):
 
         lab_menu.delete_lab(self.labs)
 
-        self.assertEqual(
-            self.labs,
-            [lab1, lab3]
-        )
-        mock_print.assert_any_call(
-            "Deleted 'lab two'."
-        )
+        self.assertEqual(self.labs, [lab1, lab3])
+        mock_print.assert_any_call("Deleted 'lab two'.")
 
 
 if __name__ == "__main__":

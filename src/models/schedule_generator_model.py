@@ -9,9 +9,11 @@ from dataclasses import dataclass, replace
 from typing import Any
 
 from scheduler.scheduler import Scheduler
+
+from src.models.configuration_model import config_exists, load_config
+from src.models.configuration_repository import ConfigLoadError
 from src.models.schedule_files import records_from_result, records_to_csv
 from src.models.schedule_result import ScheduleResult
-from src.models.configuration_model import config_exists, load_config
 
 
 @dataclass
@@ -25,6 +27,7 @@ class ScheduleGenerationState:
     valid: int = 0
     message: str = ""
     diagnosis: Any | None = None
+    generation_id: int = 0
 
 
 class ScheduleGeneratorModel:
@@ -34,6 +37,7 @@ class ScheduleGeneratorModel:
         self._lock = threading.Lock()
         self._state = ScheduleGenerationState()
         self._generated_schedules: list[ScheduleResult] = []
+        self._generation_id = 0
 
     @property
     def generated_schedules(self) -> list[ScheduleResult]:
@@ -44,14 +48,21 @@ class ScheduleGeneratorModel:
         with self._lock:
             return replace(self._state)
 
+    def clear_generated_schedules(self) -> bool:
+        """Clear published results unless a generation run is in progress."""
+        with self._lock:
+            if self._state.running:
+                return False
+            self._generated_schedules.clear()
+            return True
+
     def list_config_names(self) -> list[str]:
         config_directory = os.path.join("src", "configs")
         try:
             return sorted(
                 filename[:-5]
                 for filename in os.listdir(config_directory)
-                if filename.endswith(".json")
-                and config_exists(filename[:-5])
+                if filename.endswith(".json") and config_exists(filename[:-5])
             )
         except OSError:
             return []
@@ -65,8 +76,10 @@ class ScheduleGeneratorModel:
             if self._state.running:
                 return False
 
+            self._generation_id += 1
             self._generated_schedules.clear()
             self._state = ScheduleGenerationState(
+                generation_id=self._generation_id,
                 running=True,
                 config_name=config_name,
                 requested=requested,
@@ -84,6 +97,8 @@ class ScheduleGeneratorModel:
         config_name: str,
         limit_override: int | None,
         optimizer_override: list[str] | None,
+        max_time_gap_override: int | None = None,
+        min_time_overlap_override: int | None = None,
     ) -> None:
         """Generate schedules and publish progress without touching the UI."""
         try:
@@ -92,19 +107,35 @@ class ScheduleGeneratorModel:
                 message=f"Loading configuration '{config_name}'...",
             )
             full_config = self.load_config(config_name)
-
             if limit_override is not None:
                 full_config.limit = limit_override
             if optimizer_override is not None:
                 full_config.optimizer_flags = optimizer_override
-
-            limit = full_config.limit
+            if max_time_gap_override is not None:
+                full_config.time_slot_config.max_time_gap = max_time_gap_override
+            if min_time_overlap_override is not None:
+                full_config.time_slot_config.min_time_overlap = min_time_overlap_override
+        except (ConfigLoadError, FileNotFoundError, ValueError) as error:
             self.update_state(
+                error=str(error),
+                message="Schedule generation failed.",
+                finished=True,
+                running=False,
+            )
+            return
+        self.generate_configuration(config_name, full_config)
+
+    def generate_configuration(self, config_name: str, config: Any) -> None:
+        """Generate from an in-memory config and publish results to viewers."""
+        try:
+            limit = config.limit
+            self.update_state(
+                config_name=config_name,
                 requested=limit,
                 message="Starting Z3 scheduler...",
             )
 
-            scheduler = Scheduler(full_config)
+            scheduler = Scheduler(config)
             self.update_state(message="Generating schedules...")
             generated = []
 
@@ -114,8 +145,7 @@ class ScheduleGeneratorModel:
                 self.update_state(
                     generated=count,
                     message=(
-                        f"Generated {count} of {limit} schedules. "
-                        "Searching for another schedule..."
+                        f"Generated {count} of {limit} schedules. Searching for another schedule..."
                     ),
                 )
                 if count >= limit:
@@ -132,9 +162,7 @@ class ScheduleGeneratorModel:
                 return
 
             valid_count = sum(
-                1
-                for schedule in generated
-                if scheduler.audit_schedule(schedule).is_valid
+                1 for schedule in generated if scheduler.audit_schedule(schedule).is_valid
             )
 
             with self._lock:
@@ -142,18 +170,16 @@ class ScheduleGeneratorModel:
                     ScheduleResult(
                         config_name=config_name,
                         schedule=schedule,
-                        config=full_config,
+                        config=config,
                     )
                     for schedule in generated
                 )
                 self._state.generated = len(generated)
                 self._state.valid = valid_count
-                self._state.message = (
-                    f"Generated {len(generated)} of {limit} schedules."
-                )
+                self._state.message = f"Generated {len(generated)} of {limit} schedules."
                 self._state.finished = True
                 self._state.running = False
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001 - worker boundary must publish scheduler failures
             self.update_state(
                 error=str(error),
                 message="Schedule generation failed.",

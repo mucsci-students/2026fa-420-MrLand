@@ -1,9 +1,8 @@
-"""Reads and updates global settings, including interactive CLI prompts.
+"""Reads and updates global settings.
 
-Used by: GUI and CLI."""
+Used by: GUI."""
 
 from scheduler.config import CombinedConfig, OptimizerFlags
-
 
 DEFAULT_LIMIT = 10
 DEFAULT_OPTIMIZER_FLAGS = []
@@ -25,7 +24,7 @@ def update_settings_from_values(combined_config, limit, optimizer_flags):
 
 
 def reset_settings_values(combined_config):
-    """Restore default settings without CLI output for GUI callers."""
+    """Restore default settings without printing output."""
     return update_settings_from_values(
         combined_config, DEFAULT_LIMIT, list(DEFAULT_OPTIMIZER_FLAGS)
     )
@@ -51,10 +50,7 @@ def modify_settings(combined_config: CombinedConfig):
     while True:
         try:
             limit = int(
-                input(
-                    f"Enter generation limit "
-                    f"(current: {combined_config.limit}): "
-                ).strip()
+                input(f"Enter generation limit (current: {combined_config.limit}): ").strip()
             )
 
             if limit <= 0:
@@ -70,10 +66,7 @@ def modify_settings(combined_config: CombinedConfig):
     for flag in OptimizerFlags:
         print(f"  - {flag.value}")
 
-    flag_input = input(
-        "Enter optimizer flags separated by commas "
-        "(leave blank for none): "
-    ).strip()
+    flag_input = input("Enter optimizer flags separated by commas (leave blank for none): ").strip()
 
     optimizer_flags = []
 

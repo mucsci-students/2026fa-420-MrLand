@@ -66,9 +66,27 @@ def make_valid_config() -> CombinedConfig:
                     {
                         "credits": 4,
                         "meetings": [
-                            {"day": "MON", "start_time": None, "duration": 60, "lab": False, "delivery": "in_person"},
-                            {"day": "WED", "start_time": None, "duration": 60, "lab": True, "delivery": "in_person"},
-                            {"day": "FRI", "start_time": None, "duration": 60, "lab": False, "delivery": "in_person"},
+                            {
+                                "day": "MON",
+                                "start_time": None,
+                                "duration": 60,
+                                "lab": False,
+                                "delivery": "in_person",
+                            },
+                            {
+                                "day": "WED",
+                                "start_time": None,
+                                "duration": 60,
+                                "lab": True,
+                                "delivery": "in_person",
+                            },
+                            {
+                                "day": "FRI",
+                                "start_time": None,
+                                "duration": 60,
+                                "lab": False,
+                                "delivery": "in_person",
+                            },
                         ],
                         "disabled": False,
                         "start_time": None,
@@ -98,12 +116,10 @@ def temp_config_dir(monkeypatch, tmp_path):
 def valid_config() -> CombinedConfig:
     return make_valid_config()
 
- 
 
 def test_sample_config_is_valid(valid_config):
     """If this fails, fix make_valid_config() before looking at other failures."""
     assert config_model.validate_config(valid_config) == []
-
 
 
 @pytest.mark.parametrize(
@@ -114,7 +130,7 @@ def test_sample_config_is_valid(valid_config):
         ("demo config", "demo config"),
         ("fall_2026", "fall_2026"),
         ("A-1", "A-1"),
-        ("a" * 64, "a" * 64),  
+        ("a" * 64, "a" * 64),
     ],
 )
 def test_clean_config_name_accepts_valid_names(raw, expected):
@@ -133,7 +149,7 @@ def test_clean_config_name_accepts_valid_names(raw, expected):
         "_leading_underscore",
         "bad!name",
         "dot.name",
-        "a" * 65,  
+        "a" * 65,
     ],
 )
 def test_clean_config_name_rejects_invalid_names(bad_name):
@@ -200,11 +216,28 @@ def test_save_config_failure_keeps_original_and_cleans_temp(
     assert [p.name for p in temp_config_dir.iterdir()] == ["demo.json"]
 
 
+def test_save_config_serialization_failure_keeps_original_and_cleans_temp(
+    temp_config_dir, valid_config, monkeypatch
+):
+    config_repo.save_config(valid_config, "demo")
+    original_text = (temp_config_dir / "demo.json").read_text(encoding="utf-8")
+
+    def fail_serialization(self, **kwargs):
+        raise RuntimeError("serialization failed")
+
+    monkeypatch.setattr(CombinedConfig, "model_dump_json", fail_serialization)
+
+    with pytest.raises(RuntimeError, match="serialization failed"):
+        config_repo.save_config(valid_config, "demo")
+
+    assert (temp_config_dir / "demo.json").read_text(encoding="utf-8") == original_text
+    assert [p.name for p in temp_config_dir.iterdir()] == ["demo.json"]
+
+
 def test_save_config_rejects_invalid_name_without_writing(temp_config_dir, valid_config):
     with pytest.raises(ValueError):
         config_repo.save_config(valid_config, "../escape")
     assert list(temp_config_dir.iterdir()) == []
-
 
 
 def test_load_config_round_trips_saved_config(temp_config_dir, valid_config):
@@ -238,6 +271,7 @@ def test_load_config_rejects_invalid_name(temp_config_dir):
     with pytest.raises(ValueError):
         config_repo.load_config("../escape")
 
+
 def test_config_exists_false_then_true(temp_config_dir, valid_config):
     assert config_repo.config_exists("demo") is False
     config_repo.save_config(valid_config, "demo")
@@ -258,15 +292,14 @@ def test_list_configs_empty_directory(temp_config_dir):
     assert config_repo.list_configs() == []
 
 
-def test_list_configs_returns_sorted_stems_and_ignores_other_files(
-    temp_config_dir, valid_config
-):
+def test_list_configs_returns_sorted_stems_and_ignores_other_files(temp_config_dir, valid_config):
     for name in ("zebra", "alpha", "middle"):
         config_repo.save_config(valid_config, name)
     (temp_config_dir / "notes.txt").write_text("ignore me", encoding="utf-8")
     (temp_config_dir / "stray.tmp").write_text("ignore me", encoding="utf-8")
 
     assert config_repo.list_configs() == ["alpha", "middle", "zebra"]
+
 
 def test_validate_config_name_accepts_new_name(temp_config_dir):
     assert config_model.validate_config_name("  fresh  ") == "fresh"
@@ -281,6 +314,7 @@ def test_validate_config_name_rejects_existing_name(temp_config_dir, valid_confi
 def test_validate_config_name_rejects_invalid_name(temp_config_dir):
     with pytest.raises(ValueError):
         config_model.validate_config_name("bad!name")
+
 
 def test_create_draft_config_is_empty_with_defaults():
     draft = config_model.create_draft_config()
@@ -317,6 +351,7 @@ def test_validate_config_does_not_modify_config(valid_config):
     config_model.validate_config(valid_config)
     assert valid_config.model_dump() == before
 
+
 @pytest.mark.parametrize(
     "loc, expected",
     [
@@ -327,7 +362,7 @@ def test_validate_config_does_not_modify_config(valid_config):
         (("time_slot_config", "times", "MON"), "MON"),
         (("time_slot_config", "classes", 0, "meetings"), "4-credit pattern"),
         (("config", "rooms", 5, "capacity"), "#6"),  # out-of-range index
-        (("config", "rooms"), None),                 # whole-area error
+        (("config", "rooms"), None),  # whole-area error
     ],
 )
 def test_item_label(valid_config, loc, expected):
@@ -353,9 +388,7 @@ def test_item_label_includes_section_id(valid_config):
         ((), "Whole configuration", None),
     ],
 )
-def test_describe_maps_location_to_area_and_item(
-    valid_config, loc, expected_area, expected_item
-):
+def test_describe_maps_location_to_area_and_item(valid_config, loc, expected_area, expected_item):
     area, item, _field = config_model._describe(valid_config, loc)
     assert area == expected_area
     assert item == expected_item
@@ -471,14 +504,30 @@ def test_controller_new_configuration_returns_draft(controller):
     assert config.config.courses == []
 
 
+def test_controller_memento_restores_an_independent_configuration(controller, valid_config):
+    controller.configuration = valid_config
+    controller._has_valid_configuration = True
+    memento = controller.create_memento()
+
+    valid_config.limit = 25
+    controller._has_valid_configuration = False
+    controller.restore_memento(memento)
+
+    assert controller.configuration.limit == 10
+    assert controller.configuration is not valid_config
+    assert controller._has_valid_configuration is True
+
+    controller.configuration.limit = 30
+    controller.restore_memento(memento)
+    assert controller.configuration.limit == 10
+
+
 def test_controller_save_without_config_raises(controller):
     with pytest.raises(ValueError):
         controller.save_configuration("demo")
 
 
-def test_controller_save_invalid_draft_raises_and_writes_nothing(
-    controller, temp_config_dir
-):
+def test_controller_save_invalid_draft_raises_and_writes_nothing(controller, temp_config_dir):
     controller.new_configuration()
 
     with pytest.raises(config_model.ConfigValidationError) as exc_info:
@@ -488,14 +537,48 @@ def test_controller_save_invalid_draft_raises_and_writes_nothing(
     assert list(temp_config_dir.iterdir()) == []
 
 
-def test_controller_save_valid_config_writes_file(
-    controller, temp_config_dir, valid_config
-):
+def test_controller_save_valid_config_writes_file(controller, temp_config_dir, valid_config):
     controller.configuration = valid_config
 
     controller.save_configuration("demo")
 
     assert (temp_config_dir / "demo.json").is_file()
+
+
+def test_controller_invalid_save_does_not_overwrite_existing_config(
+    controller, temp_config_dir, valid_config
+):
+    controller.configuration = valid_config
+    controller.save_configuration("demo")
+    original = config_repo.load_config("demo").model_dump()
+
+    break_config(valid_config)
+    with pytest.raises(config_model.ConfigValidationError):
+        controller.save_configuration("demo")
+
+    assert config_repo.load_config("demo").model_dump() == original
+
+
+def test_controller_export_configuration_returns_browser_download_data(
+    controller, temp_config_dir, valid_config
+):
+    controller.configuration = valid_config
+
+    content, file_name, media_type = controller.export_configuration("demo")
+
+    assert file_name == "demo.json"
+    assert media_type == "application/json"
+    assert json.loads(content) == valid_config.model_dump(mode="json")
+    assert list(temp_config_dir.iterdir()) == []
+
+
+def test_controller_export_configuration_requires_open_valid_config(controller):
+    with pytest.raises(ValueError, match="No configuration"):
+        controller.export_configuration("demo.json")
+
+    controller.new_configuration()
+    with pytest.raises(config_model.ConfigValidationError):
+        controller.export_configuration("demo.json")
 
 
 def test_controller_save_load_round_trip(controller, temp_config_dir, valid_config):
@@ -514,9 +597,7 @@ def test_controller_load_missing_raises(controller):
         controller.load_configuration("nope")
 
 
-def test_controller_load_invalid_file_raises_config_load_error(
-    controller, temp_config_dir
-):
+def test_controller_load_invalid_file_raises_config_load_error(controller, temp_config_dir):
     (temp_config_dir / "broken.json").write_text("{nope", encoding="utf-8")
     with pytest.raises(config_repo.ConfigLoadError):
         controller.load_configuration("broken")
@@ -558,7 +639,7 @@ def test_controller_loaded_config_rolls_back_invalid_change(
 
     assert accepted is False
     assert problems
-    assert len(other.configuration.config.rooms) == 1
+    assert len(loaded.config.rooms) == 1
 
 
 def test_controller_valid_change_is_accepted_and_sets_baseline(controller, valid_config):
@@ -582,8 +663,8 @@ def test_controller_new_configuration_resets_valid_baseline(
 
     accepted, problems = controller.apply_change(lambda: draft.config.rooms.clear())
 
-    assert accepted is True   # drafts may stay incomplete
-    assert problems           # ...but problems are still reported
+    assert accepted is True  # drafts may stay incomplete
+    assert problems  # ...but problems are still reported
 
 
 def test_controller_full_flow_create_edit_save_load(controller, temp_config_dir):

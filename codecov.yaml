@@ -1,0 +1,22 @@
+coverage:
+  status:
+    project:
+      model:
+        flags: [model]
+        target: 80%
+        threshold: 0%
+    patch:
+      model:
+        flags: [model]
+        informational: true
+
+flag_management:
+  individual_flags:
+    - name: model
+      paths:
+        - src/models/
+      carryforward: false
+
+comment:
+  layout: "header, diff, flags, files"
+  require_changes: false

@@ -1,4 +1,3 @@
-
 # file name: test_course.py
 # Primary author: Dylan Groff
 # run with: python -m unittest tests/test_course.py
@@ -22,13 +21,14 @@ assertRaises(...)	        code should produce an exception
 
 import unittest
 from unittest.mock import patch
+
+from scheduler.config import CourseConfig
+
 from src.controllers import course_operations_controller as course_service
 from src.views.courses_gui import _faculty_candidates
-from scheduler.config import CourseConfig
 
 
 class TestCourse(unittest.TestCase):
-
     def setUp(self):
         self.course_members = []
 
@@ -233,28 +233,29 @@ class TestCourse(unittest.TestCase):
         )
 
         self.assertIs(
-            course_service.delete_course_from_values(
-                self.course_members, selected
-            ),
+            course_service.delete_course_from_values(self.course_members, selected),
             selected,
         )
         self.assertEqual(self.course_members, [first])
 
     # tests add_course
-    @patch("builtins.input", side_effect=[
-        "CS 101",                   # course ID
-        "A",                        # section ID
-        "3",                        # credits
-        "28",                       # capacity
-        "hybrid",                   # modality
-        "Room A, Room B",           # room
-        "Lab 1",                    # lab
-        "accessible",               # room features
-        "gpu",                      # lab features
-        "no",                       # reserve room
-        "",                         # conflicts
-        "Dr. Smith, Dr. Johnson"    # faculty
-    ])
+    @patch(
+        "builtins.input",
+        side_effect=[
+            "CS 101",  # course ID
+            "A",  # section ID
+            "3",  # credits
+            "28",  # capacity
+            "hybrid",  # modality
+            "Room A, Room B",  # room
+            "Lab 1",  # lab
+            "accessible",  # room features
+            "gpu",  # lab features
+            "no",  # reserve room
+            "",  # conflicts
+            "Dr. Smith, Dr. Johnson",  # faculty
+        ],
+    )
     def test_add_course(self, mock_input):
         course_service.add_course(self.course_members)
 
@@ -266,38 +267,29 @@ class TestCourse(unittest.TestCase):
         self.assertEqual(self.course_members[0].modality, "hybrid")
         self.assertEqual(self.course_members[0].room, ["Room A", "Room B"])
         self.assertEqual(self.course_members[0].lab, ["Lab 1"])
-        self.assertEqual(
-            self.course_members[0].required_room_features,
-            {"accessible"}
-        )
-        self.assertEqual(
-            self.course_members[0].required_lab_features,
-            {"gpu"}
-        )
-        self.assertEqual(
-            self.course_members[0].reserve_room_during_lab,
-            False
-        )
+        self.assertEqual(self.course_members[0].required_room_features, {"accessible"})
+        self.assertEqual(self.course_members[0].required_lab_features, {"gpu"})
+        self.assertEqual(self.course_members[0].reserve_room_during_lab, False)
         self.assertEqual(self.course_members[0].conflicts, [])
-        self.assertEqual(
-            self.course_members[0].faculty,
-            ["Dr. Smith", "Dr. Johnson"]
-        )
+        self.assertEqual(self.course_members[0].faculty, ["Dr. Smith", "Dr. Johnson"])
 
-    @patch("builtins.input", side_effect=[
-        "CS101",       # course ID
-        "001",         # section ID
-        "3",           # credits
-        "30",          # capacity
-        "in_person",   # modality
-        "S101",        # room
-        "",            # lab
-        "",            # room features
-        "",            # lab features
-        "yes",         # reserve room
-        "",            # conflicts
-        "none"         # faculty
-    ])
+    @patch(
+        "builtins.input",
+        side_effect=[
+            "CS101",  # course ID
+            "001",  # section ID
+            "3",  # credits
+            "30",  # capacity
+            "in_person",  # modality
+            "S101",  # room
+            "",  # lab
+            "",  # room features
+            "",  # lab features
+            "yes",  # reserve room
+            "",  # conflicts
+            "none",  # faculty
+        ],
+    )
     def test_add_course_basic(self, mock_input):
         course_service.add_course(self.course_members)
 
@@ -307,38 +299,39 @@ class TestCourse(unittest.TestCase):
         self.assertEqual(self.course_members[0].credits, 3)
         self.assertEqual(self.course_members[0].capacity, 30)
 
-    @patch("builtins.input", side_effect=[
-        "CS101",
-        "001",
-        "3",
-        "30",
-        "in_person",
-        "S101",
-        "",
-        "",
-        "",
-        "yes",
-        "",
-        "none",
-
-        # Attempt to add duplicate
-        "CS101",
-        "001",
-
-        # Enter a different course after duplicate is rejected
-        "CS102",
-        "001",
-        "3",
-        "30",
-        "in_person",
-        "S101",
-        "",
-        "",
-        "",
-        "yes",
-        "",
-        "none"
-    ])
+    @patch(
+        "builtins.input",
+        side_effect=[
+            "CS101",
+            "001",
+            "3",
+            "30",
+            "in_person",
+            "S101",
+            "",
+            "",
+            "",
+            "yes",
+            "",
+            "none",
+            # Attempt to add duplicate
+            "CS101",
+            "001",
+            # Enter a different course after duplicate is rejected
+            "CS102",
+            "001",
+            "3",
+            "30",
+            "in_person",
+            "S101",
+            "",
+            "",
+            "",
+            "yes",
+            "",
+            "none",
+        ],
+    )
     def test_add_duplicate_course(self, mock_input):
         course_service.add_course(self.course_members)
         course_service.add_course(self.course_members)
@@ -347,60 +340,69 @@ class TestCourse(unittest.TestCase):
         self.assertEqual(self.course_members[0].course_id, "CS101")
         self.assertEqual(self.course_members[1].course_id, "CS102")
 
-    @patch("builtins.input", side_effect=[
-        "CS101",
-        "001",
-        "0",          # invalid credits
-        "3",          # valid credits
-        "30",
-        "in_person",
-        "S101",
-        "",
-        "",
-        "",
-        "yes",
-        "",
-        "none"
-    ])
+    @patch(
+        "builtins.input",
+        side_effect=[
+            "CS101",
+            "001",
+            "0",  # invalid credits
+            "3",  # valid credits
+            "30",
+            "in_person",
+            "S101",
+            "",
+            "",
+            "",
+            "yes",
+            "",
+            "none",
+        ],
+    )
     def test_add_course_invalid_credits(self, mock_input):
         course_service.add_course(self.course_members)
 
         self.assertEqual(len(self.course_members), 1)
         self.assertEqual(self.course_members[0].credits, 3)
 
-    @patch("builtins.input", side_effect=[
-        "CS101",
-        "001",
-        "3",
-        "0",          # invalid capacity
-        "30",         # valid capacity
-        "in_person",
-        "S101",
-        "",
-        "",
-        "",
-        "yes",
-        "",
-        "none"
-    ])
+    @patch(
+        "builtins.input",
+        side_effect=[
+            "CS101",
+            "001",
+            "3",
+            "0",  # invalid capacity
+            "30",  # valid capacity
+            "in_person",
+            "S101",
+            "",
+            "",
+            "",
+            "yes",
+            "",
+            "none",
+        ],
+    )
     def test_add_course_invalid_capacity(self, mock_input):
         course_service.add_course(self.course_members)
 
         self.assertEqual(len(self.course_members), 1)
         self.assertEqual(self.course_members[0].capacity, 30)
 
-    @patch("builtins.input", side_effect=[
-        "CS101",
-        "",            # no section
-        "3",
-        "30",
-        "online",
-        "",            # room features
-        "",            # lab features
-        "yes",
-        "",            # conflicts
-        "none"
-    ])
+    @patch(
+        "builtins.input",
+        side_effect=[
+            "CS101",
+            "",  # no section
+            "3",
+            "30",
+            "online",
+            "",  # room features
+            "",  # lab features
+            "yes",
+            "",  # conflicts
+            "none",
+        ],
+    )
     def test_add_online_course(self, mock_input):
         course_service.add_course(self.course_members)
 
@@ -410,106 +412,78 @@ class TestCourse(unittest.TestCase):
         self.assertEqual(self.course_members[0].lab, [])
 
     # tests modify_course
-    @patch("builtins.input", side_effect=[
-        "CS101",
-        "001",
-        "3",
-        "30",
-        "in_person",
-        "S101",
-        "",
-        "",
-        "",
-        "yes",
-        "",
-        "none"
-    ])
+    @patch(
+        "builtins.input",
+        side_effect=["CS101", "001", "3", "30", "in_person", "S101", "", "", "", "yes", "", "none"],
+    )
     def test_modify_course_id(self, mock_input):
         course_service.add_course(self.course_members)
 
-        with patch("builtins.input", side_effect=[
-            "1",       # course number
-            "1",       # field: Course ID
-            "CS102"    # new course ID
-        ]):
+        with patch(
+            "builtins.input",
+            side_effect=[
+                "1",  # course number
+                "1",  # field: Course ID
+                "CS102",  # new course ID
+            ],
+        ):
             course_service.modify_course(self.course_members)
 
         self.assertEqual(self.course_members[0].course_id, "CS102")
 
-    @patch("builtins.input", side_effect=[
-        "CS101",
-        "001",
-        "3",
-        "30",
-        "in_person",
-        "S101",
-        "",
-        "",
-        "",
-        "yes",
-        "",
-        "none"
-    ])
+    @patch(
+        "builtins.input",
+        side_effect=["CS101", "001", "3", "30", "in_person", "S101", "", "", "", "yes", "", "none"],
+    )
     def test_modify_course_credits(self, mock_input):
         course_service.add_course(self.course_members)
 
-        with patch("builtins.input", side_effect=[
-            "1",       # course number
-            "3",       # field: Credits
-            "4"        # new credits
-        ]):
+        with patch(
+            "builtins.input",
+            side_effect=[
+                "1",  # course number
+                "3",  # field: Credits
+                "4",  # new credits
+            ],
+        ):
             course_service.modify_course(self.course_members)
 
         self.assertEqual(self.course_members[0].credits, 4)
 
-    @patch("builtins.input", side_effect=[
-        "CS101",
-        "001",
-        "3",
-        "30",
-        "in_person",
-        "S101",
-        "",
-        "",
-        "",
-        "yes",
-        "",
-        "none"
-    ])
+    @patch(
+        "builtins.input",
+        side_effect=["CS101", "001", "3", "30", "in_person", "S101", "", "", "", "yes", "", "none"],
+    )
     def test_modify_course_capacity(self, mock_input):
         course_service.add_course(self.course_members)
 
-        with patch("builtins.input", side_effect=[
-            "1",       # course number
-            "4",       # field: Capacity
-            "50"       # new capacity
-        ]):
+        with patch(
+            "builtins.input",
+            side_effect=[
+                "1",  # course number
+                "4",  # field: Capacity
+                "50",  # new capacity
+            ],
+        ):
             course_service.modify_course(self.course_members)
 
         self.assertEqual(self.course_members[0].capacity, 50)
 
-    @patch("builtins.input", side_effect=[
-        "CS101",
-        "001",
-        "3",
-        "30",
-        "in_person",
-        "S101",
-        "",
-        "",
-        "",
-        "yes",
-        "",
-        "none"
-    ])
+    @patch(
+        "builtins.input",
+        side_effect=["CS101", "001", "3", "30", "in_person", "S101", "", "", "", "yes", "", "none"],
+    )
     def test_modify_course_modality(self, mock_input):
         course_service.add_course(self.course_members)
 
-        with patch("builtins.input", side_effect=[
-            "1",        # course number
-            "5",        # field: Modality
-            "online"    # new modality
-        ]):
+        with patch(
+            "builtins.input",
+            side_effect=[
+                "1",  # course number
+                "5",  # field: Modality
+                "online",  # new modality
+            ],
+        ):
             course_service.modify_course(self.course_members)
 
         self.assertEqual(self.course_members[0].modality, "online")
@@ -530,7 +504,7 @@ class TestCourse(unittest.TestCase):
             required_lab_features=set(),
             reserve_room_during_lab=True,
             conflicts=[],
-            faculty=None
+            faculty=None,
         )
 
         self.course_members.append(course)
@@ -540,33 +514,35 @@ class TestCourse(unittest.TestCase):
 
         self.assertEqual(len(self.course_members), 0)
 
-    @patch("builtins.input", side_effect=[
-        "CS101",
-        "001",
-        "3",
-        "30",
-        "in_person",
-        "S101",
-        "",
-        "",
-        "",
-        "yes",
-        "",
-        "none",
-
-        "CS102",
-        "001",
-        "3",
-        "30",
-        "in_person",
-        "S102",
-        "",
-        "",
-        "",
-        "yes",
-        "",
-        "none"
-    ])
+    @patch(
+        "builtins.input",
+        side_effect=[
+            "CS101",
+            "001",
+            "3",
+            "30",
+            "in_person",
+            "S101",
+            "",
+            "",
+            "",
+            "yes",
+            "",
+            "none",
+            "CS102",
+            "001",
+            "3",
+            "30",
+            "in_person",
+            "S102",
+            "",
+            "",
+            "",
+            "yes",
+            "",
+            "none",
+        ],
+    )
     def test_delete_correct_course(self, mock_input):
         course_service.add_course(self.course_members)
         course_service.add_course(self.course_members)
@@ -712,10 +688,7 @@ class TestCourse(unittest.TestCase):
 
         self.assertEqual(result, {"projector", "whiteboard"})
 
-    @patch("builtins.input", side_effect=[
-        "projector,,whiteboard",
-        "projector,whiteboard"
-    ])
+    @patch("builtins.input", side_effect=["projector,,whiteboard", "projector,whiteboard"])
     def test_get_required_room_features_invalid(self, mock_input):
         result = course_service.get_required_room_features()
 
@@ -732,10 +705,7 @@ class TestCourse(unittest.TestCase):
 
         self.assertEqual(result, {"computers", "software"})
 
-    @patch("builtins.input", side_effect=[
-        "computers,,software",
-        "computers,software"
-    ])
+    @patch("builtins.input", side_effect=["computers,,software", "computers,software"])
     def test_get_required_lab_features_invalid(self, mock_input):
         result = course_service.get_required_lab_features()
 

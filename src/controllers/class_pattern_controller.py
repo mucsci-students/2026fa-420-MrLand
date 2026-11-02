@@ -23,7 +23,9 @@ class ClassPatternController:
         )
 
     @staticmethod
-    def update_pattern(patterns, existing_pattern, credits, meetings, disabled=False, start_time=None):
+    def update_pattern(
+        patterns, existing_pattern, credits, meetings, disabled=False, start_time=None
+    ):
         return update_class_pattern_from_values(
             patterns,
             existing_pattern,
