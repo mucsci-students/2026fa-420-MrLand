@@ -5,6 +5,7 @@ from src.controllers.lab_operations_controller import (
     delete_lab_from_values,
     update_lab_from_values,
 )
+from src.models.configuration_observer import ConfigurationSubject, EntityChangeEvent
 
 
 class LabController:
@@ -24,7 +25,15 @@ class LabController:
         return add_lab_from_values(labs, name, capacity, features, times)
 
     @staticmethod
-    def update_lab(labs, existing_lab, name, capacity, features, times):
+    def update_lab(
+        labs,
+        existing_lab,
+        name,
+        capacity,
+        features,
+        times,
+        change_subject: ConfigurationSubject | None = None,
+    ):
         """
         * Updates a lab to a configuration. Overwrites previous value
         *
@@ -37,10 +46,22 @@ class LabController:
         *
         * Returns: The updated LabConfig
         """
-        return update_lab_from_values(labs, existing_lab, name, capacity, features, times)
+        old_name = existing_lab.name
+        updated_lab = update_lab_from_values(
+            labs, existing_lab, name, capacity, features, times
+        )
+        if updated_lab.name != old_name and change_subject is not None:
+            change_subject.notify(
+                EntityChangeEvent("lab", "renamed", old_name, updated_lab.name)
+            )
+        return updated_lab
 
     @staticmethod
-    def delete_lab(labs, lab_to_delete):
+    def delete_lab(
+        labs,
+        lab_to_delete,
+        change_subject: ConfigurationSubject | None = None,
+    ):
         """
         * Deletes a lab from a configuration.
         *
@@ -49,4 +70,8 @@ class LabController:
         *
         * Returns: The updated LabConfig
         """
-        return delete_lab_from_values(labs, lab_to_delete)
+        old_name = lab_to_delete.name
+        deleted_lab = delete_lab_from_values(labs, lab_to_delete)
+        if change_subject is not None:
+            change_subject.notify(EntityChangeEvent("lab", "deleted", old_name))
+        return deleted_lab

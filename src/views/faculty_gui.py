@@ -2,9 +2,13 @@
 
 Used by: GUI."""
 
+from collections.abc import Callable
+
 from nicegui import ui
+from scheduler.config import FacultyConfig
 
 from src.controllers.faculty_controller import FacultyController
+from src.models.configuration_observer import ConfigurationSubject
 from src.views.common import (
     ConfigurationChangeHandler,
     PendingChangeHandler,
@@ -52,7 +56,8 @@ def faculty_gui(
     faculty_members: list,
     on_change: ConfigurationChangeHandler | None = None,
     on_pending_change: PendingChangeHandler | None = None,
-) -> None:
+    change_subject: ConfigurationSubject | None = None,
+) -> Callable[[], None]:
     """Build the faculty editor, including its add, edit, and delete controls."""
     ui.label("Faculty").classes("text-xl font-semibold text-white")
     ui.label("Add a faculty member and teaching constraints.").classes("text-sm text-[#9fb2b8]")
@@ -128,7 +133,7 @@ def faculty_gui(
             mandatory_days,
         )
 
-        editing_member = {"member": None}
+        editing_member: dict[str, FacultyConfig | None] = {"member": None}
 
         # Validate whole-number form fields against their allowed bounds.
         def integer_value(field, label, minimum, maximum=None):
@@ -217,10 +222,17 @@ def faculty_gui(
 
         # Save edits to the faculty member currently being modified.
         def update_member() -> None:
+            existing_member = editing_member["member"]
+            if existing_member is None:
+                ui.notify("Select a faculty member before applying changes.", type="negative")
+                return
             if not run_crud_mutation(
                 on_change,
                 lambda: controller.update_member(
-                    faculty_members, editing_member["member"], *form_values()
+                    faculty_members,
+                    existing_member,
+                    *form_values(),
+                    change_subject=change_subject,
                 ),
             ):
                 return
@@ -263,7 +275,9 @@ def faculty_gui(
         def delete_member(member, dialog) -> None:
             if not run_crud_mutation(
                 on_change,
-                lambda: controller.delete_member(faculty_members, member),
+                lambda: controller.delete_member(
+                    faculty_members, member, change_subject=change_subject
+                ),
                 handled_errors=(ValueError,),
             ):
                 dialog.close()
@@ -339,3 +353,4 @@ def faculty_gui(
                         ).tooltip("Delete faculty member")
 
     refresh_faculty()
+    return refresh_faculty

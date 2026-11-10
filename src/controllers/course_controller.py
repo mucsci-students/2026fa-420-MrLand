@@ -7,6 +7,7 @@ from src.controllers.course_operations_controller import (
     delete_course_from_values,
     update_course_from_values,
 )
+from src.models.configuration_observer import ConfigurationSubject, EntityChangeEvent
 
 
 class CourseController:
@@ -60,8 +61,10 @@ class CourseController:
         reserve_room_during_lab,
         conflicts,
         faculty,
+        change_subject: ConfigurationSubject | None = None,
     ):
-        return update_course_from_values(
+        old_course_id = existing_course.course_id
+        updated_course = update_course_from_values(
             course_members,
             existing_course,
             course_id,
@@ -77,7 +80,24 @@ class CourseController:
             conflicts,
             faculty,
         )
+        if updated_course.course_id != old_course_id and change_subject is not None:
+            change_subject.notify(
+                EntityChangeEvent(
+                    "course", "renamed", old_course_id, updated_course.course_id
+                )
+            )
+        return updated_course
 
     @staticmethod
-    def delete_course(course_members, course_to_delete):
-        return delete_course_from_values(course_members, course_to_delete)
+    def delete_course(
+        course_members,
+        course_to_delete,
+        change_subject: ConfigurationSubject | None = None,
+    ):
+        old_course_id = course_to_delete.course_id
+        deleted_course = delete_course_from_values(course_members, course_to_delete)
+        if change_subject is not None:
+            change_subject.notify(
+                EntityChangeEvent("course", "deleted", old_course_id)
+            )
+        return deleted_course

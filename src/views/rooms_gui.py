@@ -2,9 +2,13 @@
 
 Used by: GUI."""
 
+from collections.abc import Callable
+
 from nicegui import ui
+from scheduler.config import RoomConfig
 
 from src.controllers.room_controller import RoomController
+from src.models.configuration_observer import ConfigurationSubject
 from src.views.common import (
     ConfigurationChangeHandler,
     PendingChangeHandler,
@@ -31,7 +35,8 @@ def rooms_gui(
     rooms: list,
     on_change: ConfigurationChangeHandler | None = None,
     on_pending_change: PendingChangeHandler | None = None,
-) -> None:
+    change_subject: ConfigurationSubject | None = None,
+) -> Callable[[], None]:
     """Build the room editor, including its add, edit, and delete controls."""
     ui.label("Rooms").classes("text-xl font-semibold text-white")
     ui.label("Add a room and its scheduling constraints.").classes("text-sm text-[#9fb2b8]")
@@ -86,7 +91,7 @@ def rooms_gui(
         for field in availability_fields.values():
             field.set_enabled(False)
 
-        editing_room = {"room": None}
+        editing_room: dict[str, RoomConfig | None] = {"room": None}
 
         # Validate and collect the current form values for the controller.
         def form_values():
@@ -146,7 +151,7 @@ def rooms_gui(
 
         # Apply a new room to the current configuration.
         def add_room() -> None:
-            if not run_crud_mutation(on_change, lambda: controller.add_room(rooms, *form_values())):
+            if not run_crud_mutation(on_change, lambda: controller.add_room(rooms, *form_values())            ):
                 return
             reset_form()
             refresh_rooms()
@@ -154,9 +159,18 @@ def rooms_gui(
 
         # Save edits to the room currently being modified.
         def update_room() -> None:
+            existing_room = editing_room["room"]
+            if existing_room is None:
+                ui.notify("Select a room before applying changes.", type="negative")
+                return
             if not run_crud_mutation(
                 on_change,
-                lambda: controller.update_room(rooms, editing_room["room"], *form_values()),
+                lambda: controller.update_room(
+                    rooms,
+                    existing_room,
+                    *form_values(),
+                    change_subject=change_subject,
+                ),
             ):
                 return
             reset_form()
@@ -187,7 +201,9 @@ def rooms_gui(
         def delete_room(room, dialog) -> None:
             if not run_crud_mutation(
                 on_change,
-                lambda: controller.delete_room(rooms, room),
+                lambda: controller.delete_room(
+                    rooms, room, change_subject=change_subject
+                ),
                 handled_errors=(ValueError,),
             ):
                 dialog.close()
@@ -262,3 +278,4 @@ def rooms_gui(
                         ).tooltip("Delete room")
 
     refresh_rooms()
+    return refresh_rooms

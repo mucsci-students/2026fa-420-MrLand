@@ -2,9 +2,13 @@
 
 Used by: GUI."""
 
+from collections.abc import Callable
+
 from nicegui import ui
+from scheduler.config import CourseConfig
 
 from src.controllers.course_controller import CourseController
+from src.models.configuration_observer import ConfigurationSubject
 from src.views.common import (
     ConfigurationChangeHandler,
     PendingChangeHandler,
@@ -41,7 +45,8 @@ def courses_gui(
     course_members: list,
     on_change: ConfigurationChangeHandler | None = None,
     on_pending_change: PendingChangeHandler | None = None,
-) -> None:
+    change_subject: ConfigurationSubject | None = None,
+) -> Callable[[], None]:
     """Build the course editor, including its add, edit, and delete controls."""
     ui.label("Courses").classes("text-xl font-semibold text-white")
     ui.label("Add a course section and its scheduling requirements.").classes(
@@ -134,7 +139,7 @@ def courses_gui(
             derive_faculty,
         )
 
-        editing_course = {"course": None}
+        editing_course: dict[str, CourseConfig | None] = {"course": None}
 
         # Ensure numeric form fields contain positive whole numbers.
         def integer_value(field, label):
@@ -246,10 +251,17 @@ def courses_gui(
 
         # Save edits to the course currently being modified.
         def update_course() -> None:
+            existing_course = editing_course["course"]
+            if existing_course is None:
+                ui.notify("Select a course before applying changes.", type="negative")
+                return
             if not run_crud_mutation(
                 on_change,
                 lambda: controller.update_course(
-                    course_members, editing_course["course"], *form_values()
+                    course_members,
+                    existing_course,
+                    *form_values(),
+                    change_subject=change_subject,
                 ),
             ):
                 return
@@ -287,7 +299,9 @@ def courses_gui(
         def delete_course(course, dialog) -> None:
             if not run_crud_mutation(
                 on_change,
-                lambda: controller.delete_course(course_members, course),
+                lambda: controller.delete_course(
+                    course_members, course, change_subject=change_subject
+                ),
                 handled_errors=(ValueError,),
             ):
                 dialog.close()
@@ -365,3 +379,4 @@ def courses_gui(
                         ).tooltip("Delete course")
 
     refresh_courses()
+    return refresh_courses

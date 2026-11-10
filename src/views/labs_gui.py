@@ -2,9 +2,13 @@
 
 Used by: GUI."""
 
+from collections.abc import Callable
+
 from nicegui import ui
+from scheduler.config import LabConfig
 
 from src.controllers.lab_controller import LabController
+from src.models.configuration_observer import ConfigurationSubject
 from src.views.common import (
     ConfigurationChangeHandler,
     PendingChangeHandler,
@@ -33,7 +37,8 @@ def labs_gui(
     labs: list,
     on_change: ConfigurationChangeHandler | None = None,
     on_pending_change: PendingChangeHandler | None = None,
-) -> None:
+    change_subject: ConfigurationSubject | None = None,
+) -> Callable[[], None]:
     """Build the lab editor, including its add, edit, and delete controls."""
     ui.label("Labs").classes("text-xl font-semibold text-white")
     ui.label("Add a lab, its capacity, features, and availability.").classes(
@@ -93,7 +98,7 @@ def labs_gui(
         unrestricted.on_value_change(availability_changed)
         set_availability_enabled(False)
 
-        editing_lab = {"lab": None}
+        editing_lab: dict[str, LabConfig | None] = {"lab": None}
 
         # Validate and collect the current form values for the controller.
         def form_values():
@@ -152,7 +157,7 @@ def labs_gui(
 
         # Apply a new lab to the current configuration.
         def add_lab() -> None:
-            if not run_crud_mutation(on_change, lambda: controller.add_lab(labs, *form_values())):
+            if not run_crud_mutation(on_change, lambda: controller.add_lab(labs, *form_values())            ):
                 return
             reset_form()
             refresh_labs()
@@ -160,9 +165,18 @@ def labs_gui(
 
         # Save edits to the lab currently being modified.
         def update_lab() -> None:
+            existing_lab = editing_lab["lab"]
+            if existing_lab is None:
+                ui.notify("Select a lab before applying changes.", type="negative")
+                return
             if not run_crud_mutation(
                 on_change,
-                lambda: controller.update_lab(labs, editing_lab["lab"], *form_values()),
+                lambda: controller.update_lab(
+                    labs,
+                    existing_lab,
+                    *form_values(),
+                    change_subject=change_subject,
+                ),
             ):
                 return
             reset_form()
@@ -194,7 +208,7 @@ def labs_gui(
         def delete_lab(lab, dialog) -> None:
             if not run_crud_mutation(
                 on_change,
-                lambda: controller.delete_lab(labs, lab),
+                lambda: controller.delete_lab(labs, lab, change_subject=change_subject),
                 handled_errors=(ValueError,),
             ):
                 dialog.close()
@@ -269,3 +283,4 @@ def labs_gui(
                         ).tooltip("Delete lab")
 
     refresh_labs()
+    return refresh_labs

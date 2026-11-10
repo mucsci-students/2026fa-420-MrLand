@@ -17,6 +17,10 @@ from src.controllers.configuration_controller import (
     ConfigurationMemento,
 )
 from src.models.configuration_model import ConfigValidationError, validate_config_name
+from src.models.configuration_observer import (
+    ConfigurationRelationshipObserver,
+    ConfigurationSubject,
+)
 from src.models.configuration_repository import ConfigLoadError
 from src.views.class_patterns_gui import class_patterns_gui
 from src.views.common import coming_soon, section_header
@@ -230,6 +234,9 @@ def configuration_editor(
                 ).classes("text-sm text-[#9fb2b8]")
             return
 
+        change_subject = ConfigurationSubject()
+        change_subject.subscribe(ConfigurationRelationshipObserver(config))
+
         with ui.row().classes("items-center gap-3"):
             ui.label(f"Editing: {state['name']}").classes("text-xl font-semibold text-white")
             saved = state["saved"] and not state["pending_forms"]
@@ -309,30 +316,35 @@ def configuration_editor(
         class_patterns_list = (
             getattr(time_slot_config, "classes", []) if time_slot_config is not None else []
         )
+        panel_refreshers: dict[str, Callable[[], None]] = {}
 
         with ui.column().classes(panel_classes) as rooms_panel:
-            rooms_gui(
+            panel_refreshers["Rooms"] = rooms_gui(
                 rooms_list,
                 on_change=apply_config_change,
                 on_pending_change=lambda pending: update_pending_form("rooms", pending),
+                change_subject=change_subject,
             )
         with ui.column().classes(panel_classes) as faculty_panel:
-            faculty_gui(
+            panel_refreshers["Faculty"] = faculty_gui(
                 faculty_list,
                 on_change=apply_config_change,
                 on_pending_change=lambda pending: update_pending_form("faculty", pending),
+                change_subject=change_subject,
             )
         with ui.column().classes(panel_classes) as courses_panel:
-            courses_gui(
+            panel_refreshers["Courses"] = courses_gui(
                 courses_list,
                 on_change=apply_config_change,
                 on_pending_change=lambda pending: update_pending_form("courses", pending),
+                change_subject=change_subject,
             )
         with ui.column().classes(panel_classes) as labs_panel:
-            labs_gui(
+            panel_refreshers["Labs"] = labs_gui(
                 labs_list,
                 on_change=apply_config_change,
                 on_pending_change=lambda pending: update_pending_form("labs", pending),
+                change_subject=change_subject,
             )
         with ui.column().classes(panel_classes) as time_blocks_panel:
             time_blocks_gui(
@@ -377,6 +389,9 @@ def configuration_editor(
                 return
             for page_name, panel in panels.items():
                 panel.set_visibility(page_name == action)
+            refresh_panel = panel_refreshers.get(action)
+            if refresh_panel is not None:
+                refresh_panel()
 
             # Download the active draft through the browser.
             for index, (combination_name, combination, hat_emoji) in enumerate(PANEL_COMBINATIONS):

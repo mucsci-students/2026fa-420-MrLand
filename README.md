@@ -478,7 +478,7 @@ The Codecov configuration is in [`codecov.yaml`](codecov.yaml). The CI job uploa
 
 ## Design Patterns
 
-The application uses an MVC organization and includes Strategy, Memento, and Composite implementations.
+The application uses an MVC organization and includes Strategy, Memento, Composite, and Observer implementations.
 
 ### 1. Model–View–Controller (MVC)
 
@@ -503,6 +503,12 @@ The application uses an MVC organization and includes Strategy, Memento, and Com
 - **Location:** `src/views/theme.py`.
 - **How it is used:** `ThemeComponent` defines the common interface. `ThemeLeaf` represents one theme-script operation, while `ThemeComposite` contains multiple components and combines their scripts through the same `script()` interface. New theme operations can be added to the composite.
 - **Why it fits:** Individual theme operations and groups of operations can be treated uniformly, allowing a theme to be assembled from smaller reusable pieces.
+
+### 5. Observer
+
+- **Locations:** `src/models/configuration_observer.py`, `src/controllers/*_controller.py`, and `src/views/configuration_editor.py`.
+- **How it is used:** The configuration editor's `ConfigurationSubject` publishes entity rename and deletion events to a subscribed `ConfigurationRelationshipObserver`. The observer keeps course assignments, course conflicts, and faculty preferences synchronized with faculty, room, lab, and course identifiers.
+- **Why it fits:** Relationships are stored as names in separate configuration objects. The observer centralizes their updates while the editor's existing whole-configuration validation can reject changes that would leave the configuration invalid.
 
 ---
 
