@@ -11,6 +11,7 @@ from src.views.ai_assistant import scheduler_ai_assistant
 from src.views.configuration_editor import configuration_editor, controller
 from src.views.schedule_generator import schedule_generator
 from src.views.schedule_viewer import schedule_viewer
+from src.views.schedule_analysis_gui import schedule_analysis
 from src.views.theme import Theme, ThemeComposite, ThemeLeaf
 
 BACKGROUND = "#101820"
@@ -341,10 +342,12 @@ def build_app() -> None:
             ui.tab("configuration", label="Configuration Editor", icon="tune")
             ui.tab("generator", label="Schedule Generator", icon="auto_awesome")
             ui.tab("viewer", label="Schedule Viewer", icon="calendar_view_week")
+            ui.tab("analysis", label="Schedule Analysis", icon="analytics")
         tabs.value = "configuration"
 
         editor_refresh: Callable[[], None]
         viewer_refresh: Callable[[], None]
+        analysis_refresh: Callable[[], None]
         unlock_assistant: Callable[[str, str], None] = lambda _name, _emoji: None
         active_tab = {"value": "configuration"}
         pending_tab = {"value": None}
@@ -361,6 +364,8 @@ def build_app() -> None:
                 schedule_generator()
             with ui.tab_panel("viewer"):
                 viewer_refresh = schedule_viewer()
+            with ui.tab_panel("analysis"):
+                analysis_refresh = schedule_analysis()
 
         def on_tab_change(event) -> None:
             next_tab = event.value
@@ -380,6 +385,8 @@ def build_app() -> None:
             active_tab["value"] = next_tab
             if next_tab == "viewer":
                 viewer_refresh()
+            if next_tab == "analysis":
+                analysis_refresh()
 
         def leave_editor_without_saving() -> None:
             next_tab = pending_tab["value"]
@@ -391,6 +398,8 @@ def build_app() -> None:
             active_tab["value"] = next_tab
             if next_tab == "viewer":
                 viewer_refresh()
+            if next_tab == "analysis":
+                analysis_refresh()
 
         def stay_in_configuration() -> None:
             rejected_tab["value"] = pending_tab["value"]
