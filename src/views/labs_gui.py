@@ -2,13 +2,10 @@
 
 Used by: GUI."""
 
-from collections.abc import Callable
-
 from nicegui import ui
 from scheduler.config import LabConfig
 
 from src.controllers.lab_controller import LabController
-from src.models.configuration_observer import ConfigurationSubject
 from src.views.common import (
     ConfigurationChangeHandler,
     PendingChangeHandler,
@@ -37,8 +34,7 @@ def labs_gui(
     labs: list,
     on_change: ConfigurationChangeHandler | None = None,
     on_pending_change: PendingChangeHandler | None = None,
-    change_subject: ConfigurationSubject | None = None,
-) -> Callable[[], None]:
+) -> None:
     """Build the lab editor, including its add, edit, and delete controls."""
     ui.label("Labs").classes("text-xl font-semibold text-white")
     ui.label("Add a lab, its capacity, features, and availability.").classes(
@@ -175,7 +171,6 @@ def labs_gui(
                     labs,
                     existing_lab,
                     *form_values(),
-                    change_subject=change_subject,
                 ),
             ):
                 return
@@ -208,7 +203,7 @@ def labs_gui(
         def delete_lab(lab, dialog) -> None:
             if not run_crud_mutation(
                 on_change,
-                lambda: controller.delete_lab(labs, lab, change_subject=change_subject),
+                lambda: controller.delete_lab(labs, lab),
                 handled_errors=(ValueError,),
             ):
                 dialog.close()
@@ -281,6 +276,5 @@ def labs_gui(
                         ui.button(icon="delete", on_click=dialog.open).props(
                             "flat round dense"
                         ).tooltip("Delete lab")
-
     refresh_labs()
-    return refresh_labs
+    refresh_labs()

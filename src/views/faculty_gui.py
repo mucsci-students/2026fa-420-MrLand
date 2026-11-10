@@ -2,13 +2,10 @@
 
 Used by: GUI."""
 
-from collections.abc import Callable
-
 from nicegui import ui
 from scheduler.config import FacultyConfig
 
 from src.controllers.faculty_controller import FacultyController
-from src.models.configuration_observer import ConfigurationSubject
 from src.views.common import (
     ConfigurationChangeHandler,
     PendingChangeHandler,
@@ -56,8 +53,7 @@ def faculty_gui(
     faculty_members: list,
     on_change: ConfigurationChangeHandler | None = None,
     on_pending_change: PendingChangeHandler | None = None,
-    change_subject: ConfigurationSubject | None = None,
-) -> Callable[[], None]:
+) -> None:
     """Build the faculty editor, including its add, edit, and delete controls."""
     ui.label("Faculty").classes("text-xl font-semibold text-white")
     ui.label("Add a faculty member and teaching constraints.").classes("text-sm text-[#9fb2b8]")
@@ -232,7 +228,6 @@ def faculty_gui(
                     faculty_members,
                     existing_member,
                     *form_values(),
-                    change_subject=change_subject,
                 ),
             ):
                 return
@@ -275,9 +270,7 @@ def faculty_gui(
         def delete_member(member, dialog) -> None:
             if not run_crud_mutation(
                 on_change,
-                lambda: controller.delete_member(
-                    faculty_members, member, change_subject=change_subject
-                ),
+                lambda: controller.delete_member(faculty_members, member),
                 handled_errors=(ValueError,),
             ):
                 dialog.close()
@@ -351,6 +344,5 @@ def faculty_gui(
                         ui.button(icon="delete", on_click=dialog.open).props(
                             "flat round dense"
                         ).tooltip("Delete faculty member")
-
     refresh_faculty()
-    return refresh_faculty
+    refresh_faculty()

@@ -1,6 +1,7 @@
 """Observer-based propagation of configuration entity changes."""
 
 from dataclasses import dataclass
+from collections import Counter
 from typing import Literal, Protocol, overload
 
 from scheduler.config import CombinedConfig
@@ -174,6 +175,48 @@ class ConfigurationRelationshipObserver:
             faculty.course_preferences = _remove_mapping_key(
                 faculty.course_preferences, old_key
             )
+
+
+def publish_entity_changes(
+    previous: CombinedConfig,
+    current: CombinedConfig,
+    subject: ConfigurationSubject,
+) -> None:
+    """Publish entity renames and deletions detected across one config edit."""
+    for entity_type, collection_name, name_attribute in (
+        ("faculty", "faculty", "name"),
+        ("room", "rooms", "name"),
+        ("lab", "labs", "name"),
+        ("course", "courses", "course_id"),
+    ):
+        old_entities = getattr(previous.config, collection_name)
+        new_entities = getattr(current.config, collection_name)
+        old_names = [getattr(entity, name_attribute) for entity in old_entities]
+        new_names = [getattr(entity, name_attribute) for entity in new_entities]
+        renamed_old_names: set[str] = set()
+
+        if len(old_entities) == len(new_entities):
+            for old_entity, new_entity in zip(old_entities, new_entities):
+                old_name = getattr(old_entity, name_attribute)
+                new_name = getattr(new_entity, name_attribute)
+                if _key(old_name) == _key(new_name):
+                    continue
+                renamed_old_names.add(_key(old_name))
+                subject.notify(
+                    EntityChangeEvent(entity_type, "renamed", old_name, new_name)
+                )
+
+        old_counts = Counter(map(_key, old_names))
+        new_counts = Counter(map(_key, new_names))
+        for old_name in old_names:
+            old_key = _key(old_name)
+            if (
+                old_counts[old_key] > new_counts[old_key]
+                and new_counts[old_key] == 0
+                and old_key not in renamed_old_names
+            ):
+                subject.notify(EntityChangeEvent(entity_type, "deleted", old_name))
+                old_counts[old_key] = 0
 
 
 def _key(value: str) -> str:

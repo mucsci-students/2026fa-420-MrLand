@@ -7,7 +7,6 @@ from src.controllers.room_operations_controller import (
     delete_room_from_values,
     update_room_from_values,
 )
-from src.models.configuration_observer import ConfigurationSubject, EntityChangeEvent
 
 
 class RoomController:
@@ -18,17 +17,8 @@ class RoomController:
         return add_room_from_values(rooms, name, capacity, features, availability)
 
     @staticmethod
-    def update_room(
-        rooms,
-        existing_room,
-        name,
-        capacity,
-        features,
-        availability,
-        change_subject: ConfigurationSubject | None = None,
-    ):
-        old_name = existing_room.name
-        updated_room = update_room_from_values(
+    def update_room(rooms, existing_room, name, capacity, features, availability):
+        return update_room_from_values(
             rooms,
             existing_room,
             name,
@@ -36,20 +26,7 @@ class RoomController:
             features,
             availability,
         )
-        if updated_room.name != old_name and change_subject is not None:
-            change_subject.notify(
-                EntityChangeEvent("room", "renamed", old_name, updated_room.name)
-            )
-        return updated_room
 
     @staticmethod
-    def delete_room(
-        rooms,
-        room_to_delete,
-        change_subject: ConfigurationSubject | None = None,
-    ):
-        old_name = room_to_delete.name
-        deleted_room = delete_room_from_values(rooms, room_to_delete)
-        if change_subject is not None:
-            change_subject.notify(EntityChangeEvent("room", "deleted", old_name))
-        return deleted_room
+    def delete_room(rooms, room_to_delete):
+        return delete_room_from_values(rooms, room_to_delete)

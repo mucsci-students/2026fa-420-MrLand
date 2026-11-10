@@ -2,13 +2,10 @@
 
 Used by: GUI."""
 
-from collections.abc import Callable
-
 from nicegui import ui
 from scheduler.config import RoomConfig
 
 from src.controllers.room_controller import RoomController
-from src.models.configuration_observer import ConfigurationSubject
 from src.views.common import (
     ConfigurationChangeHandler,
     PendingChangeHandler,
@@ -35,8 +32,7 @@ def rooms_gui(
     rooms: list,
     on_change: ConfigurationChangeHandler | None = None,
     on_pending_change: PendingChangeHandler | None = None,
-    change_subject: ConfigurationSubject | None = None,
-) -> Callable[[], None]:
+) -> None:
     """Build the room editor, including its add, edit, and delete controls."""
     ui.label("Rooms").classes("text-xl font-semibold text-white")
     ui.label("Add a room and its scheduling constraints.").classes("text-sm text-[#9fb2b8]")
@@ -169,7 +165,6 @@ def rooms_gui(
                     rooms,
                     existing_room,
                     *form_values(),
-                    change_subject=change_subject,
                 ),
             ):
                 return
@@ -201,9 +196,7 @@ def rooms_gui(
         def delete_room(room, dialog) -> None:
             if not run_crud_mutation(
                 on_change,
-                lambda: controller.delete_room(
-                    rooms, room, change_subject=change_subject
-                ),
+                lambda: controller.delete_room(rooms, room),
                 handled_errors=(ValueError,),
             ):
                 dialog.close()
@@ -276,6 +269,5 @@ def rooms_gui(
                         ui.button(icon="delete", on_click=dialog.open).props(
                             "flat round dense"
                         ).tooltip("Delete room")
-
     refresh_rooms()
-    return refresh_rooms
+    refresh_rooms()

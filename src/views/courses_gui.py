@@ -2,13 +2,10 @@
 
 Used by: GUI."""
 
-from collections.abc import Callable
-
 from nicegui import ui
 from scheduler.config import CourseConfig
 
 from src.controllers.course_controller import CourseController
-from src.models.configuration_observer import ConfigurationSubject
 from src.views.common import (
     ConfigurationChangeHandler,
     PendingChangeHandler,
@@ -45,8 +42,7 @@ def courses_gui(
     course_members: list,
     on_change: ConfigurationChangeHandler | None = None,
     on_pending_change: PendingChangeHandler | None = None,
-    change_subject: ConfigurationSubject | None = None,
-) -> Callable[[], None]:
+) -> None:
     """Build the course editor, including its add, edit, and delete controls."""
     ui.label("Courses").classes("text-xl font-semibold text-white")
     ui.label("Add a course section and its scheduling requirements.").classes(
@@ -261,7 +257,6 @@ def courses_gui(
                     course_members,
                     existing_course,
                     *form_values(),
-                    change_subject=change_subject,
                 ),
             ):
                 return
@@ -299,9 +294,7 @@ def courses_gui(
         def delete_course(course, dialog) -> None:
             if not run_crud_mutation(
                 on_change,
-                lambda: controller.delete_course(
-                    course_members, course, change_subject=change_subject
-                ),
+                lambda: controller.delete_course(course_members, course),
                 handled_errors=(ValueError,),
             ):
                 dialog.close()
@@ -377,6 +370,5 @@ def courses_gui(
                         ui.button(icon="delete", on_click=dialog.open).props(
                             "flat round dense"
                         ).tooltip("Delete course")
-
     refresh_courses()
-    return refresh_courses
+    refresh_courses()

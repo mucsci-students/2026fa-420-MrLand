@@ -20,6 +20,7 @@ from src.models.configuration_model import ConfigValidationError, validate_confi
 from src.models.configuration_observer import (
     ConfigurationRelationshipObserver,
     ConfigurationSubject,
+    publish_entity_changes,
 )
 from src.models.configuration_repository import ConfigLoadError
 from src.views.class_patterns_gui import class_patterns_gui
@@ -166,7 +167,22 @@ def configuration_editor(
     def apply_config_change(mutation) -> bool:
         try:
             previous_state = controller.create_memento()
-            accepted, problems = controller.apply_change(mutation)
+            current_config = controller.configuration
+            if current_config is None:
+                raise ValueError("No configuration is open.")
+            change_subject = ConfigurationSubject()
+            change_subject.subscribe(ConfigurationRelationshipObserver(current_config))
+
+            def mutation_with_observers():
+                result = mutation()
+                publish_entity_changes(
+                    previous_state.configuration,
+                    current_config,
+                    change_subject,
+                )
+                return result
+
+            accepted, problems = controller.apply_change(mutation_with_observers)
         except Exception as exc:  # noqa: BLE001 - recover and notify for unexpected edit callback failures
             state["config"] = controller.configuration
             editor_body.refresh()
@@ -233,9 +249,6 @@ def configuration_editor(
                     "Create a new configuration or load an existing one to get started."
                 ).classes("text-sm text-[#9fb2b8]")
             return
-
-        change_subject = ConfigurationSubject()
-        change_subject.subscribe(ConfigurationRelationshipObserver(config))
 
         with ui.row().classes("items-center gap-3"):
             ui.label(f"Editing: {state['name']}").classes("text-xl font-semibold text-white")
@@ -316,35 +329,29 @@ def configuration_editor(
         class_patterns_list = (
             getattr(time_slot_config, "classes", []) if time_slot_config is not None else []
         )
-        panel_refreshers: dict[str, Callable[[], None]] = {}
-
         with ui.column().classes(panel_classes) as rooms_panel:
-            panel_refreshers["Rooms"] = rooms_gui(
+            rooms_gui(
                 rooms_list,
                 on_change=apply_config_change,
                 on_pending_change=lambda pending: update_pending_form("rooms", pending),
-                change_subject=change_subject,
             )
         with ui.column().classes(panel_classes) as faculty_panel:
-            panel_refreshers["Faculty"] = faculty_gui(
+            faculty_gui(
                 faculty_list,
                 on_change=apply_config_change,
                 on_pending_change=lambda pending: update_pending_form("faculty", pending),
-                change_subject=change_subject,
             )
         with ui.column().classes(panel_classes) as courses_panel:
-            panel_refreshers["Courses"] = courses_gui(
+            courses_gui(
                 courses_list,
                 on_change=apply_config_change,
                 on_pending_change=lambda pending: update_pending_form("courses", pending),
-                change_subject=change_subject,
             )
         with ui.column().classes(panel_classes) as labs_panel:
-            panel_refreshers["Labs"] = labs_gui(
+            labs_gui(
                 labs_list,
                 on_change=apply_config_change,
                 on_pending_change=lambda pending: update_pending_form("labs", pending),
-                change_subject=change_subject,
             )
         with ui.column().classes(panel_classes) as time_blocks_panel:
             time_blocks_gui(
@@ -389,9 +396,6 @@ def configuration_editor(
                 return
             for page_name, panel in panels.items():
                 panel.set_visibility(page_name == action)
-            refresh_panel = panel_refreshers.get(action)
-            if refresh_panel is not None:
-                refresh_panel()
 
             # Download the active draft through the browser.
             for index, (combination_name, combination, hat_emoji) in enumerate(PANEL_COMBINATIONS):

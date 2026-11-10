@@ -1,11 +1,11 @@
 import pytest
 
-from src.controllers.faculty_controller import FacultyController
 from src.models.configuration_model import apply_configuration_change
 from src.models.configuration_observer import (
     ConfigurationRelationshipObserver,
     ConfigurationSubject,
     EntityChangeEvent,
+    publish_entity_changes,
 )
 from tests.test_configuration import make_valid_config
 
@@ -38,26 +38,13 @@ def test_renaming_faculty_room_and_lab_updates_all_link_fields():
     assert faculty.lab_preferences == {"Lab 2": 7}
 
 
-def test_faculty_controller_publishes_rename_to_subscribed_observer():
+def test_publishing_configuration_changes_updates_subscribed_observer():
     config = make_valid_config()
+    previous = config.model_copy(deep=True)
     subject = create_subject(config)
-    faculty = config.config.faculty[0]
 
-    FacultyController.update_member(
-        config.config.faculty,
-        faculty,
-        "Dr. Jones",
-        faculty.maximum_credits,
-        faculty.minimum_credits,
-        faculty.unique_course_limit,
-        faculty.times,
-        faculty.maximum_days,
-        faculty.course_preferences,
-        faculty.room_preferences,
-        faculty.lab_preferences,
-        faculty.mandatory_days,
-        change_subject=subject,
-    )
+    config.config.faculty[0].name = "Dr. Jones"
+    publish_entity_changes(previous, config, subject)
 
     assert config.config.courses[0].faculty == ["Dr. Jones"]
 
