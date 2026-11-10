@@ -19,6 +19,7 @@ from scheduler.config import (
     TimeBlock,
 )
 
+from src.controllers.configuration_controller import ConfigurationController
 from src.controllers.schedule_generator_controller import (
     schedule_generator_controller,
 )
@@ -629,8 +630,10 @@ def get_tool_list(
 ) -> list[StructuredTool]:
     if save_configuration is not None:
         state._save_configuration = save_configuration
+    if apply_change is None:
+        apply_change = ConfigurationController(state.config).apply_change
 
-    # Apply edits through the configuration controller when available.
+    # Apply edits through the shared configuration controller workflow.
     def report(result: dict[str, Any]) -> dict[str, Any]:
         if on_tool_result is not None:
             on_tool_result(result)

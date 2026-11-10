@@ -506,9 +506,9 @@ The application uses an MVC organization and includes Strategy, Memento, Composi
 
 ### 5. Observer
 
-- **Locations:** `src/models/configuration_observer.py` and `src/views/configuration_editor.py`.
-- **How it is used:** The configuration editor detects entity renames and deletions around each edit and publishes events through a `ConfigurationSubject` to a subscribed `ConfigurationRelationshipObserver`. The observer keeps course assignments, course conflicts, and faculty preferences synchronized with faculty, room, lab, and course identifiers.
-- **Why it fits:** Relationships are stored as names in separate configuration objects. The observer centralizes their updates while the editor's existing whole-configuration validation can reject changes that would leave the configuration invalid.
+- **Locations:** `src/models/configuration_observer.py` and `src/controllers/configuration_controller.py`.
+- **How it is used:** Every controller edit snapshots the configuration, runs the mutation, detects entity additions, renames, and deletions independent of collection ordering, and publishes events through a `ConfigurationSubject` to a `ConfigurationRelationshipObserver`. GUI and AI edits share this transactional path. The observer keeps course assignments, course conflicts, and faculty preferences synchronized with faculty, room, lab, and course identifiers.
+- **Why it fits:** Relationships are stored as names in separate configuration objects. The observer centralizes their updates, and whole-configuration validation rolls back both the edit and cascaded relationship changes if the result is invalid.
 
 ---
 

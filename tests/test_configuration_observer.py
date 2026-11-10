@@ -49,6 +49,130 @@ def test_publishing_configuration_changes_updates_subscribed_observer():
     assert config.config.courses[0].faculty == ["Dr. Jones"]
 
 
+def test_publishing_detects_renames_after_reordering_entities():
+    config = make_valid_config()
+    config.config.faculty.append(config.config.faculty[0].model_copy(update={"name": "Dr. Jones"}))
+    previous = config.model_copy(deep=True)
+    subject = create_subject(config)
+
+    config.config.faculty.reverse()
+    config.config.faculty[1].name = "Dr. Smith"
+    publish_entity_changes(previous, config, subject)
+
+    assert config.config.courses[0].faculty == ["Dr. Smith"]
+
+
+def test_publishing_reports_additions_without_misclassifying_existing_entities():
+    class Recorder:
+        def __init__(self):
+            self.events = []
+
+        def on_entity_change(self, event):
+            self.events.append(event)
+
+    config = make_valid_config()
+    previous = config.model_copy(deep=True)
+    subject = ConfigurationSubject()
+    recorder = Recorder()
+    subject.subscribe(recorder)
+
+    config.config.rooms.append(config.config.rooms[0].model_copy(update={"name": "Room 202"}))
+    publish_entity_changes(previous, config, subject)
+
+    assert recorder.events == [EntityChangeEvent("room", "created", None, "Room 202")]
+
+
+def test_publishing_reports_entity_deletions():
+    class Recorder:
+        def __init__(self):
+            self.events = []
+
+        def on_entity_change(self, event):
+            self.events.append(event)
+
+    config = make_valid_config()
+    previous = config.model_copy(deep=True)
+    subject = ConfigurationSubject()
+    recorder = Recorder()
+    subject.subscribe(recorder)
+
+    config.config.rooms.clear()
+    publish_entity_changes(previous, config, subject)
+
+    assert recorder.events == [EntityChangeEvent("room", "deleted", "Room 101")]
+
+
+def test_publishing_distinguishes_replacement_from_rename():
+    class Recorder:
+        def __init__(self):
+            self.events = []
+
+        def on_entity_change(self, event):
+            self.events.append(event)
+
+    config = make_valid_config()
+    config.config.rooms.append(
+        config.config.rooms[0].model_copy(update={"name": "Room 202", "capacity": 40})
+    )
+    previous = config.model_copy(deep=True)
+    subject = ConfigurationSubject()
+    recorder = Recorder()
+    subject.subscribe(recorder)
+
+    config.config.rooms.pop(0)
+    config.config.rooms.append(config.config.rooms[0].model_copy(update={"name": "Room 303"}))
+    publish_entity_changes(previous, config, subject)
+
+    assert recorder.events == [
+        EntityChangeEvent("room", "deleted", "Room 101"),
+        EntityChangeEvent("room", "created", None, "Room 303"),
+    ]
+
+
+def test_publishing_ignores_reordering_only():
+    class Recorder:
+        def __init__(self):
+            self.events = []
+
+        def on_entity_change(self, event):
+            self.events.append(event)
+
+    config = make_valid_config()
+    config.config.rooms.append(config.config.rooms[0].model_copy(update={"name": "Room 202"}))
+    config.config.faculty.append(config.config.faculty[0].model_copy(update={"name": "Dr. Jones"}))
+    previous = config.model_copy(deep=True)
+    subject = ConfigurationSubject()
+    recorder = Recorder()
+    subject.subscribe(recorder)
+
+    config.config.rooms.reverse()
+    config.config.faculty.reverse()
+    publish_entity_changes(previous, config, subject)
+
+    assert recorder.events == []
+
+
+def test_publishing_detects_rename_with_other_fields_changed():
+    class Recorder:
+        def __init__(self):
+            self.events = []
+
+        def on_entity_change(self, event):
+            self.events.append(event)
+
+    config = make_valid_config()
+    previous = config.model_copy(deep=True)
+    subject = ConfigurationSubject()
+    recorder = Recorder()
+    subject.subscribe(recorder)
+
+    config.config.rooms[0].name = "Room 202"
+    config.config.rooms[0].capacity = 40
+    publish_entity_changes(previous, config, subject)
+
+    assert recorder.events == [EntityChangeEvent("room", "renamed", "Room 101", "Room 202")]
+
+
 def test_renaming_a_course_id_updates_sections_conflicts_and_preferences():
     config = make_valid_config()
     course = config.config.courses[0]

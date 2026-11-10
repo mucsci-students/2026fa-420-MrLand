@@ -19,6 +19,11 @@ from src.models.configuration_model import (
     create_draft_config,
     validate_config,
 )
+from src.models.configuration_observer import (
+    ConfigurationRelationshipObserver,
+    ConfigurationSubject,
+    publish_entity_changes,
+)
 
 T = TypeVar("T")
 
@@ -30,11 +35,16 @@ class ConfigurationMemento:
 
 
 class ConfigurationController:
-    def __init__(self) -> None:
+    def __init__(self, configuration: CombinedConfig | None = None) -> None:
         self.config_service = ConfigService()
-        self.configuration: CombinedConfig | None = None
-        self._has_valid_configuration = False
+        self.configuration = configuration
+        self._has_valid_configuration = configuration is not None and not validate_config(
+            configuration
+        )
         self._lock = RLock()
+        self._change_subject = ConfigurationSubject()
+        self._observed_configuration: CombinedConfig | None = None
+        self._relationship_observer: ConfigurationRelationshipObserver | None = None
 
     def create_memento(self) -> ConfigurationMemento:
         """
@@ -180,10 +190,23 @@ class ConfigurationController:
             if self.configuration is None:
                 raise ValueError("No configuration has been created or loaded.")
 
+            configuration = self.configuration
+            if self._observed_configuration is not configuration:
+                if self._relationship_observer is not None:
+                    self._change_subject.unsubscribe(self._relationship_observer)
+                self._relationship_observer = ConfigurationRelationshipObserver(configuration)
+                self._change_subject.subscribe(self._relationship_observer)
+                self._observed_configuration = configuration
+
             accepted, problems, _ = apply_configuration_change(
-                self.configuration,
+                configuration,
                 mutation,
                 has_valid_baseline=self._has_valid_configuration,
+                after_mutation=lambda previous, current: publish_entity_changes(
+                    previous,
+                    current,
+                    self._change_subject,
+                ),
             )
 
             if not problems:

@@ -17,11 +17,6 @@ from src.controllers.configuration_controller import (
     ConfigurationMemento,
 )
 from src.models.configuration_model import ConfigValidationError, validate_config_name
-from src.models.configuration_observer import (
-    ConfigurationRelationshipObserver,
-    ConfigurationSubject,
-    publish_entity_changes,
-)
 from src.models.configuration_repository import ConfigLoadError
 from src.views.class_patterns_gui import class_patterns_gui
 from src.views.common import coming_soon, section_header
@@ -167,22 +162,7 @@ def configuration_editor(
     def apply_config_change(mutation) -> bool:
         try:
             previous_state = controller.create_memento()
-            current_config = controller.configuration
-            if current_config is None:
-                raise ValueError("No configuration is open.")
-            change_subject = ConfigurationSubject()
-            change_subject.subscribe(ConfigurationRelationshipObserver(current_config))
-
-            def mutation_with_observers():
-                result = mutation()
-                publish_entity_changes(
-                    previous_state.configuration,
-                    current_config,
-                    change_subject,
-                )
-                return result
-
-            accepted, problems = controller.apply_change(mutation_with_observers)
+            accepted, problems = controller.apply_change(mutation)
         except Exception as exc:  # noqa: BLE001 - recover and notify for unexpected edit callback failures
             state["config"] = controller.configuration
             editor_body.refresh()

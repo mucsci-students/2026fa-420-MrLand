@@ -81,8 +81,12 @@ def test_courses_panel_shows_relationship_updates_after_switching_panels(editor_
         await user.should_see("Dr. Adrian")
 
         course = editor_controller.configuration.config.courses[0]
-        editor_controller.configuration.config.faculty[0].name = "Dr. Jones"
-        course.faculty = ["Dr. Jones"]
+        accepted, problems = editor_controller.apply_change(
+            lambda: setattr(editor_controller.configuration.config.faculty[0], "name", "Dr. Jones")
+        )
+        assert accepted
+        assert problems == []
+        assert course.faculty == ["Dr. Jones"]
 
         user.find("Courses").click()
         await user.should_see("Faculty: Dr. Jones")

@@ -652,6 +652,36 @@ def test_controller_valid_change_is_accepted_and_sets_baseline(controller, valid
     assert controller._has_valid_configuration is True
 
 
+def test_controller_rename_updates_relationships_in_transaction(controller, valid_config):
+    controller.configuration = valid_config
+    before = valid_config.model_copy(deep=True)
+
+    accepted, problems = controller.apply_change(
+        lambda: setattr(valid_config.config.faculty[0], "name", "Dr. Jones")
+    )
+
+    assert accepted
+    assert problems == []
+    assert valid_config.config.courses[0].faculty == ["Dr. Jones"]
+    assert before.config.courses[0].faculty == ["Dr. Adrian"]
+
+
+def test_controller_observer_failure_rolls_back_entity_and_relationship_changes(
+    controller, valid_config
+):
+    controller.configuration = valid_config
+    faculty = valid_config.config.faculty[0]
+    faculty.course_preferences = {"CS 121": 6, "CS 222": 8}
+    before = valid_config.model_copy(deep=True)
+
+    with pytest.raises(ValueError, match="preference conflicts"):
+        controller.apply_change(
+            lambda: setattr(valid_config.config.courses[0], "course_id", "CS 222")
+        )
+
+    assert valid_config.model_dump() == before.model_dump()
+
+
 def test_controller_new_configuration_resets_valid_baseline(
     controller, temp_config_dir, valid_config
 ):
