@@ -1,7 +1,7 @@
 """Observer-based propagation of configuration entity changes."""
 
-from dataclasses import dataclass
 from collections import Counter
+from dataclasses import dataclass
 from typing import Literal, Protocol, overload
 
 from scheduler.config import CombinedConfig

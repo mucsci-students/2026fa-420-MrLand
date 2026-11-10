@@ -2,6 +2,8 @@
 
 Used by: GUI."""
 
+from collections.abc import Callable
+
 from nicegui import ui
 from scheduler.config import CourseConfig
 
@@ -42,7 +44,7 @@ def courses_gui(
     course_members: list,
     on_change: ConfigurationChangeHandler | None = None,
     on_pending_change: PendingChangeHandler | None = None,
-) -> None:
+) -> Callable[[], None]:
     """Build the course editor, including its add, edit, and delete controls."""
     ui.label("Courses").classes("text-xl font-semibold text-white")
     ui.label("Add a course section and its scheduling requirements.").classes(
@@ -371,4 +373,4 @@ def courses_gui(
                             "flat round dense"
                         ).tooltip("Delete course")
     refresh_courses()
-    refresh_courses()
+    return refresh_courses
