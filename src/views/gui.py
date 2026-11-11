@@ -340,15 +340,34 @@ def build_app() -> None:
         .props("data-theme-region=content")
         .classes("mx-auto w-full max-w-7xl gap-0 px-6 py-8")
     ):
-        tabs = ui.tabs().classes("w-full border-b border-[#29404b]")
+        tabs = ui.tabs().props("id=main-navigation").classes("w-full border-b border-[#29404b]")
         with tabs:
-            ui.tab("configuration", label="Configuration Editor", icon="tune")
-            ui.tab("generator", label="Schedule Generator", icon="auto_awesome")
-            ui.tab("viewer", label="Schedule Viewer", icon="calendar_view_week")
-        tabs.value = "configuration"
+            configuration_tab = ui.tab(
+                "configuration",
+                label="Configuration Editor",
+                icon="tune",
+            )
+            generator_tab = ui.tab(
+                "generator",
+                label="Schedule Generator",
+                icon="auto_awesome",
+            )
+            viewer_tab = ui.tab(
+                "viewer",
+                label="Schedule Viewer",
+                icon="calendar_view_week",
+            )
+            analysis_tab = ui.tab(
+                "analysis",
+                label="Schedule Analysis",
+                icon="analytics",
+            )
+
+        tabs.value = configuration_tab
 
         editor_refresh: ConfigurationEditorRefresh
         viewer_refresh: Callable[[], None]
+        analysis_refresh: Callable[[], None]
         unlock_assistant: Callable[[str, str], None] = lambda _name, _emoji: None
         active_tab = {"value": "configuration"}
         pending_tab = {"value": None}
@@ -365,6 +384,8 @@ def build_app() -> None:
                 schedule_generator()
             with ui.tab_panel("viewer"):
                 viewer_refresh = schedule_viewer()
+            with ui.tab_panel("analysis"):
+                analysis_refresh = schedule_analysis()
 
         def on_tab_change(event) -> None:
             next_tab = event.value
@@ -374,7 +395,7 @@ def build_app() -> None:
                 return
             if next_tab == rejected_tab["value"]:
                 rejected_tab["value"] = None
-                tabs.value = active_tab["value"]
+                tabs.value = configuration_tab
                 return
             if active_tab["value"] == "configuration" and not editor_is_saved():
                 pending_tab["value"] = next_tab
@@ -384,23 +405,34 @@ def build_app() -> None:
             active_tab["value"] = next_tab
             if next_tab == "viewer":
                 viewer_refresh()
+            elif next_tab == "analysis":
+                analysis_refresh()
 
         def leave_editor_without_saving() -> None:
             next_tab = pending_tab["value"]
             pending_tab["value"] = None
             rejected_tab["value"] = None
             unsaved_navigation_dialog.close()
+
             if next_tab is None:
                 return
+
             active_tab["value"] = next_tab
-            if next_tab == "viewer":
+
+            if next_tab == "generator":
+                tabs.value = generator_tab
+            elif next_tab == "viewer":
+                tabs.value = viewer_tab
                 viewer_refresh()
+            elif next_tab == "analysis":
+                tabs.value = analysis_tab
+                analysis_refresh()
 
         def stay_in_configuration() -> None:
             rejected_tab["value"] = pending_tab["value"]
             pending_tab["value"] = None
             unsaved_navigation_dialog.close()
-            tabs.value = active_tab["value"]
+            tabs.value = configuration_tab
 
         with (
             ui.dialog() as unsaved_navigation_dialog,
