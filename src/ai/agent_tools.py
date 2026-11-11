@@ -19,7 +19,12 @@ from scheduler.config import (
     TimeBlock,
 )
 
+from src.controllers.class_pattern_controller import ClassPatternController
 from src.controllers.configuration_controller import ConfigurationController
+from src.controllers.course_controller import CourseController
+from src.controllers.faculty_controller import FacultyController
+from src.controllers.lab_controller import LabController
+from src.controllers.room_controller import RoomController
 from src.controllers.schedule_generator_controller import (
     schedule_generator_controller,
 )
