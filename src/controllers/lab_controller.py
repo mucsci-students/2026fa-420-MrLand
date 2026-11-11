@@ -37,9 +37,7 @@ class LabController:
         *
         * Returns: The updated LabConfig
         """
-        return update_lab_from_values(
-            labs, existing_lab, name, capacity, features, times
-        )
+        return update_lab_from_values(labs, existing_lab, name, capacity, features, times)
 
     @staticmethod
     def delete_lab(labs, lab_to_delete):

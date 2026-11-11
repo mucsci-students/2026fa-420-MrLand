@@ -344,5 +344,6 @@ def faculty_gui(
                         ui.button(icon="delete", on_click=dialog.open).props(
                             "flat round dense"
                         ).tooltip("Delete faculty member")
+
     refresh_faculty()
     refresh_faculty()

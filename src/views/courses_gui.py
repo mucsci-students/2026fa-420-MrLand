@@ -372,5 +372,6 @@ def courses_gui(
                         ui.button(icon="delete", on_click=dialog.open).props(
                             "flat round dense"
                         ).tooltip("Delete course")
+
     refresh_courses()
     return refresh_courses

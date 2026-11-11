@@ -153,7 +153,7 @@ def labs_gui(
 
         # Apply a new lab to the current configuration.
         def add_lab() -> None:
-            if not run_crud_mutation(on_change, lambda: controller.add_lab(labs, *form_values())            ):
+            if not run_crud_mutation(on_change, lambda: controller.add_lab(labs, *form_values())):
                 return
             reset_form()
             refresh_labs()
@@ -276,5 +276,6 @@ def labs_gui(
                         ui.button(icon="delete", on_click=dialog.open).props(
                             "flat round dense"
                         ).tooltip("Delete lab")
+
     refresh_labs()
     refresh_labs()

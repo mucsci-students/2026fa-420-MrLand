@@ -275,9 +275,13 @@ def schedule_viewer() -> Callable[[], None]:
                 on_click=reset_filters,
             ).props("outline")
 
-        with ui.row().classes(
-            "schedule-navigation w-full items-center justify-center gap-2 mb-6 flex-nowrap"
-        ).style("width: calc(100% + 3rem); margin-left: -1.5rem; margin-right: -1.5rem;"):
+        with (
+            ui.row()
+            .classes(
+                "schedule-navigation w-full items-center justify-center gap-2 mb-6 flex-nowrap"
+            )
+            .style("width: calc(100% + 3rem); margin-left: -1.5rem; margin-right: -1.5rem;")
+        ):
             previous_button = ui.button(
                 icon="chevron_left",
                 on_click=lambda: step_schedule(-1),

@@ -147,7 +147,7 @@ def rooms_gui(
 
         # Apply a new room to the current configuration.
         def add_room() -> None:
-            if not run_crud_mutation(on_change, lambda: controller.add_room(rooms, *form_values())            ):
+            if not run_crud_mutation(on_change, lambda: controller.add_room(rooms, *form_values())):
                 return
             reset_form()
             refresh_rooms()
@@ -269,5 +269,6 @@ def rooms_gui(
                         ui.button(icon="delete", on_click=dialog.open).props(
                             "flat round dense"
                         ).tooltip("Delete room")
+
     refresh_rooms()
     refresh_rooms()
