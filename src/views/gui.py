@@ -7,6 +7,7 @@ from collections.abc import Callable
 
 from nicegui import ui
 
+from src.views.schedule_analysis import schedule_analysis
 from src.views.ai_assistant import scheduler_ai_assistant
 from src.views.configuration_editor import (
     ConfigurationEditorRefresh,
