@@ -11,7 +11,7 @@ from src.views.ai_assistant import scheduler_ai_assistant
 from src.views.configuration_editor import configuration_editor, controller
 from src.views.schedule_generator import schedule_generator
 from src.views.schedule_viewer import schedule_viewer
-from src.views.schedule_analysis_gui import schedule_analysis
+from src.views.schedule_analysis.schedule_analysis_gui import schedule_analysis
 from src.views.theme import Theme, ThemeComposite, ThemeLeaf
 
 BACKGROUND = "#101820"
@@ -385,7 +385,7 @@ def build_app() -> None:
             active_tab["value"] = next_tab
             if next_tab == "viewer":
                 viewer_refresh()
-            if next_tab == "analysis":
+            elif next_tab == "analysis":
                 analysis_refresh()
 
         def leave_editor_without_saving() -> None:
@@ -398,7 +398,7 @@ def build_app() -> None:
             active_tab["value"] = next_tab
             if next_tab == "viewer":
                 viewer_refresh()
-            if next_tab == "analysis":
+            elif next_tab == "analysis":
                 analysis_refresh()
 
         def stay_in_configuration() -> None:
