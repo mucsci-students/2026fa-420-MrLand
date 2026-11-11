@@ -1,4 +1,3 @@
-
 """What-If Analysis tab."""
 
 from nicegui import ui
@@ -14,14 +13,11 @@ def build_what_if_tab() -> None:
 
     # Configuration and generation controls
     with ui.grid(columns=2).classes("w-full gap-4"):
-
         with surface_card(
             "Temporary Configuration",
             "Make temporary changes without modifying your saved configuration.",
         ):
-            placeholder(
-                "Temporary configuration editor will appear here."
-            )
+            placeholder("Temporary configuration editor will appear here.")
 
             ui.button(
                 "Edit Configuration",
@@ -32,9 +28,7 @@ def build_what_if_tab() -> None:
             "Generate Alternative Schedule",
             "Generate a schedule using your temporary configuration.",
         ):
-            placeholder(
-                "Alternative schedule generation controls will appear here."
-            )
+            placeholder("Alternative schedule generation controls will appear here.")
 
             ui.button(
                 "Generate Alternative",

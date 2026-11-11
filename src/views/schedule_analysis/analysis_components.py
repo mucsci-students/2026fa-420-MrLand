@@ -1,4 +1,3 @@
-
 """Shared UI components for the Schedule Analysis page."""
 
 from collections.abc import Iterator
@@ -26,23 +25,17 @@ def surface_card(
     )
 
     with card:
-        ui.label(title).classes("text-lg font-semibold").style(
-            "color: var(--text-primary)"
-        )
+        ui.label(title).classes("text-lg font-semibold").style("color: var(--text-primary)")
 
         if subtitle:
-            ui.label(subtitle).classes("text-sm").style(
-                "color: var(--text-muted)"
-            )
+            ui.label(subtitle).classes("text-sm").style("color: var(--text-muted)")
 
         yield card
 
 
 def placeholder(message: str) -> None:
     """Display a placeholder for functionality that will be implemented later."""
-    ui.label(message).classes("text-sm").style(
-        "color: var(--text-muted)"
-    )
+    ui.label(message).classes("text-sm").style("color: var(--text-muted)")
 
 
 def placeholder_table(

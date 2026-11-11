@@ -337,9 +337,7 @@ def build_app() -> None:
         .props("data-theme-region=content")
         .classes("mx-auto w-full max-w-7xl gap-0 px-6 py-8")
     ):
-        tabs = ui.tabs().props("id=main-navigation").classes(
-            "w-full border-b border-[#29404b]"
-        )
+        tabs = ui.tabs().props("id=main-navigation").classes("w-full border-b border-[#29404b]")
         with tabs:
             configuration_tab = ui.tab(
                 "configuration",

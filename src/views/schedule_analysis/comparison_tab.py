@@ -1,4 +1,3 @@
-
 """Schedule Comparison tab."""
 
 from collections.abc import Callable
@@ -29,9 +28,7 @@ def build_comparison_tab(
     options = schedule_controller.schedule_options()
 
     initial_value = (
-        schedule_controller.selected_index
-        if schedule_controller.has_schedules
-        else None
+        schedule_controller.selected_index if schedule_controller.has_schedules else None
     )
 
     # ---------------------------------------------------------
@@ -39,13 +36,16 @@ def build_comparison_tab(
     # ---------------------------------------------------------
 
     with ui.grid(columns=2).classes("w-full gap-4"):
-
         with surface_card("First Schedule"):
-            first_schedule_select = ui.select(
-                options,
-                value=initial_value,
-                label="First Schedule",
-            ).classes("w-full").props("outlined")
+            first_schedule_select = (
+                ui.select(
+                    options,
+                    value=initial_value,
+                    label="First Schedule",
+                )
+                .classes("w-full")
+                .props("outlined")
+            )
 
             ui.button(
                 "Load Schedule",
@@ -54,11 +54,15 @@ def build_comparison_tab(
             ).props("outline")
 
         with surface_card("Second Schedule"):
-            second_schedule_select = ui.select(
-                options,
-                value=initial_value,
-                label="Second Schedule",
-            ).classes("w-full").props("outlined")
+            second_schedule_select = (
+                ui.select(
+                    options,
+                    value=initial_value,
+                    label="Second Schedule",
+                )
+                .classes("w-full")
+                .props("outlined")
+            )
 
             ui.button(
                 "Load Schedule",
@@ -70,11 +74,13 @@ def build_comparison_tab(
     # Comparison filters
     # ---------------------------------------------------------
 
-    with surface_card(
-        "Comparison Filters",
-        "Apply the same filters to both schedules.",
-    ), ui.row().classes("w-full items-center flex-wrap gap-3"):
-
+    with (
+        surface_card(
+            "Comparison Filters",
+            "Apply the same filters to both schedules.",
+        ),
+        ui.row().classes("w-full items-center flex-wrap gap-3"),
+    ):
         filter_type_select = (
             ui.select(
                 ["Course", "Faculty", "Room / Lab"],
@@ -137,29 +143,23 @@ def build_comparison_tab(
         comparison_tabs,
         value=calendar_tab,
     ).classes("w-full bg-transparent"):
-
         # Calendar comparison
-        with ui.tab_panel(calendar_tab), ui.grid(columns=2).classes(
-            "w-full gap-4"
-        ):
+        with ui.tab_panel(calendar_tab), ui.grid(columns=2).classes("w-full gap-4"):
             with surface_card("First Schedule"):
-                placeholder(
-                    "First schedule calendar will appear here."
-                )
+                placeholder("First schedule calendar will appear here.")
 
             with surface_card("Second Schedule"):
-                placeholder(
-                    "Second schedule calendar will appear here."
-                )
+                placeholder("Second schedule calendar will appear here.")
 
         # Statistics comparison
-        with ui.tab_panel(statistics_tab), surface_card(
-            "Statistics Comparison",
-            "Compare important metrics between the two schedules.",
+        with (
+            ui.tab_panel(statistics_tab),
+            surface_card(
+                "Statistics Comparison",
+                "Compare important metrics between the two schedules.",
+            ),
         ):
-            placeholder(
-                "Schedule comparison statistics will appear here."
-            )
+            placeholder("Schedule comparison statistics will appear here.")
 
     # ---------------------------------------------------------
     # Refresh behavior

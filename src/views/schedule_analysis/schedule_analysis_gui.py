@@ -114,9 +114,7 @@ def schedule_analysis() -> Callable[[], None]:
 
         current = schedule_controller.current
 
-        unscheduled_card.set_visibility(
-            bool(current and current.source == "generated")
-        )
+        unscheduled_card.set_visibility(bool(current and current.source == "generated"))
 
     def open_load_dialog(target_select=None) -> None:
         """Open the shared upload dialog for the requested selector."""
@@ -176,27 +174,22 @@ def schedule_analysis() -> Callable[[], None]:
 
         upload.reset()
 
-        on_schedule_loaded(
-            *schedule_controller.load_uploaded_file(file_name, content)
-        )
+        on_schedule_loaded(*schedule_controller.load_uploaded_file(file_name, content))
 
     # ---------------------------------------------------------
     # Page layout
     # ---------------------------------------------------------
 
-    with ui.column().classes(
-        "schedule-analysis w-full min-h-screen gap-5"
-    ):
-
+    with ui.column().classes("schedule-analysis w-full min-h-screen gap-5"):
         # Page heading
         with ui.column().classes("w-full gap-1"):
-            ui.label("Schedule Analysis").classes(
-                "text-2xl font-semibold"
-            ).style("color: var(--text-primary)")
+            ui.label("Schedule Analysis").classes("text-2xl font-semibold").style(
+                "color: var(--text-primary)"
+            )
 
-            ui.label(
-                "Analyze, compare, and evaluate generated schedules."
-            ).classes("text-sm").style("color: var(--text-muted)")
+            ui.label("Analyze, compare, and evaluate generated schedules.").classes(
+                "text-sm"
+            ).style("color: var(--text-muted)")
 
         # -----------------------------------------------------
         # Load Schedule dialog
@@ -205,9 +198,7 @@ def schedule_analysis() -> Callable[[], None]:
         with (
             ui.dialog() as load_dialog,
             ui.card()
-            .classes(
-                "w-[480px] max-w-full gap-3 schedule-analysis-dialog"
-            )
+            .classes("w-[480px] max-w-full gap-3 schedule-analysis-dialog")
             .style(
                 "background: var(--surface); "
                 "color: var(--app-foreground); "
@@ -216,21 +207,25 @@ def schedule_analysis() -> Callable[[], None]:
                 "box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);"
             ),
         ):
-            ui.label("Load Schedule").classes(
-                "text-lg font-semibold"
-            ).style("color: var(--text-primary)")
+            ui.label("Load Schedule").classes("text-lg font-semibold").style(
+                "color: var(--text-primary)"
+            )
 
-            ui.label(
-                "Upload a CSV or JSON schedule from your computer."
-            ).classes("text-sm").style("color: var(--text-muted)")
+            ui.label("Upload a CSV or JSON schedule from your computer.").classes("text-sm").style(
+                "color: var(--text-muted)"
+            )
 
             load_status = ui.label("").classes("text-sm")
 
-            upload = ui.upload(
-                label="Choose schedule file",
-                auto_upload=True,
-                max_files=1,
-            ).props("accept=.csv,.json flat bordered").classes("w-full")
+            upload = (
+                ui.upload(
+                    label="Choose schedule file",
+                    auto_upload=True,
+                    max_files=1,
+                )
+                .props("accept=.csv,.json flat bordered")
+                .classes("w-full")
+            )
 
             with ui.row().classes("w-full justify-end"):
                 ui.button(
@@ -242,24 +237,22 @@ def schedule_analysis() -> Callable[[], None]:
         # Analysis tabs and global refresh button
         # -----------------------------------------------------
 
-        with ui.row().classes(
-            "w-full items-center justify-between"
-        ):
+        with ui.row().classes("w-full items-center justify-between"):
             # Analysis tabs
-            with ui.tabs().props("dense no-caps").classes(
-                "analysis-tabs"
-            ) as analysis_tabs:
+            with ui.tabs().props("dense no-caps").classes("analysis-tabs") as analysis_tabs:
                 ui.tab("statistics", label="Statistics")
                 ui.tab("comparison", label="Schedule Comparison")
                 ui.tab("what-if", label="What-If Analysis")
 
             # Refresh button
-            refresh_button = ui.button(
-                "Refresh",
-                icon="refresh",
-                on_click=refresh,
-            ).props("outline").style(
-                "color: var(--text-muted)"
+            refresh_button = (
+                ui.button(
+                    "Refresh",
+                    icon="refresh",
+                    on_click=refresh,
+                )
+                .props("outline")
+                .style("color: var(--text-muted)")
             )
 
         # -----------------------------------------------------
@@ -276,13 +269,10 @@ def schedule_analysis() -> Callable[[], None]:
                 )
 
             with ui.tab_panel("comparison"):
-                refresh_comparison = build_comparison_tab(
-                    on_load_schedule=open_load_dialog
-                )
+                refresh_comparison = build_comparison_tab(on_load_schedule=open_load_dialog)
 
             with ui.tab_panel("what-if"):
                 build_what_if_tab()
-
 
     refresh_button.on_click(refresh)
     upload.on_upload(on_upload)
