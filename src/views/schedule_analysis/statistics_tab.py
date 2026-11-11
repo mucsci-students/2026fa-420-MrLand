@@ -1,9 +1,5 @@
 
-"""Statistics tab for Schedule Analysis.
-
-Contains the visual structure for schedule scoring, workload,
-resource utilization, and weekday distribution.
-"""
+"""Statistics tab for Schedule Analysis."""
 
 from nicegui import ui
 
@@ -14,15 +10,67 @@ DAYS = ("MON", "TUE", "WED", "THU", "FRI")
 
 
 def _placeholder_table(columns: list[dict]) -> None:
-    """Display a formatted table with headers and no fabricated data."""
+    """Display a formatted table without fabricated data."""
     ui.table(
         columns=columns,
         rows=[],
-    ).classes("w-full").props("flat bordered")
+    ).classes("w-full").props("flat bordered dense")
 
 
-def _placeholder_weekday_bars() -> None:
-    """Display the weekday distribution chart structure without data."""
+def _metric_card(title: str, description: str = "") -> None:
+    """Display a compact overview metric."""
+    with ui.card().classes("grow min-w-[150px] gap-1 p-4").style(
+        "background: var(--surface-raised); "
+        "border: 1px solid var(--border-color); "
+        "border-radius: 12px;"
+    ):
+        ui.label(title).classes("text-sm").style(
+            "color: var(--text-muted)"
+        )
+
+        ui.label("—").classes("text-3xl font-bold").style(
+            "color: var(--text-primary)"
+        )
+
+        if description:
+            ui.label(description).classes("text-xs").style(
+                "color: var(--text-muted)"
+            )
+
+
+def _score_breakdown() -> None:
+    """Display the expandable quality-score breakdown."""
+    criteria = [
+        "Conflict Avoidance",
+        "Faculty Gaps",
+        "Room Utilization",
+        "Workload Balance",
+        "Scheduled Courses",
+    ]
+
+    with ui.expansion(
+        "View score breakdown",
+        icon="analytics",
+    ).classes("w-full"):
+        with ui.column().classes("w-full gap-3 pt-2"):
+            for criterion in criteria:
+                with ui.column().classes("w-full gap-1"):
+                    with ui.row().classes(
+                        "w-full justify-between items-center"
+                    ):
+                        ui.label(criterion).classes("text-sm")
+                        ui.label("—").classes(
+                            "text-sm font-semibold"
+                        ).style("color: var(--text-muted)")
+
+                    with ui.element("div").classes(
+                        "h-2 w-full overflow-hidden rounded-full"
+                    ).style("background: var(--surface-hover)"):
+                        pass
+
+
+def _weekday_bars() -> None:
+    """Display weekday distribution bars without sample values."""
     with ui.column().classes("w-full gap-3"):
         for day in DAYS:
             with ui.row().classes("w-full items-center gap-3"):
@@ -37,11 +85,11 @@ def _placeholder_weekday_bars() -> None:
 
                 ui.label("—").classes(
                     "w-6 text-right text-xs font-semibold"
-                ).style("color: var(--text-primary)")
+                ).style("color: var(--text-muted)")
 
 
 def _resource_heatmap() -> None:
-    """Display a blank, theme-aware Monday-Friday resource heat map."""
+    """Display a blank Monday-Friday resource usage heat map."""
     with ui.column().classes("w-full gap-2"):
 
         # Weekday headings
@@ -55,7 +103,7 @@ def _resource_heatmap() -> None:
                     "flex-1 text-center text-[10px] font-semibold"
                 ).style("color: var(--text-muted)")
 
-        # Empty heat map row
+        # Empty resource row
         with ui.row().classes("w-full items-center gap-2"):
             ui.label("—").classes(
                 "w-28 shrink-0 text-xs"
@@ -70,101 +118,101 @@ def _resource_heatmap() -> None:
                 ):
                     pass
 
-        ui.label("Resource usage will appear here when data is available.").classes(
-            "text-xs"
-        ).style("color: var(--text-muted)")
+        ui.label(
+            "Resource usage will appear here when data is available."
+        ).classes("text-xs").style("color: var(--text-muted)")
+
+
+def _resource_section(resource_type: str) -> None:
+    """Build an expandable room or lab utilization section."""
+
+    with ui.expansion(
+        f"{resource_type} Utilization",
+        icon="meeting_room" if resource_type == "Room" else "science",
+    ).classes("w-full"):
+
+        _placeholder_table([
+            {
+                "name": "resource",
+                "label": resource_type,
+                "field": "resource",
+                "align": "left",
+            },
+            {
+                "name": "used",
+                "label": "Used Hours",
+                "field": "used",
+                "align": "right",
+            },
+            {
+                "name": "util",
+                "label": "Utilization",
+                "field": "util",
+                "align": "right",
+            },
+            {
+                "name": "capacity",
+                "label": "Unused Capacity",
+                "field": "capacity",
+                "align": "right",
+            },
+            {
+                "name": "days",
+                "label": "Hours by Day",
+                "field": "days",
+                "align": "left",
+            },
+        ])
+
+        ui.label("Weekly Usage Heat Map").classes(
+            "text-sm font-semibold mt-4"
+        ).style("color: var(--text-primary)")
+
+        _resource_heatmap()
 
 
 def build_statistics_tab():
-    """Build the Statistics tab layout."""
+    """Build the Statistics tab and return the unscheduled courses container."""
 
     # ---------------------------------------------------------
-    # Schedule Quality Score and Top 5 Schedules
+    # Schedule Overview
     # ---------------------------------------------------------
 
-    with ui.grid(columns=2).classes("w-full gap-4"):
+    with surface_card(
+        "Schedule Overview",
+        "A quick summary of the selected schedule.",
+    ):
+        with ui.row().classes("w-full flex-wrap gap-3"):
 
-        with surface_card(
-            "Schedule Quality Score",
-            "Transparent score based on the criteria available for this schedule source.",
-        ):
-            # Overall score
-            with ui.row().classes("items-end gap-3"):
-                ui.label("—").classes(
-                    "text-5xl font-bold"
-                ).style("color: var(--accent-color)")
+            _metric_card(
+                "Quality Score",
+                "Overall schedule rating",
+            )
 
-                ui.label("/ 100").classes(
-                    "text-lg pb-1"
-                ).style("color: var(--text-muted)")
-
-            # Score breakdown
-            ui.label("Score breakdown").classes(
-                "font-semibold"
-            ).style("color: var(--text-primary)")
-
-            for criterion in (
-                "Conflict Avoidance",
-                "Faculty Gaps",
-                "Room Utilization",
-                "Workload Balance",
+            _metric_card(
                 "Scheduled Courses",
-            ):
-                with ui.column().classes("w-full gap-1"):
-                    with ui.row().classes(
-                        "w-full justify-between items-center"
-                    ):
-                        ui.label(criterion).classes("text-sm")
-                        ui.label("—").classes(
-                            "text-sm font-semibold"
-                        )
+                "Course sections assigned",
+            )
 
-                    with ui.element("div").classes(
-                        "h-2 w-full overflow-hidden rounded-full"
-                    ).style("background: var(--surface-hover)"):
-                        pass
+            _metric_card(
+                "Faculty Assigned",
+                "Distinct faculty members",
+            )
 
-            ui.label(
-                "Score details will be populated when schedule analysis is implemented."
-            ).classes("text-xs").style("color: var(--text-muted)")
+            _metric_card(
+                "Unscheduled Courses",
+                "Courses not assigned",
+            )
 
-        # Top 5 Schedules
-        with surface_card(
-            "Top 5 Schedules",
-            "Ranked using source-appropriate scoring criteria.",
-        ):
-            _placeholder_table([
-                {
-                    "name": "rank",
-                    "label": "Rank",
-                    "field": "rank",
-                    "align": "left",
-                },
-                {
-                    "name": "schedule",
-                    "label": "Schedule",
-                    "field": "label",
-                    "align": "left",
-                },
-                {
-                    "name": "score",
-                    "label": "Score",
-                    "field": "score",
-                    "align": "right",
-                },
-            ])
-
-            ui.label(
-                "Generated and uploaded schedules will be ranked using their applicable criteria."
-            ).classes("text-xs").style("color: var(--text-muted)")
+        _score_breakdown()
 
     # ---------------------------------------------------------
     # Faculty Workload
     # ---------------------------------------------------------
 
     with surface_card(
-        "Faculty Workload Analysis",
-        "Faculty ranked from highest to lowest scheduled teaching hours.",
+        "Faculty Workload",
+        "Understand how teaching responsibilities are distributed.",
     ):
         _placeholder_table([
             {
@@ -204,175 +252,130 @@ def build_statistics_tab():
         ).classes("text-xs").style("color: var(--text-muted)")
 
     # ---------------------------------------------------------
-    # Room and Lab Utilization
-    # ---------------------------------------------------------
-
-    with surface_card(
-        "Room / Lab Utilization",
-        "Scheduled hours by resource. Utilization percentages require configured availability.",
-    ):
-
-        # Room utilization
-        ui.label("Rooms").classes(
-            "font-semibold"
-        ).style("color: var(--text-primary)")
-
-        _placeholder_table([
-            {
-                "name": "resource",
-                "label": "Room",
-                "field": "resource",
-                "align": "left",
-            },
-            {
-                "name": "used",
-                "label": "Used Hours",
-                "field": "used",
-                "align": "right",
-            },
-            {
-                "name": "util",
-                "label": "Utilization",
-                "field": "util",
-                "align": "right",
-            },
-            {
-                "name": "capacity",
-                "label": "Unused Capacity",
-                "field": "capacity",
-                "align": "right",
-            },
-            {
-                "name": "days",
-                "label": "Hours by Day",
-                "field": "days",
-                "align": "left",
-            },
-        ])
-
-        ui.label("Room weekly usage heat map").classes(
-            "text-sm font-semibold mt-2"
-        ).style("color: var(--text-primary)")
-
-        _resource_heatmap()
-
-        ui.separator().style("background: var(--border-color)")
-
-        # Lab utilization
-        ui.label("Labs").classes(
-            "font-semibold"
-        ).style("color: var(--text-primary)")
-
-        _placeholder_table([
-            {
-                "name": "resource",
-                "label": "Lab",
-                "field": "resource",
-                "align": "left",
-            },
-            {
-                "name": "used",
-                "label": "Used Hours",
-                "field": "used",
-                "align": "right",
-            },
-            {
-                "name": "util",
-                "label": "Utilization",
-                "field": "util",
-                "align": "right",
-            },
-            {
-                "name": "capacity",
-                "label": "Unused Capacity",
-                "field": "capacity",
-                "align": "right",
-            },
-            {
-                "name": "days",
-                "label": "Hours by Day",
-                "field": "days",
-                "align": "left",
-            },
-        ])
-
-        ui.label("Lab weekly usage heat map").classes(
-            "text-sm font-semibold mt-2"
-        ).style("color: var(--text-primary)")
-
-        _resource_heatmap()
-
-        ui.label(
-            "Uploaded schedules do not include room availability settings, "
-            "so absolute utilization percentages may not be available."
-        ).classes("text-xs").style("color: var(--text-muted)")
-
-    # ---------------------------------------------------------
-    # Class and Faculty Distribution
+    # Course and Faculty Distribution
     # ---------------------------------------------------------
 
     with ui.grid(columns=2).classes("w-full gap-4"):
 
-        # Class distribution
         with surface_card(
             "Class Distribution",
-            "Unique course sections scheduled on each weekday.",
+            "Number of course sections scheduled each weekday.",
         ):
-            _placeholder_weekday_bars()
+            _weekday_bars()
 
-            ui.label("Busiest day: — · Least busy day: —").classes(
-                "text-sm"
-            )
+            ui.separator().style("background: var(--border-color)")
 
             ui.label(
-                "Early starts: — · Late starts: —"
+                "Busiest Day: —"
             ).classes("text-sm")
 
-        # Faculty distribution
+            ui.label(
+                "Least Busy Day: —"
+            ).classes("text-sm")
+
+            ui.label(
+                "Early Starts: — · Late Starts: —"
+            ).classes("text-sm")
+
         with surface_card(
             "Faculty Distribution",
             "Number of distinct faculty assigned each weekday.",
         ):
-            _placeholder_weekday_bars()
+            _weekday_bars()
 
-            ui.label("Empty weekdays: —").classes("text-sm")
+            ui.separator().style("background: var(--border-color)")
 
             ui.label(
-                "Available empty blocks (30+ min): —"
+                "Empty Weekdays: —"
             ).classes("text-sm")
+
+            ui.label(
+                "Available Empty Blocks (30+ min): —"
+            ).classes("text-sm")
+
+    # ---------------------------------------------------------
+    # Room and Lab Utilization
+    # ---------------------------------------------------------
+
+    with surface_card(
+        "Room & Lab Utilization",
+        "Explore resource usage and availability throughout the week.",
+    ):
+        _resource_section("Room")
+
+        ui.separator().style("background: var(--border-color)")
+
+        _resource_section("Lab")
+
+        ui.label(
+            "Absolute utilization percentages require configured resource availability."
+        ).classes("text-xs").style("color: var(--text-muted)")
+
+    # ---------------------------------------------------------
+    # Schedule Rankings
+    # ---------------------------------------------------------
+
+    with surface_card(
+        "Top 5 Schedules",
+        "Compare the highest-ranked generated schedules.",
+    ):
+        _placeholder_table([
+            {
+                "name": "rank",
+                "label": "Rank",
+                "field": "rank",
+                "align": "left",
+            },
+            {
+                "name": "schedule",
+                "label": "Schedule",
+                "field": "label",
+                "align": "left",
+            },
+            {
+                "name": "score",
+                "label": "Score",
+                "field": "score",
+                "align": "right",
+            },
+        ])
+
+        ui.label(
+            "Schedule rankings will appear here when available."
+        ).classes("text-xs").style("color: var(--text-muted)")
 
     # ---------------------------------------------------------
     # Unscheduled Courses
     # ---------------------------------------------------------
 
-    with surface_card(
-        "Unscheduled Courses",
-        "Courses in the source configuration that do not appear in this generated result.",
-    ) as unscheduled_card:
+    with ui.column().classes("w-full") as unscheduled_card:
+        with surface_card(
+            "Unscheduled Courses",
+            "Courses from the configuration that were not assigned.",
+        ):
+            _placeholder_table([
+                {
+                    "name": "course",
+                    "label": "Course",
+                    "field": "course",
+                    "align": "left",
+                },
+                {
+                    "name": "section",
+                    "label": "Section",
+                    "field": "section",
+                    "align": "left",
+                },
+                {
+                    "name": "reason",
+                    "label": "Reason",
+                    "field": "reason",
+                    "align": "left",
+                },
+            ])
 
-        _placeholder_table([
-            {
-                "name": "course",
-                "label": "Course",
-                "field": "course",
-                "align": "left",
-            },
-            {
-                "name": "section",
-                "label": "Section",
-                "field": "section",
-                "align": "left",
-            },
-            {
-                "name": "reason",
-                "label": "Reason",
-                "field": "reason",
-                "align": "left",
-            },
-        ])
-
-        ui.label(
-            "Unscheduled course information will appear here for generated schedules."
-        ).classes("text-xs").style("color: var(--text-muted)")
+            ui.label(
+                "Unscheduled course information will appear here."
+            ).classes("text-xs").style("color: var(--text-muted)")
 
     return unscheduled_card
