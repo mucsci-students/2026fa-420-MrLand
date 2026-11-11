@@ -72,7 +72,13 @@ def test_leaving_configuration_tab_requires_confirmation(
             await user.should_see("Unsaved configuration")
             dialog = click_open_dialog_button(user, choice)
             with active_client(user):
-                assert next(iter(user.find(ui.tabs).elements)).value == expected_tab
+                main_tabs = next(
+                    tab_group
+                    for tab_group in user.find(ui.tabs).elements
+                    if tab_group.props.get("id") == "main-navigation"
+                )
+
+                assert main_tabs.value.props.get("name") == expected_tab
                 assert not dialog.value
             await user.should_see(
                 "Fake configuration editor" if expected_tab == "configuration" else "Fake generator"
