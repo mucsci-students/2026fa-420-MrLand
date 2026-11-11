@@ -1,6 +1,6 @@
 """Shared UI components for the Schedule Analysis page."""
 
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 
 from nicegui import ui
@@ -10,7 +10,7 @@ from nicegui import ui
 def surface_card(
     title: str,
     subtitle: str | None = None,
-) -> Iterator:
+) -> Generator:
     """Create a floating card that follows the active application theme."""
     card = (
         ui.card()
