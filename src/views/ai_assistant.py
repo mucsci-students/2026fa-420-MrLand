@@ -56,6 +56,12 @@ def scheduler_ai_assistant(
     controller: ConfigurationController,
     refresh_configuration: Callable[..., None],
     configuration_is_saved: Callable[[], bool],
+    download_configuration: Callable[[str], str],
+    apply_configuration_change: Callable[[Callable[[], Any]], tuple[bool, list[Any]]] | None = None,
+    undo_configuration: Callable[[], Any] | None = None,
+    redo_configuration: Callable[[], Any] | None = None,
+    create_history_snapshot: Callable[[], Any] | None = None,
+    restore_history_snapshot: Callable[[Any], None] | None = None,
 ) -> Callable[[str, str], None]:
     state: dict[str, Any] = {
         "config": None,
@@ -135,28 +141,50 @@ def scheduler_ai_assistant(
 
         progress_monitor = asyncio.create_task(monitor_schedule_generation())
 
+        loop = asyncio.get_running_loop()
+
+        def run_editor_callback(callback: Callable[..., Any], *arguments: Any) -> Any:
+            async def invoke_callback() -> Any:
+                return callback(*arguments)
+
+            return asyncio.run_coroutine_threadsafe(invoke_callback(), loop).result(timeout=120)
+
         apply_ai_change = None
         request_memento = controller.create_memento() if config is not None else None
+        history_snapshot = (
+            create_history_snapshot()
+            if config is not None and create_history_snapshot is not None
+            else None
+        )
         tool_results: list[dict[str, Any]] = []
         saved_during_request = False
         pending_save_names: list[str] = []
         if config is not None:
 
             def apply_ai_change(mutation):
-                changed = []
-
-                def tracked_mutation():
-                    before = config.model_dump(mode="json")
-                    result = mutation()
-                    changed.append(config.model_dump(mode="json") != before)
-                    return result
-
-                accepted, problems = controller.apply_change(tracked_mutation)
-                if accepted and changed and changed[0]:
+                if apply_configuration_change is None:
+                    accepted, problems = controller.apply_change(mutation)
+                else:
+                    accepted, problems = run_editor_callback(apply_configuration_change, mutation)
+                if accepted:
                     accepted_mutations.append(True)
                 return accepted, problems
 
-        loop = asyncio.get_running_loop()
+        def apply_ai_undo() -> Any:
+            if undo_configuration is None:
+                return None
+            result = run_editor_callback(undo_configuration)
+            if result is not None:
+                accepted_mutations.append(True)
+            return result
+
+        def apply_ai_redo() -> Any:
+            if redo_configuration is None:
+                return None
+            result = run_editor_callback(redo_configuration)
+            if result is not None:
+                accepted_mutations.append(True)
+            return result
 
         def confirm_ai_action(question: str) -> bool:
             answer: Future[bool] = Future()
@@ -197,6 +225,8 @@ def scheduler_ai_assistant(
                 confirm_action=confirm_ai_action,
                 on_tool_result=record_tool_result,
                 configuration_exists=controller.config_service.exists,
+                undo_configuration=apply_ai_undo if config is not None else None,
+                redo_configuration=apply_ai_redo if config is not None else None,
             )
             failed_actions = [
                 outcome for outcome in tool_results if not outcome.get("success", False)
@@ -204,18 +234,20 @@ def scheduler_ai_assistant(
             save_error = None
             if not failed_actions and pending_save_names:
                 try:
-                    controller.save_configuration(pending_save_names[-1])
+                    download_configuration(pending_save_names[-1])
                     saved_during_request = True
                 except (ConfigValidationError, OSError, ValueError) as exc:
                     save_error = exc
                     failed_actions.append(
                         {
-                            "message": f"Configuration was not saved: {exc}",
+                            "message": f"Configuration was not downloaded: {exc}",
                             "success": False,
                         }
                     )
             if failed_actions and request_memento is not None:
                 controller.restore_memento(request_memento)
+                if history_snapshot is not None and restore_history_snapshot is not None:
+                    restore_history_snapshot(history_snapshot)
                 refresh_configuration(saved=configuration_is_saved())
                 accepted_mutations.clear()
                 failed_messages = "\n".join(f"- {outcome['message']}" for outcome in failed_actions)
@@ -226,7 +258,7 @@ def scheduler_ai_assistant(
                     "was restored to its state before the request."
                 )
                 if save_error is not None:
-                    response += "\nThe existing saved file was not changed."
+                    response += "\nNo configuration file was downloaded."
             else:
                 response = next(
                     (
@@ -238,7 +270,7 @@ def scheduler_ai_assistant(
                 )
                 if accepted_mutations:
                     if saved_during_request:
-                        response += "\nConfiguration changes are applied and saved to disk."
+                        response += "\nConfiguration changes are applied and downloaded."
                     else:
                         response += (
                             "\nConfiguration changes are applied in the Configuration "
@@ -246,13 +278,15 @@ def scheduler_ai_assistant(
                         )
                     refresh_configuration(saved=saved_during_request)
                 elif saved_during_request:
-                    response += "\nThe configuration was saved to disk."
+                    response += "\nA configuration copy was downloaded."
                     refresh_configuration(saved=True)
             state["history"] = result["messages"]
             state["messages"][-1] = ("assistant", response)
         except Exception as exc:  # noqa: BLE001 - surface unexpected assistant callback failures to the user
             if request_memento is not None:
                 controller.restore_memento(request_memento)
+                if history_snapshot is not None and restore_history_snapshot is not None:
+                    restore_history_snapshot(history_snapshot)
                 refresh_configuration(saved=configuration_is_saved())
             message = friendly_error_message(exc)
             if accepted_mutations:

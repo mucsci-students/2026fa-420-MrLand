@@ -5,7 +5,7 @@ Used by: GUI."""
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TypedDict
+from typing import Any, TypedDict
 
 from nicegui import ui
 from nicegui.elements.badge import Badge
@@ -16,7 +16,11 @@ from src.controllers.configuration_controller import (
     ConfigurationController,
     ConfigurationMemento,
 )
-from src.models.configuration_model import ConfigValidationError, validate_config_name
+from src.models.configuration_model import (
+    ConfigValidationError,
+    ValidationProblem,
+    validate_config_name,
+)
 from src.models.configuration_repository import ConfigLoadError
 from src.views.class_patterns_gui import class_patterns_gui
 from src.views.common import coming_soon, section_header
@@ -51,9 +55,25 @@ class ConfigurationEditorRefresh:
         self,
         refresh: Callable[..., None],
         is_saved: Callable[[], bool],
+        download_for_ai: Callable[[str], str],
+        apply_change_for_ai: Callable[[Callable[[], Any]], tuple[bool, list[ValidationProblem]]],
+        undo_for_ai: Callable[[], CombinedConfig | None],
+        redo_for_ai: Callable[[], CombinedConfig | None],
+        create_history_snapshot: Callable[
+            [], tuple[list[ConfigurationMemento], list[ConfigurationMemento]]
+        ],
+        restore_history_snapshot: Callable[
+            [tuple[list[ConfigurationMemento], list[ConfigurationMemento]]], None
+        ],
     ) -> None:
         self._refresh = refresh
         self.is_saved = is_saved
+        self.download_for_ai = download_for_ai
+        self.apply_change_for_ai = apply_change_for_ai
+        self.undo_for_ai = undo_for_ai
+        self.redo_for_ai = redo_for_ai
+        self.create_history_snapshot = create_history_snapshot
+        self.restore_history_snapshot = restore_history_snapshot
 
     def __call__(self, *, saved: bool = False) -> None:
         self._refresh(saved=saved)
@@ -159,7 +179,9 @@ def configuration_editor(
         update_history_buttons()
 
     # Apply edits through model validation and restore rejected changes.
-    def apply_config_change(mutation) -> bool:
+    def apply_config_change_for_ai(
+        mutation: Callable[[], Any],
+    ) -> tuple[bool, list[ValidationProblem]]:
         try:
             previous_state = controller.create_memento()
             accepted, problems = controller.apply_change(mutation)
@@ -167,52 +189,68 @@ def configuration_editor(
             state["config"] = controller.configuration
             editor_body.refresh()
             ui.notify(f"Change was not applied: {exc}", type="negative")
-            return False
+            return False, [ValidationProblem("Configuration", None, str(exc))]
 
         if not accepted:
             state["config"] = controller.configuration
             editor_body.refresh()
             show_problems("Change rejected", problems, restored=True)
-            return False
+            return False, problems
         undo_history.append(previous_state)
         redo_history.clear()
         update_history_buttons()
         set_saved_status(False)
         if problems:
             show_problems("Draft validation", problems)
-        return True
+        return True, problems
 
-    def undo_last_change() -> None:
+    def apply_config_change(mutation: Callable[[], Any]) -> bool:
+        accepted, _ = apply_config_change_for_ai(mutation)
+        return accepted
+
+    def undo_last_change() -> CombinedConfig | None:
         if not undo_history or state["config"] is None:
-            return
+            return None
         try:
             current_state = controller.create_memento()
             controller.restore_memento(undo_history[-1])
         except Exception as exc:  # noqa: BLE001 - report unexpected history-restore failures in the UI
             ui.notify(f"Unable to undo change: {exc}", type="negative")
-            return
+            return None
         undo_history.pop()
         redo_history.append(current_state)
         state["config"] = controller.configuration
         set_saved_status(False)
         update_history_buttons()
         editor_body.refresh()
+        return state["config"]
 
-    def redo_last_change() -> None:
+    def redo_last_change() -> CombinedConfig | None:
         if not redo_history or state["config"] is None:
-            return
+            return None
         try:
             current_state = controller.create_memento()
             controller.restore_memento(redo_history[-1])
         except Exception as exc:  # noqa: BLE001 - report unexpected history-restore failures in the UI
             ui.notify(f"Unable to redo change: {exc}", type="negative")
-            return
+            return None
         redo_history.pop()
         undo_history.append(current_state)
         state["config"] = controller.configuration
         set_saved_status(False)
         update_history_buttons()
         editor_body.refresh()
+        return state["config"]
+
+    def create_history_snapshot() -> tuple[list[ConfigurationMemento], list[ConfigurationMemento]]:
+        return undo_history.copy(), redo_history.copy()
+
+    def restore_history_snapshot(
+        snapshot: tuple[list[ConfigurationMemento], list[ConfigurationMemento]],
+    ) -> None:
+        undo_history[:] = snapshot[0]
+        redo_history[:] = snapshot[1]
+        update_history_buttons()
 
     # Render the current configuration and its category-specific editors.
     @ui.refreshable
@@ -401,6 +439,18 @@ def configuration_editor(
         ui.download(content, filename=file_name, media_type=media_type)
         set_saved_status(True)
         return file_name
+
+    def download_configuration_for_ai(file_name: str) -> str:
+        if state["config"] is None:
+            raise ValueError("No configuration is open to save.")
+        file_name = file_name.strip()
+        if not file_name:
+            raise ValueError("Enter a file name.")
+        if "/" in file_name or "\\" in file_name:
+            raise ValueError("Enter a file name without a folder path.")
+        if not state["flush_pending_settings"]():
+            raise ValueError("Pending global settings could not be applied.")
+        return download_configuration(file_name)
 
     def save_current_config() -> None:
         if state["config"] is None:
@@ -762,4 +812,10 @@ def configuration_editor(
     return ConfigurationEditorRefresh(
         refresh_after_ai_change,
         lambda: state["config"] is None or (bool(state["saved"]) and not state["pending_forms"]),
+        download_configuration_for_ai,
+        apply_config_change_for_ai,
+        undo_last_change,
+        redo_last_change,
+        create_history_snapshot,
+        restore_history_snapshot,
     )
