@@ -50,6 +50,12 @@ def test_leaving_configuration_tab_requires_confirmation(
             def download_for_ai(self, _file_name):
                 return "demo"
 
+            apply_change_for_ai = staticmethod(lambda _mutation: (True, []))
+            undo_for_ai = staticmethod(lambda: None)
+            redo_for_ai = staticmethod(lambda: None)
+            create_history_snapshot = staticmethod(lambda: None)
+            restore_history_snapshot = staticmethod(lambda _snapshot: None)
+
         return FakeRefresh()
 
     monkeypatch.setattr(app_gui, "configuration_editor", fake_configuration_editor)

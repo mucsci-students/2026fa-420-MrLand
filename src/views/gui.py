@@ -427,6 +427,11 @@ def build_app() -> None:
         editor_refresh,
         editor_is_saved,
         editor_refresh.download_for_ai,
+        editor_refresh.apply_change_for_ai,
+        editor_refresh.undo_for_ai,
+        editor_refresh.redo_for_ai,
+        editor_refresh.create_history_snapshot,
+        editor_refresh.restore_history_snapshot,
     )
 
 

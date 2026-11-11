@@ -42,6 +42,8 @@ BASE_SYSTEM_PROMPT = (
     "- delete_configuration_item: delete a supported item after explicit "
     "confirmation.\n"
     "- update_configuration_settings: update global scheduler settings.\n"
+    "- undo_configuration_change: undo the most recent configuration change.\n"
+    "- redo_configuration_change: redo the most recently undone configuration change.\n"
     "- save_configuration: validate and save the active configuration as JSON.\n"
     "- generate_schedules: generate schedules from a valid active configuration.\n"
     "- get_active_configuration_status: report whether a configuration is active.\n"
@@ -87,6 +89,8 @@ def build_scheduler_agent(
     confirm_action: Callable[[str], bool] | None = None,
     on_tool_result: Callable[[dict[str, Any]], None] | None = None,
     configuration_exists: Callable[[str], bool] | None = None,
+    undo_configuration: Callable[[], CombinedConfig | None] | None = None,
+    redo_configuration: Callable[[], CombinedConfig | None] | None = None,
 ) -> Any:
     state = SchedulerAgentState(
         config=config,
@@ -126,6 +130,8 @@ def build_scheduler_agent(
             apply_change=apply_change,
             save_configuration=save_configuration,
             on_tool_result=on_tool_result,
+            undo_configuration=undo_configuration,
+            redo_configuration=redo_configuration,
         ),
         system_prompt=(BASE_SYSTEM_PROMPT + "\n\n" + configuration_context),
     )
@@ -142,6 +148,8 @@ def invoke_scheduler_agent(
     confirm_action: Callable[[str], bool] | None = None,
     on_tool_result: Callable[[dict[str, Any]], None] | None = None,
     configuration_exists: Callable[[str], bool] | None = None,
+    undo_configuration: Callable[[], CombinedConfig | None] | None = None,
+    redo_configuration: Callable[[], CombinedConfig | None] | None = None,
 ) -> dict[str, Any]:
     agent = build_scheduler_agent(
         config=config,
@@ -150,12 +158,14 @@ def invoke_scheduler_agent(
         confirm_action=confirm_action,
         on_tool_result=on_tool_result,
         configuration_exists=configuration_exists,
+        undo_configuration=undo_configuration,
+        redo_configuration=redo_configuration,
     )
     result = agent.invoke({"messages": [*(history or []), HumanMessage(content=query)]})
     return result
 
 
-def run_cli() -> None:
+def run_ai() -> None:
     # Run an interactive terminal conversation with the scheduler assistant.
     config = empty_scheduler_config()
     history: list[Any] = []
@@ -186,4 +196,4 @@ def run_cli() -> None:
 
 
 if __name__ == "__main__":
-    run_cli()
+    run_ai()

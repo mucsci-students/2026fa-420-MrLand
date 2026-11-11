@@ -179,6 +179,8 @@ def test_configuration_tools_require_an_active_config_without_one():
         },
         "delete_configuration_item": {"area": "rooms", "item_key": "Room 101"},
         "update_configuration_settings": {"limit": 3},
+        "undo_configuration_change": {},
+        "redo_configuration_change": {},
         "save_configuration": {"config_name": "Fall 2026"},
         "generate_schedules": {},
     }
@@ -189,6 +191,49 @@ def test_configuration_tools_require_an_active_config_without_one():
         assert required in tools[name].invoke(arguments)["message"], name
 
     assert required in tools["get_active_configuration_status"].invoke({})["message"]
+
+
+def test_undo_and_redo_tools_call_editor_history_callbacks_and_sync_configuration():
+    original_config = ConfigurationController().new_configuration()
+    undone_config = ConfigurationController().new_configuration()
+    redone_config = ConfigurationController().new_configuration()
+    calls = []
+
+    def undo():
+        calls.append("undo")
+        return undone_config
+
+    def redo():
+        calls.append("redo")
+        return redone_config
+
+    state = SchedulerAgentState(original_config)
+    tools = _tools(state, undo_configuration=undo, redo_configuration=redo)
+
+    undo_result = tools["undo_configuration_change"].invoke({})
+    assert undo_result["success"]
+    assert "undone" in undo_result["message"]
+    assert state.config is undone_config
+
+    redo_result = tools["redo_configuration_change"].invoke({})
+    assert redo_result["success"]
+    assert "redone" in redo_result["message"]
+    assert state.config is redone_config
+    assert calls == ["undo", "redo"]
+
+
+def test_undo_and_redo_tools_fail_when_history_is_unavailable():
+    tools = _tools(
+        SchedulerAgentState(ConfigurationController().new_configuration()),
+        undo_configuration=lambda: None,
+        redo_configuration=lambda: None,
+    )
+
+    assert not tools["undo_configuration_change"].invoke({})["success"]
+    assert not tools["redo_configuration_change"].invoke({})["success"]
+    assert not _tools(SchedulerAgentState(ConfigurationController().new_configuration()))[
+        "undo_configuration_change"
+    ].invoke({})["success"]
 
 
 def test_scheduler_tools_inspect_and_manage_all_configuration_areas():

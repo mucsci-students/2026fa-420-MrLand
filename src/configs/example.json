@@ -18,6 +18,18 @@
                 "capacity": 28,
                 "features": [],
                 "times": null
+            },
+            {
+                "name": "Roddy 149",
+                "capacity": 40,
+                "features": [],
+                "times": null
+            },
+            {
+                "name": "Roddy 150",
+                "capacity": 40,
+                "features": [],
+                "times": null
             }
         ],
         "labs": [
@@ -113,7 +125,7 @@
                     "CMSC 140"
                 ],
                 "faculty": [
-                    "Zuchinni"
+                    "Zo"
                 ],
                 "modality": "in_person",
                 "required_room_features": [],
@@ -344,7 +356,9 @@
                     "CMSC 453",
                     "CMSC 476"
                 ],
-                "faculty": null,
+                "faculty": [
+                    "Zo"
+                ],
                 "modality": "in_person",
                 "required_room_features": [],
                 "required_lab_features": [],
@@ -422,7 +436,7 @@
         ],
         "faculty": [
             {
-                "name": "Zuchinni",
+                "name": "Zo",
                 "maximum_credits": 12,
                 "maximum_days": 4,
                 "minimum_credits": 12,
@@ -521,9 +535,9 @@
                     "Mac": 3
                 },
                 "mandatory_days": [
+                    "FRI",
                     "WED",
-                    "MON",
-                    "FRI"
+                    "MON"
                 ]
             },
             {

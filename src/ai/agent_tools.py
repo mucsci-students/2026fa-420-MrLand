@@ -766,6 +766,8 @@ def get_tool_list(
     apply_change: Callable[[Callable[[], Any]], tuple[bool, list[Any]]] | None = None,
     save_configuration: Callable[[str], None] | None = None,
     on_tool_result: Callable[[dict[str, Any]], None] | None = None,
+    undo_configuration: Callable[[], CombinedConfig | None] | None = None,
+    redo_configuration: Callable[[], CombinedConfig | None] | None = None,
 ) -> list[StructuredTool]:
     if save_configuration is not None:
         state._save_configuration = save_configuration
@@ -874,6 +876,31 @@ def get_tool_list(
 
         return reported_operation
 
+    def history_tool(
+        operation: Callable[[], CombinedConfig | None] | None,
+        action: str,
+    ) -> Callable[[], dict[str, Any]]:
+        def guarded_operation() -> dict[str, Any]:
+            if not state.has_active_configuration:
+                return report(state._result(False, state.configuration_required_message()))
+            if operation is None:
+                return report(
+                    state._result(False, f"{action.capitalize()} is unavailable in this context.")
+                )
+            updated_configuration = operation()
+            if updated_configuration is None:
+                return report(
+                    state._result(
+                        False,
+                        f"There is no configuration change available to {action}.",
+                    )
+                )
+            state.config = updated_configuration
+            verb = "undone" if action == "undo" else "redone"
+            return report(state._result(True, f"Configuration change {verb}."))
+
+        return guarded_operation
+
     def validation_error(error: list[Any]) -> str:
         result = report(state._result(False, f"Invalid tool arguments: {error}"))
         return json.dumps(result, default=str)
@@ -924,6 +951,18 @@ def get_tool_list(
             func=mutation_tool(state.update_configuration_settings),
             description="Update global schedule-generation settings.",
             args_schema=ConfigurationSettingsArgs,
+        ),
+        StructuredTool.from_function(
+            name="undo_configuration_change",
+            func=history_tool(undo_configuration, "undo"),
+            description="Undo the most recent configuration change using the editor's undo history.",
+            args_schema={},
+        ),
+        StructuredTool.from_function(
+            name="redo_configuration_change",
+            func=history_tool(redo_configuration, "redo"),
+            description="Redo the most recently undone configuration change using the editor's redo history.",
+            args_schema={},
         ),
         StructuredTool.from_function(
             name="save_configuration",
