@@ -19,9 +19,17 @@ from scheduler.config import (
     TimeBlock,
 )
 
+from src.controllers.class_pattern_controller import ClassPatternController
+from src.controllers.configuration_controller import ConfigurationController
+from src.controllers.course_controller import CourseController
+from src.controllers.faculty_controller import FacultyController
+from src.controllers.lab_controller import LabController
+from src.controllers.room_controller import RoomController
 from src.controllers.schedule_generator_controller import (
     schedule_generator_controller,
 )
+from src.controllers.settings_controller import SettingsController
+from src.controllers.time_block_controller import TimeBlockController
 from src.models.configuration_model import (
     ConfigService,
     ConfigValidationError,
@@ -31,6 +39,13 @@ from src.models.configuration_model import (
 from src.views.configuration_editor import PANEL_COMBINATIONS
 
 COMBINATIONS_PASSWORD = "HaTz"
+
+
+class _RejectedToolMutation(Exception):
+    def __init__(self, result: dict[str, Any]) -> None:
+        super().__init__(result["message"])
+        self.result = result
+
 
 try:
     from langchain_core.tools import StructuredTool
@@ -197,13 +212,13 @@ class SchedulerAgentState:
                 parsed = self._parse_item(area, item)
                 key = self._item_identity(area, parsed)
                 if area != "class_patterns" and any(
-                    self._item_identity(area, current) == key for current in collection
+                    self._same_item_identity(area, current, parsed) for current in collection
                 ):
                     return self._result(
                         False,
                         f"A {area.rstrip('s')} item with key '{key}' already exists.",
                     )
-                collection.append(parsed)
+                self._apply_item_values(area, collection, parsed)
             elif area == "meetings":
                 pattern = self._find_pattern(item_key)
                 parsed = Meeting.model_validate(item)
@@ -219,14 +234,18 @@ class SchedulerAgentState:
                 day = item_key.upper()
                 if day not in {"MON", "TUE", "WED", "THU", "FRI"}:
                     return self._result(False, f"Unknown weekday '{item_key}'.")
-                if day in self.config.time_slot_config.times:
-                    return self._result(False, f"Time blocks for {day} already exist.")
                 blocks = item.get("blocks")
-                if not isinstance(blocks, list):
+                if not isinstance(blocks, list) or not blocks:
                     return self._result(False, "time_blocks item must include a 'blocks' list.")
-                self.config.time_slot_config.times[day] = [
-                    TimeBlock.model_validate(block) for block in blocks
-                ]
+                parsed_blocks = [TimeBlock.model_validate(block) for block in blocks]
+                for block in parsed_blocks:
+                    TimeBlockController.add_block(
+                        self.config.time_slot_config.times,
+                        day,
+                        block.start,
+                        block.spacing,
+                        block.end,
+                    )
             else:
                 return self._result(
                     False, f"Items cannot be created in configuration area '{area}'."
@@ -290,18 +309,17 @@ class SchedulerAgentState:
                 existing = collection[index]
                 values = existing.model_dump(mode="json")
                 values.update(item)
-                collection[index] = self._parse_item(area, values)
-                if area != "class_patterns":
-                    new_key = self._item_identity(area, collection[index])
-                    if any(
-                        position != index and self._item_identity(area, current) == new_key
-                        for position, current in enumerate(collection)
-                    ):
-                        collection[index] = existing
-                        return self._result(
-                            False,
-                            f"A {area.rstrip('s')} item with key '{new_key}' already exists.",
-                        )
+                parsed = self._parse_item(area, values)
+                if area != "class_patterns" and any(
+                    position != index and self._same_item_identity(area, current, parsed)
+                    for position, current in enumerate(collection)
+                ):
+                    new_key = self._item_identity(area, parsed)
+                    return self._result(
+                        False,
+                        f"A {area.rstrip('s')} item with key '{new_key}' already exists.",
+                    )
+                self._apply_item_values(area, collection, parsed, existing=existing)
             else:
                 return self._result(
                     False, f"Items cannot be updated in configuration area '{area}'."
@@ -382,12 +400,19 @@ class SchedulerAgentState:
         if min_time_overlap is not None and min_time_overlap < 0:
             return self._result(False, "min_time_overlap cannot be negative.")
         changed: list[str] = []
-        if limit is not None:
-            object.__setattr__(self.config, "limit", limit)
-            changed.append("limit")
-        if optimizer_flags is not None:
-            object.__setattr__(self.config, "optimizer_flags", optimizer_flags)
-            changed.append("optimizer_flags")
+        if limit is not None or optimizer_flags is not None:
+            try:
+                SettingsController.update_settings(
+                    self.config,
+                    self.config.limit if limit is None else limit,
+                    self.config.optimizer_flags if optimizer_flags is None else optimizer_flags,
+                )
+            except (TypeError, ValueError) as error:
+                return self._result(False, f"Could not update global settings: {error}")
+            if limit is not None:
+                changed.append("limit")
+            if optimizer_flags is not None:
+                changed.append("optimizer_flags")
         if max_time_gap is not None:
             object.__setattr__(self.config.time_slot_config, "max_time_gap", max_time_gap)
             changed.append("max_time_gap")
@@ -418,21 +443,26 @@ class SchedulerAgentState:
 
     # Validate and save the active configuration through the app callback.
     def save_current_config(self, config_name: str) -> dict[str, Any]:
-        problems = validate_config(self.config)
-        if problems:
-            return self._result(
-                False,
-                "Configuration was not saved because validation failed.",
-                errors=[
-                    {"area": problem.area, "item": problem.item, "message": problem.message}
-                    for problem in problems
-                ],
-            )
+        if self._save_configuration is None:
+            problems = validate_config(self.config)
+            if problems:
+                return self._result(
+                    False,
+                    "Configuration was not saved because validation failed.",
+                    errors=[
+                        {"area": problem.area, "item": problem.item, "message": problem.message}
+                        for problem in problems
+                    ],
+                )
         try:
-            if self._configuration_exists(config_name) and (
-                self._confirm_action is None
-                or not self._confirm_action(
-                    f"Replace the saved configuration '{config_name}.json'?"
+            if (
+                self._save_configuration is None
+                and self._configuration_exists(config_name)
+                and (
+                    self._confirm_action is None
+                    or not self._confirm_action(
+                        f"Replace the saved configuration '{config_name}.json'?"
+                    )
                 )
             ):
                 return self._result(False, "Save cancelled; the existing file was not changed.")
@@ -457,7 +487,11 @@ class SchedulerAgentState:
             return self._result(False, f"Could not save configuration '{config_name}': {error}")
         return self._result(
             True,
-            f"Configuration saved as '{config_name}.json'.",
+            (
+                f"Configuration queued for download as '{config_name}.json'."
+                if self._save_configuration is not None
+                else f"Configuration saved as '{config_name}.json'."
+            ),
             action="saved",
         )
 
@@ -510,6 +544,109 @@ class SchedulerAgentState:
             raise ValueError(f"Unknown configuration area '{area}'.")
         return model.model_validate(item)
 
+    @staticmethod
+    def _same_item_identity(area: str, first: Any, second: Any) -> bool:
+        if area == "courses":
+            return (
+                first.course_id.casefold() == second.course_id.casefold()
+                and first.section_id == second.section_id
+            )
+        if area == "class_patterns":
+            return first.credits == second.credits
+        return first.name.casefold() == second.name.casefold()
+
+    @staticmethod
+    def _availability_values(times: Any) -> dict[str, list[str]] | None:
+        if times is None:
+            return None
+        return {
+            day: [
+                f"{item['start']}-{item['end']}"
+                if isinstance(item, dict)
+                else f"{item.start}-{item.end}"
+                for item in ranges
+            ]
+            for day, ranges in times.items()
+        }
+
+    @classmethod
+    def _apply_item_values(
+        cls,
+        area: str,
+        collection: list[Any],
+        item: Any,
+        *,
+        existing: Any | None = None,
+    ) -> None:
+        update = existing is not None
+        if area == "rooms":
+            availability = cls._availability_values(item.times)
+            if update:
+                RoomController.update_room(
+                    collection, existing, item.name, item.capacity, item.features, availability
+                )
+            else:
+                RoomController.add_room(
+                    collection, item.name, item.capacity, item.features, availability
+                )
+            return
+        if area == "labs":
+            if update:
+                LabController.update_lab(
+                    collection, existing, item.name, item.capacity, item.features, item.times
+                )
+            else:
+                LabController.add_lab(
+                    collection, item.name, item.capacity, item.features, item.times
+                )
+            return
+        if area == "faculty":
+            values = (
+                item.name,
+                item.maximum_credits,
+                item.minimum_credits,
+                item.unique_course_limit,
+                item.times,
+                item.maximum_days,
+                item.course_preferences,
+                item.room_preferences,
+                item.lab_preferences,
+                item.mandatory_days,
+            )
+            if update:
+                FacultyController.update_member(collection, existing, *values)
+            else:
+                FacultyController.add_member(collection, *values)
+            return
+        if area == "courses":
+            values = (
+                item.course_id,
+                item.section_id,
+                item.credits,
+                item.capacity,
+                item.modality,
+                item.room,
+                item.lab,
+                item.required_room_features,
+                item.required_lab_features,
+                item.reserve_room_during_lab,
+                item.conflicts,
+                item.faculty,
+            )
+            if update:
+                CourseController.update_course(collection, existing, *values)
+            else:
+                CourseController.add_course(collection, *values)
+            return
+        if area == "class_patterns":
+            values = (item.credits, item.meetings, item.disabled, item.start_time)
+            if update:
+                ClassPatternController.update_pattern(collection, existing, *values)
+            else:
+                ClassPatternController.add_pattern(collection, *values)
+            return
+        raise ValueError(f"Unknown configuration area '{area}'.")
+
     # Return the stable key used to find or de-duplicate an item.
     @staticmethod
     def _item_identity(area: str, item: Any) -> str:
@@ -535,11 +672,14 @@ class SchedulerAgentState:
                 matches = [
                     index
                     for index, course in enumerate(collection)
-                    if course.course_id == course_id and (course.section_id or "default") == section
+                    if course.course_id.casefold() == course_id.casefold()
+                    and (course.section_id or "default") == section
                 ]
             else:
                 matches = [
-                    index for index, course in enumerate(collection) if course.course_id == item_key
+                    index
+                    for index, course in enumerate(collection)
+                    if course.course_id.casefold() == item_key.casefold()
                 ]
             if len(matches) > 1:
                 keys = [self._item_identity(area, collection[index]) for index in matches]
@@ -548,7 +688,7 @@ class SchedulerAgentState:
                 return f"No course found with key '{item_key}'."
             return matches[0]
         for index, item in enumerate(collection):
-            if self._item_identity(area, item) == item_key:
+            if self._item_identity(area, item).casefold() == item_key.casefold():
                 return index
         return f"No {area.rstrip('s')} item found with key '{item_key}'."
 
@@ -626,11 +766,15 @@ def get_tool_list(
     apply_change: Callable[[Callable[[], Any]], tuple[bool, list[Any]]] | None = None,
     save_configuration: Callable[[str], None] | None = None,
     on_tool_result: Callable[[dict[str, Any]], None] | None = None,
+    undo_configuration: Callable[[], CombinedConfig | None] | None = None,
+    redo_configuration: Callable[[], CombinedConfig | None] | None = None,
 ) -> list[StructuredTool]:
     if save_configuration is not None:
         state._save_configuration = save_configuration
+    if apply_change is None:
+        apply_change = ConfigurationController(state.config).apply_change
 
-    # Apply edits through the configuration controller when available.
+    # Apply edits through the same validated controller path as GUI changes.
     def report(result: dict[str, Any]) -> dict[str, Any]:
         if on_tool_result is not None:
             on_tool_result(result)
@@ -650,10 +794,18 @@ def get_tool_list(
                     f"Delete {arguments['area']} item '{key}'?"
                 ):
                     return report(state._result(False, "Deletion cancelled; no item was changed."))
-            if apply_change is None:
-                return report(operation(**arguments))
             result: list[dict[str, Any]] = []
-            accepted, problems = apply_change(lambda: result.append(operation(**arguments)))
+
+            def apply_operation() -> None:
+                outcome = operation(**arguments)
+                if not outcome["success"]:
+                    raise _RejectedToolMutation(outcome)
+                result.append(outcome)
+
+            try:
+                accepted, problems = apply_change(apply_operation)
+            except _RejectedToolMutation as rejected:
+                return report(rejected.result)
             if not accepted:
                 details = "\n".join(
                     f"- {problem.area}: {problem.item or 'overall'}: {problem.message}"
@@ -673,9 +825,11 @@ def get_tool_list(
                         ],
                     )
                 )
+            if not result:
+                raise RuntimeError(
+                    "The configuration controller accepted a mutation without running it."
+                )
             outcome = result[0]
-            if not outcome["success"]:
-                return report(outcome)
             if problems:
                 details = "\n".join(
                     f"- {problem.area}: {problem.item or 'overall'}: {problem.message}"
@@ -721,6 +875,31 @@ def get_tool_list(
             return report(operation(**arguments))
 
         return reported_operation
+
+    def history_tool(
+        operation: Callable[[], CombinedConfig | None] | None,
+        action: str,
+    ) -> Callable[[], dict[str, Any]]:
+        def guarded_operation() -> dict[str, Any]:
+            if not state.has_active_configuration:
+                return report(state._result(False, state.configuration_required_message()))
+            if operation is None:
+                return report(
+                    state._result(False, f"{action.capitalize()} is unavailable in this context.")
+                )
+            updated_configuration = operation()
+            if updated_configuration is None:
+                return report(
+                    state._result(
+                        False,
+                        f"There is no configuration change available to {action}.",
+                    )
+                )
+            state.config = updated_configuration
+            verb = "undone" if action == "undo" else "redone"
+            return report(state._result(True, f"Configuration change {verb}."))
+
+        return guarded_operation
 
     def validation_error(error: list[Any]) -> str:
         result = report(state._result(False, f"Invalid tool arguments: {error}"))
@@ -772,6 +951,18 @@ def get_tool_list(
             func=mutation_tool(state.update_configuration_settings),
             description="Update global schedule-generation settings.",
             args_schema=ConfigurationSettingsArgs,
+        ),
+        StructuredTool.from_function(
+            name="undo_configuration_change",
+            func=history_tool(undo_configuration, "undo"),
+            description="Undo the most recent configuration change using the editor's undo history.",
+            args_schema={},
+        ),
+        StructuredTool.from_function(
+            name="redo_configuration_change",
+            func=history_tool(redo_configuration, "redo"),
+            description="Redo the most recently undone configuration change using the editor's redo history.",
+            args_schema={},
         ),
         StructuredTool.from_function(
             name="save_configuration",

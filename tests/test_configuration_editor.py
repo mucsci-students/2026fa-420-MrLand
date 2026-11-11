@@ -197,6 +197,54 @@ def test_save_and_load_downloads_json_then_opens_upload(editor_controller, monke
     run_editor_simulation(action)
 
 
+def test_ai_save_callback_flushes_pending_global_settings_and_downloads(
+    editor_controller,
+):
+    async def action(user, refresh):
+        await load_demo_config(user, editor_controller)
+        user.find("Global settings").click()
+        user.find(kind=ui.number, content="Generation limit").clear().type("25")
+
+        assert refresh.download_for_ai("AI copy") == "AI copy.json"
+        download = await user.download.next()
+
+        assert download.status_code == 200
+        assert json.loads(download.content)["limit"] == 25
+        assert editor_controller.configuration.limit == 25
+        assert refresh.is_saved()
+
+    run_editor_simulation(action)
+
+
+def test_ai_edits_use_editor_undo_and_redo_history(editor_controller):
+    from src.controllers.room_controller import RoomController
+
+    def add_ai_room():
+        config = editor_controller.configuration
+        assert config is not None
+        RoomController.add_room(config.config.rooms, "AI Room", 20, [], None)
+
+    async def action(user, refresh):
+        await load_demo_config(user, editor_controller)
+        config = editor_controller.configuration
+        assert config is not None
+        original_rooms = [room.name for room in config.config.rooms]
+
+        accepted, problems = refresh.apply_change_for_ai(add_ai_room)
+
+        assert accepted
+        assert not problems
+        assert "AI Room" in [room.name for room in editor_controller.configuration.config.rooms]
+        undone_config = refresh.undo_for_ai()
+        assert undone_config is editor_controller.configuration
+        assert [room.name for room in undone_config.config.rooms] == original_rooms
+        redone_config = refresh.redo_for_ai()
+        assert redone_config is editor_controller.configuration
+        assert "AI Room" in [room.name for room in redone_config.config.rooms]
+
+    run_editor_simulation(action)
+
+
 @pytest.mark.parametrize("suffix", ["json", "JSON", "JsOn"])
 def test_uploaded_name_strips_json_suffix_before_saving(editor_controller, monkeypatch, suffix):
     content = editor_controller.configuration.model_dump_json().encode()

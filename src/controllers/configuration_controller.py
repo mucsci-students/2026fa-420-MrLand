@@ -30,10 +30,12 @@ class ConfigurationMemento:
 
 
 class ConfigurationController:
-    def __init__(self) -> None:
+    def __init__(self, configuration: CombinedConfig | None = None) -> None:
         self.config_service = ConfigService()
-        self.configuration: CombinedConfig | None = None
-        self._has_valid_configuration = False
+        self.configuration = configuration
+        self._has_valid_configuration = configuration is not None and not validate_config(
+            configuration
+        )
         self._lock = RLock()
 
     def create_memento(self) -> ConfigurationMemento:
