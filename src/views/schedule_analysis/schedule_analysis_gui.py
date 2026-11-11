@@ -1,4 +1,3 @@
-
 """Main Schedule Analysis page."""
 
 from collections.abc import Callable
@@ -6,8 +5,8 @@ from collections.abc import Callable
 from nicegui import ui
 
 from src.controllers.schedule_controller import schedule_controller
-from src.views.schedule_analysis.statistics_tab import build_statistics_tab
 from src.views.schedule_analysis.comparison_tab import build_comparison_tab
+from src.views.schedule_analysis.statistics_tab import build_statistics_tab
 from src.views.schedule_analysis.what_if_tab import build_what_if_tab
 
 
@@ -25,12 +24,11 @@ def schedule_analysis() -> Callable[[], None]:
     schedule_controller.sync_generated()
 
     # ---------------------------------------------------------
-    # Theme-aware styling
+    # Custom styling
     # ---------------------------------------------------------
 
     ui.add_head_html("""
         <style>
-            /* Analysis tabs */
             .schedule-analysis .q-tabs {
                 background: var(--surface) !important;
                 color: var(--text-muted) !important;
@@ -59,7 +57,6 @@ def schedule_analysis() -> Callable[[], None]:
                 color: var(--app-foreground) !important;
             }
 
-            /* Load dialog */
             .schedule-analysis-dialog .q-uploader {
                 background: var(--surface-raised) !important;
                 color: var(--text-primary) !important;
@@ -78,60 +75,132 @@ def schedule_analysis() -> Callable[[], None]:
             .schedule-analysis-dialog .q-field__control {
                 background: var(--surface-raised);
             }
+
+            .analysis-tabs {
+                background: transparent;
+                color: var(--text-muted);
+            }
+
+            .analysis-tabs .q-tab {
+                color: var(--text-muted);
+                font-weight: 500;
+                min-height: 42px;
+            }
+
+            .analysis-tabs .q-tab--active {
+                color: var(--text-primary);
+            }
+
+            .analysis-tabs .q-tab__indicator {
+                background: var(--accent-color);
+                height: 2px;
+            }
         </style>
     """)
 
     load_generation = 0
+    load_target = None
+
+    # ---------------------------------------------------------
+    # Page behaviors
+    # ---------------------------------------------------------
+
+    def refresh() -> None:
+        """Refresh the shared schedule list and update every selector."""
+        schedule_controller.sync_generated()
+
+        refresh_statistics()
+        refresh_comparison()
+
+        current = schedule_controller.current
+
+        unscheduled_card.set_visibility(
+            bool(current and current.source == "generated")
+        )
+
+    def open_load_dialog(target_select=None) -> None:
+        """Open the shared upload dialog for the requested selector."""
+        nonlocal load_generation, load_target
+
+        load_generation += 1
+        load_target = target_select
+
+        load_status.text = ""
+        upload.reset()
+        load_dialog.open()
+
+    def cancel_load() -> None:
+        """Cancel an upload and invalidate any pending upload callback."""
+        nonlocal load_generation, load_target
+
+        load_generation += 1
+        load_target = None
+
+        upload.reset()
+        load_dialog.close()
+
+    def on_schedule_loaded(entry, error) -> None:
+        """Handle the result of an uploaded schedule."""
+        if error:
+            load_status.text = error
+            return
+
+        refresh()
+
+        # If the upload came from a Comparison selector, select the
+        # newly loaded schedule in that selector.
+        if load_target is not None:
+            options = schedule_controller.schedule_options()
+            if options:
+                load_target.options = options
+                load_target.value = max(options)
+                load_target.update()
+
+        load_dialog.close()
+
+        ui.notify(
+            f"Loaded {entry.file_name} ({len(entry.records)} sections)",
+            type="positive",
+        )
+
+    async def on_upload(event) -> None:
+        generation = load_generation
+
+        if not load_dialog.value:
+            return
+
+        file_name, content = await read_upload(event)
+
+        if generation != load_generation or not load_dialog.value:
+            return
+
+        upload.reset()
+
+        on_schedule_loaded(
+            *schedule_controller.load_uploaded_file(file_name, content)
+        )
+
+    # ---------------------------------------------------------
+    # Page layout
+    # ---------------------------------------------------------
 
     with ui.column().classes(
         "schedule-analysis w-full min-h-screen gap-5"
     ):
 
-        # ---------------------------------------------------------
         # Page heading
-        # ---------------------------------------------------------
+        with ui.column().classes("w-full gap-1"):
+            ui.label("Schedule Analysis").classes(
+                "text-2xl font-semibold"
+            ).style("color: var(--text-primary)")
 
-        with ui.row().classes("w-full items-center justify-between"):
-            with ui.column().classes("gap-1"):
-                ui.label("Schedule Analysis").classes(
-                    "text-2xl font-semibold"
-                ).style("color: var(--text-primary)")
+            ui.label(
+                "Analyze, compare, and evaluate generated schedules."
+            ).classes("text-sm").style("color: var(--text-muted)")
 
-                ui.label(
-                    "Analyze, compare, and evaluate generated schedules."
-                ).classes("text-sm").style("color: var(--text-muted)")
-
-        # ---------------------------------------------------------
-        # Schedule controls
-        # ---------------------------------------------------------
-
-        with ui.row().classes("w-full items-center gap-3 flex-wrap"):
-
-            schedule_select = ui.select(
-                schedule_controller.schedule_options(),
-                value=schedule_controller.selected_index
-                if schedule_controller.has_schedules
-                else None,
-                label="Selected Schedule",
-            ).classes("min-w-[250px]")
-
-            load_button = ui.button(
-                "Load Schedule",
-                icon="upload_file",
-            ).props("outline")
-
-            refresh_button = ui.button(
-                "Refresh",
-                icon="refresh",
-            ).props("outline")
-
-        empty_state = ui.label(
-            "No schedules available. Generate a schedule or load one."
-        ).classes("text-sm").style("color: var(--text-muted)")
-
-        # ---------------------------------------------------------
+        # -----------------------------------------------------
         # Load Schedule dialog
-        # ---------------------------------------------------------
+        # -----------------------------------------------------
 
         with (
             ui.dialog() as load_dialog,
@@ -169,110 +238,52 @@ def schedule_analysis() -> Callable[[], None]:
                     on_click=lambda: cancel_load(),
                 ).props("flat")
 
-        # ---------------------------------------------------------
-        # Analysis tabs
-        # ---------------------------------------------------------
+        # -----------------------------------------------------
+        # Analysis tabs and global refresh button
+        # -----------------------------------------------------
 
-        with ui.tabs() as analysis_tabs:
-            statistics_tab = ui.tab("Statistics", icon="bar_chart")
-            comparison_tab = ui.tab("Schedule Comparison", icon="compare")
-            what_if_tab = ui.tab("What-If Analysis", icon="tune")
+        with ui.row().classes(
+            "w-full items-center justify-between"
+        ):
+            # Analysis tabs
+            with ui.tabs().props("dense no-caps").classes(
+                "analysis-tabs"
+            ) as analysis_tabs:
+                ui.tab("statistics", label="Statistics")
+                ui.tab("comparison", label="Schedule Comparison")
+                ui.tab("what-if", label="What-If Analysis")
+
+            # Refresh button
+            refresh_button = ui.button(
+                "Refresh",
+                icon="refresh",
+                on_click=refresh,
+            ).props("outline").style(
+                "color: var(--text-muted)"
+            )
+
+        # -----------------------------------------------------
+        # Tab panels
+        # -----------------------------------------------------
 
         with ui.tab_panels(
             analysis_tabs,
-            value=statistics_tab,
-        ).classes("w-full bg-transparent"):
+            value="statistics",
+        ).classes("w-full"):
+            with ui.tab_panel("statistics"):
+                unscheduled_card, refresh_statistics = build_statistics_tab(
+                    on_load_schedule=open_load_dialog
+                )
 
-            with ui.tab_panel(statistics_tab):
-                unscheduled_card = build_statistics_tab()
+            with ui.tab_panel("comparison"):
+                refresh_comparison = build_comparison_tab(
+                    on_load_schedule=open_load_dialog
+                )
 
-            with ui.tab_panel(comparison_tab):
-                build_comparison_tab()
-
-            with ui.tab_panel(what_if_tab):
+            with ui.tab_panel("what-if"):
                 build_what_if_tab()
 
-    # ---------------------------------------------------------
-    # Page behavior
-    # ---------------------------------------------------------
 
-    def refresh() -> None:
-        """Refresh the available schedules."""
-        schedule_controller.sync_generated()
-
-        options = schedule_controller.schedule_options()
-        schedule_select.options = options
-
-
-        if options:
-            schedule_select.value = schedule_controller.selected_index
-            empty_state.set_visibility(False)
-        else:
-            schedule_select.value = None
-            empty_state.set_visibility(True)
-
-        current = schedule_controller.current
-
-        unscheduled_card.set_visibility(
-            bool(current and current.source == "generated")
-        )
-
-        schedule_select.update()
-
-    def on_schedule_change(event) -> None:
-        if event.value is None:
-            return
-
-        schedule_controller.select(event.value)
-        refresh()
-
-    def open_load_dialog() -> None:
-        nonlocal load_generation
-
-        load_generation += 1
-        load_status.text = ""
-        upload.reset()
-        load_dialog.open()
-
-    def cancel_load() -> None:
-        nonlocal load_generation
-
-        load_generation += 1
-        upload.reset()
-        load_dialog.close()
-
-    def finish_load(entry, error) -> None:
-        if error:
-            load_status.text = error
-            return
-
-        load_dialog.close()
-        refresh()
-
-        ui.notify(
-            f"Loaded {entry.file_name} ({len(entry.records)} sections)",
-            type="positive",
-        )
-
-    async def on_upload(event) -> None:
-        generation = load_generation
-
-        if not load_dialog.value:
-            return
-
-        file_name, content = await read_upload(event)
-
-        if generation != load_generation or not load_dialog.value:
-            return
-
-        upload.reset()
-
-        finish_load(
-            *schedule_controller.load_uploaded_file(file_name, content)
-        )
-
-    schedule_select.on_value_change(on_schedule_change)
-    load_button.on_click(open_load_dialog)
     refresh_button.on_click(refresh)
     upload.on_upload(on_upload)
 

@@ -9,9 +9,9 @@ from nicegui import ui
 
 from src.views.ai_assistant import scheduler_ai_assistant
 from src.views.configuration_editor import configuration_editor, controller
+from src.views.schedule_analysis.schedule_analysis_gui import schedule_analysis
 from src.views.schedule_generator import schedule_generator
 from src.views.schedule_viewer import schedule_viewer
-from src.views.schedule_analysis.schedule_analysis_gui import schedule_analysis
 from src.views.theme import Theme, ThemeComposite, ThemeLeaf
 
 BACKGROUND = "#101820"

@@ -1,10 +1,11 @@
-
 """Statistics tab for Schedule Analysis."""
+
+from collections.abc import Callable
 
 from nicegui import ui
 
+from src.controllers.schedule_controller import schedule_controller
 from src.views.schedule_analysis.analysis_components import surface_card
-
 
 DAYS = ("MON", "TUE", "WED", "THU", "FRI")
 
@@ -51,22 +52,21 @@ def _score_breakdown() -> None:
     with ui.expansion(
         "View score breakdown",
         icon="analytics",
-    ).classes("w-full"):
-        with ui.column().classes("w-full gap-3 pt-2"):
-            for criterion in criteria:
-                with ui.column().classes("w-full gap-1"):
-                    with ui.row().classes(
-                        "w-full justify-between items-center"
-                    ):
-                        ui.label(criterion).classes("text-sm")
-                        ui.label("—").classes(
-                            "text-sm font-semibold"
-                        ).style("color: var(--text-muted)")
+    ).classes("w-full"), ui.column().classes("w-full gap-3 pt-2"):
+        for criterion in criteria:
+            with ui.column().classes("w-full gap-1"):
+                with ui.row().classes(
+                    "w-full justify-between items-center"
+                ):
+                    ui.label(criterion).classes("text-sm")
+                    ui.label("—").classes(
+                        "text-sm font-semibold"
+                    ).style("color: var(--text-muted)")
 
-                    with ui.element("div").classes(
-                        "h-2 w-full overflow-hidden rounded-full"
-                    ).style("background: var(--surface-hover)"):
-                        pass
+                with ui.element("div").classes(
+                    "h-2 w-full overflow-hidden rounded-full"
+                ).style("background: var(--surface-hover)"):
+                    pass
 
 
 def _weekday_bars() -> None:
@@ -171,8 +171,49 @@ def _resource_section(resource_type: str) -> None:
         _resource_heatmap()
 
 
-def build_statistics_tab():
+def build_statistics_tab(
+        on_load_schedule: Callable[[], None]
+):
     """Build the Statistics tab and return the unscheduled courses container."""
+
+    # ---------------------------------------------------------
+    # Schedule controls
+    # ---------------------------------------------------------
+
+    with surface_card(
+        "Schedule",
+        "Choose which schedule you want to analyze.",
+    ), ui.row().classes(
+        "w-full items-center gap-3"
+    ):
+        schedule_options = schedule_controller.schedule_options()
+
+        schedule_select = ui.select(
+            options=schedule_options,
+            label="Selected Schedule",
+            value=(
+                schedule_controller.selected_index
+                if schedule_controller.selected_index in schedule_options
+                else None
+            ),
+        ).classes("flex-grow").props("outlined")
+
+        ui.button(
+            "Load Schedule",
+            icon="upload_file",
+            on_click=on_load_schedule,
+        ).props("outline").classes(
+            "h-14 px-5"
+        )
+
+    def on_schedule_change(event) -> None:
+        if event.value is None:
+            return
+
+        schedule_controller.select(event.value)
+        refresh_statistics()
+
+    schedule_select.on_value_change(on_schedule_change)
 
     # ---------------------------------------------------------
     # Schedule Overview
@@ -348,34 +389,45 @@ def build_statistics_tab():
     # Unscheduled Courses
     # ---------------------------------------------------------
 
-    with ui.column().classes("w-full") as unscheduled_card:
-        with surface_card(
-            "Unscheduled Courses",
-            "Courses from the configuration that were not assigned.",
-        ):
-            _placeholder_table([
-                {
-                    "name": "course",
-                    "label": "Course",
-                    "field": "course",
-                    "align": "left",
-                },
-                {
-                    "name": "section",
-                    "label": "Section",
-                    "field": "section",
-                    "align": "left",
-                },
-                {
-                    "name": "reason",
-                    "label": "Reason",
-                    "field": "reason",
-                    "align": "left",
-                },
-            ])
+    with ui.column().classes("w-full") as unscheduled_card, surface_card(
+        "Unscheduled Courses",
+        "Courses from the configuration that were not assigned.",
+    ):
+        _placeholder_table([
+            {
+                "name": "course",
+                "label": "Course",
+                "field": "course",
+                "align": "left",
+            },
+            {
+                "name": "section",
+                "label": "Section",
+                "field": "section",
+                "align": "left",
+            },
+            {
+                "name": "reason",
+                "label": "Reason",
+                "field": "reason",
+                "align": "left",
+            },
+        ])
 
-            ui.label(
-                "Unscheduled course information will appear here."
-            ).classes("text-xs").style("color: var(--text-muted)")
+        ui.label(
+            "Unscheduled course information will appear here."
+        ).classes("text-xs").style("color: var(--text-muted)")
 
-    return unscheduled_card
+    def refresh_statistics() -> None:
+        """Update the Statistics schedule selector."""
+        options = schedule_controller.schedule_options()
+        schedule_select.options = options
+
+        if options:
+            schedule_select.value = schedule_controller.selected_index
+        else:
+            schedule_select.value = None
+
+        schedule_select.update()
+
+    return unscheduled_card, refresh_statistics
