@@ -56,6 +56,7 @@ def scheduler_ai_assistant(
     controller: ConfigurationController,
     refresh_configuration: Callable[..., None],
     configuration_is_saved: Callable[[], bool],
+    download_configuration: Callable[[str], str],
 ) -> Callable[[str, str], None]:
     state: dict[str, Any] = {
         "config": None,
@@ -204,13 +205,13 @@ def scheduler_ai_assistant(
             save_error = None
             if not failed_actions and pending_save_names:
                 try:
-                    controller.save_configuration(pending_save_names[-1])
+                    download_configuration(pending_save_names[-1])
                     saved_during_request = True
                 except (ConfigValidationError, OSError, ValueError) as exc:
                     save_error = exc
                     failed_actions.append(
                         {
-                            "message": f"Configuration was not saved: {exc}",
+                            "message": f"Configuration was not downloaded: {exc}",
                             "success": False,
                         }
                     )
@@ -226,7 +227,7 @@ def scheduler_ai_assistant(
                     "was restored to its state before the request."
                 )
                 if save_error is not None:
-                    response += "\nThe existing saved file was not changed."
+                    response += "\nNo configuration file was downloaded."
             else:
                 response = next(
                     (
@@ -238,7 +239,7 @@ def scheduler_ai_assistant(
                 )
                 if accepted_mutations:
                     if saved_during_request:
-                        response += "\nConfiguration changes are applied and saved to disk."
+                        response += "\nConfiguration changes are applied and downloaded."
                     else:
                         response += (
                             "\nConfiguration changes are applied in the Configuration "
@@ -246,7 +247,7 @@ def scheduler_ai_assistant(
                         )
                     refresh_configuration(saved=saved_during_request)
                 elif saved_during_request:
-                    response += "\nThe configuration was saved to disk."
+                    response += "\nA configuration copy was downloaded."
                     refresh_configuration(saved=True)
             state["history"] = result["messages"]
             state["messages"][-1] = ("assistant", response)

@@ -8,7 +8,11 @@ from collections.abc import Callable
 from nicegui import ui
 
 from src.views.ai_assistant import scheduler_ai_assistant
-from src.views.configuration_editor import configuration_editor, controller
+from src.views.configuration_editor import (
+    ConfigurationEditorRefresh,
+    configuration_editor,
+    controller,
+)
 from src.views.schedule_generator import schedule_generator
 from src.views.schedule_viewer import schedule_viewer
 from src.views.theme import Theme, ThemeComposite, ThemeLeaf
@@ -343,7 +347,7 @@ def build_app() -> None:
             ui.tab("viewer", label="Schedule Viewer", icon="calendar_view_week")
         tabs.value = "configuration"
 
-        editor_refresh: Callable[[], None]
+        editor_refresh: ConfigurationEditorRefresh
         viewer_refresh: Callable[[], None]
         unlock_assistant: Callable[[str, str], None] = lambda _name, _emoji: None
         active_tab = {"value": "configuration"}
@@ -418,7 +422,12 @@ def build_app() -> None:
 
         tabs.on_value_change(on_tab_change)
 
-    unlock_assistant = scheduler_ai_assistant(controller, editor_refresh, editor_is_saved)
+    unlock_assistant = scheduler_ai_assistant(
+        controller,
+        editor_refresh,
+        editor_is_saved,
+        editor_refresh.download_for_ai,
+    )
 
 
 def main() -> None:

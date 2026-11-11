@@ -51,9 +51,11 @@ class ConfigurationEditorRefresh:
         self,
         refresh: Callable[..., None],
         is_saved: Callable[[], bool],
+        download_for_ai: Callable[[str], str],
     ) -> None:
         self._refresh = refresh
         self.is_saved = is_saved
+        self.download_for_ai = download_for_ai
 
     def __call__(self, *, saved: bool = False) -> None:
         self._refresh(saved=saved)
@@ -400,6 +402,18 @@ def configuration_editor(
         ui.download(content, filename=file_name, media_type=media_type)
         set_saved_status(True)
         return file_name
+
+    def download_configuration_for_ai(file_name: str) -> str:
+        if state["config"] is None:
+            raise ValueError("No configuration is open to save.")
+        file_name = file_name.strip()
+        if not file_name:
+            raise ValueError("Enter a file name.")
+        if "/" in file_name or "\\" in file_name:
+            raise ValueError("Enter a file name without a folder path.")
+        if not state["flush_pending_settings"]():
+            raise ValueError("Pending global settings could not be applied.")
+        return download_configuration(file_name)
 
     def save_current_config() -> None:
         if state["config"] is None:
@@ -761,4 +775,5 @@ def configuration_editor(
     return ConfigurationEditorRefresh(
         refresh_after_ai_change,
         lambda: state["config"] is None or (bool(state["saved"]) and not state["pending_forms"]),
+        download_configuration_for_ai,
     )

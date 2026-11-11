@@ -47,6 +47,9 @@ def test_leaving_configuration_tab_requires_confirmation(
             def is_saved(self):
                 return saved["value"]
 
+            def download_for_ai(self, _file_name):
+                return "demo"
+
         return FakeRefresh()
 
     monkeypatch.setattr(app_gui, "configuration_editor", fake_configuration_editor)

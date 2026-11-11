@@ -197,6 +197,25 @@ def test_save_and_load_downloads_json_then_opens_upload(editor_controller, monke
     run_editor_simulation(action)
 
 
+def test_ai_save_callback_flushes_pending_global_settings_and_downloads(
+    editor_controller,
+):
+    async def action(user, refresh):
+        await load_demo_config(user, editor_controller)
+        user.find("Global settings").click()
+        user.find(kind=ui.number, content="Generation limit").clear().type("25")
+
+        assert refresh.download_for_ai("AI copy") == "AI copy.json"
+        download = await user.download.next()
+
+        assert download.status_code == 200
+        assert json.loads(download.content)["limit"] == 25
+        assert editor_controller.configuration.limit == 25
+        assert refresh.is_saved()
+
+    run_editor_simulation(action)
+
+
 @pytest.mark.parametrize("suffix", ["json", "JSON", "JsOn"])
 def test_uploaded_name_strips_json_suffix_before_saving(editor_controller, monkeypatch, suffix):
     content = editor_controller.configuration.model_dump_json().encode()

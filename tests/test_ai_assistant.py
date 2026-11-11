@@ -26,6 +26,7 @@ def test_unlock_assistant_displays_combination_hat(combination_name, emoji):
                 ConfigurationController(),
                 lambda *_args, **_kwargs: None,
                 lambda: True,
+                lambda name: name,
             )
         )
 
@@ -48,6 +49,7 @@ def test_unlocking_another_combination_updates_the_hat():
                 ConfigurationController(),
                 lambda *_args, **_kwargs: None,
                 lambda: True,
+                lambda name: name,
             )
         )
 
