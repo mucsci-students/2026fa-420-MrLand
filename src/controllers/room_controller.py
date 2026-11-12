@@ -2,7 +2,7 @@
 
 Used by: GUI."""
 
-from src.controllers.room_operations_controller import (
+from src.controllers.room_value_operations import (
     add_room_from_values,
     delete_room_from_values,
     update_room_from_values,

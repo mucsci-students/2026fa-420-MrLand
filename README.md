@@ -541,11 +541,38 @@ The application uses an MVC organization and includes Strategy, Memento, Composi
 
 The application follows MVC package organization: configuration and schedule state are in `models`, application coordination is in `controllers`, and NiceGUI pages/components are in `views`. AI agent setup and tool definitions are grouped in `src/ai/`.
 
-### Controller boundaries
+## Sprint 4 Technical Debt Reduction
 
-- Configuration files are listed and loaded through the shared repository in `src/models/configuration_repository.py`, so GUI behavior does not depend on the process working directory. Repository access errors are surfaced rather than presented as an empty list.
-- Uploaded configurations are parsed and validated by `ConfigService.load_uploaded`.
-- GUI Course and Faculty edits use non-interactive, value-based controller operations. Their legacy prompt-and-print workflows live in `course_cli_controller.py` and `faculty_cli_controller.py`; the old operation modules re-export those functions for compatibility.
+The following changes address existing maintainability issues. Refactors preserve the supported workflows; malformed schedule files and schedule-directory access failures now produce explicit errors rather than being silently accepted or hidden.
+
+### 1. Separate interactive CRUD from GUI/AI operations
+
+- **Original problem and location:** The Room, Lab, Class Pattern, and Time Block operation modules mixed terminal prompts and printing with value-based CRUD functions called by the GUI. Weekday and integer prompting was also implemented separately in the Class Pattern and Time Block modules.
+- **Why it was debt:** A single module had multiple interaction boundaries, making GUI behavior harder to isolate and inviting repeated input validation. The GUI and AI need callable operations that do not depend on terminal input.
+- **Improvement:** Value-based CRUD now lives in `room_value_operations.py`, `lab_value_operations.py`, `class_pattern_value_operations.py`, and `time_block_value_operations.py`. GUI controllers call those modules directly. Legacy operation modules retain their interactive functions and re-export the value operations to preserve existing imports. Shared weekday and integer prompts are in `cli_input.py`. GUI and AI continue to use the same application controllers, such as `RoomController`, `LabController`, `ClassPatternController`, and `TimeBlockController`.
+- **Behavior evidence:** The existing Room, Lab, Class Pattern, and Time Block tests still exercise the terminal flows and value-based CRUD. The complete test suite passes, including configuration-editor and AI tests.
+
+### 2. Make schedule file handling report invalid data and I/O failures
+
+- **Original problem and location:** `parse_schedule_file` in `src/models/schedule_files.py` silently discarded non-object records and entries without a course name. `ScheduleViewerModel.list_saved_files` in `src/models/schedule_viewer_model.py` converted every directory `OSError` into an empty list.
+- **Why it was debt:** A partially malformed upload could look like a successful import with missing courses, and permission or path failures could look like there were no saved schedules. Both hid actionable failures from users.
+- **Improvement:** Schedule parsing now rejects malformed entries with a position-specific `ValueError`. Schedule listing raises a contextual `OSError`; the controller and export UI surface that failure instead of treating it as success.
+- **Behavior evidence:** Regression tests verify malformed uploads are rejected without adding an entry, ordinary schedule names remain naturally sorted, and valid schedule export/serialization behavior is unchanged. Export tests also verify directory failures are returned as errors.
+
+### 3. Give calendar rendering and configuration history focused responsibilities
+
+- **Original problem and location:** `ScheduleCalendarView` combined weekly layout/rendering with a sizeable meeting-details dialog. `configuration_editor` in `src/views/configuration_editor.py` owned both NiceGUI callbacks and the undo/redo stacks and their snapshot operations.
+- **Why it was debt:** UI layout and dialog behavior were difficult to navigate independently, while history state transitions were embedded among editor rendering and event handling.
+- **Improvement:** The meeting-details dialog is in `schedule_calendar_details.py`, with shared calendar types in `schedule_calendar_types.py`; the calendar keeps its existing `_show_details` method as a delegating wrapper. Undo/redo bookkeeping is encapsulated in `ConfigurationHistory`, while the editor remains responsible for UI refreshes and notifications.
+- **Behavior evidence:** Calendar time/layout tests and the configuration-editor test for AI edits followed by undo and redo pass. The full suite passes after the extraction.
+
+### Validation
+
+- `uv run pytest`: **519 passed**
+- `uv run ruff check src tests`: passed
+- `uv run ruff format --check src tests`: passed
+- `uv run ty check`: passed
+- `git diff --check`: passed
 
 ---
 

@@ -10,27 +10,21 @@ from scheduler.config import (
     TimeSlotConfig,
 )
 
+from src.controllers.cli_input import get_integer as _get_integer
+from src.controllers.cli_input import get_weekday
+
 
 def get_day():
     """Get a valid Day from the user."""
-    day_input = input("Enter day (MON, TUE, WED, THU, FRI): ").strip().upper()
-
-    valid_days = ("MON", "TUE", "WED", "THU", "FRI")
-
-    if day_input not in valid_days:
-        print("Invalid day. Please enter MON, TUE, WED, THU, or FRI.")
-        return None
-
-    return day_input
+    return get_weekday(
+        "Enter day (MON, TUE, WED, THU, FRI): ",
+        "Invalid day. Please enter MON, TUE, WED, THU, or FRI.",
+    )
 
 
 def get_integer(prompt):
     """Get a valid integer from the user."""
-    while True:
-        try:
-            return int(input(prompt).strip())
-        except ValueError:
-            print("Please enter a valid number.")
+    return _get_integer(prompt)
 
 
 def get_delivery_mode():
@@ -45,61 +39,6 @@ def get_delivery_mode():
 
     print("Invalid delivery mode.")
     return None
-
-
-def _build_class_pattern_from_values(
-    patterns, credits, meetings, disabled, start_time, exclude=None
-):
-    if isinstance(credits, bool) or not isinstance(credits, int) or credits <= 0:
-        raise ValueError("Credits must be a positive integer.")
-
-    validated_meetings = [
-        meeting if isinstance(meeting, Meeting) else Meeting(**meeting) for meeting in meetings
-    ]
-    start_time = start_time.strip() if start_time and start_time.strip() else None
-    return ClassPattern(
-        credits=credits,
-        meetings=validated_meetings,
-        disabled=disabled,
-        start_time=start_time,
-    )
-
-
-def add_class_pattern_from_values(patterns, credits, meetings, disabled=False, start_time=None):
-    """Validate and append a class pattern supplied by a non-interactive caller."""
-    pattern = _build_class_pattern_from_values(patterns, credits, meetings, disabled, start_time)
-    patterns.append(pattern)
-    return pattern
-
-
-def update_class_pattern_from_values(
-    patterns, existing_pattern, credits, meetings, disabled=False, start_time=None
-):
-    """Replace a class pattern after validating all replacement values."""
-    try:
-        index = next(i for i, pattern in enumerate(patterns) if pattern is existing_pattern)
-    except StopIteration as exc:
-        raise ValueError("Class pattern no longer exists.") from exc
-
-    updated_pattern = _build_class_pattern_from_values(
-        patterns,
-        credits,
-        meetings,
-        disabled,
-        start_time,
-        exclude=existing_pattern,
-    )
-    patterns[index] = updated_pattern
-    return updated_pattern
-
-
-def delete_class_pattern_from_values(patterns, pattern_to_delete):
-    """Remove and return a selected class pattern by object identity."""
-    try:
-        index = next(i for i, pattern in enumerate(patterns) if pattern is pattern_to_delete)
-    except StopIteration as exc:
-        raise ValueError("Class pattern no longer exists.") from exc
-    return patterns.pop(index)
 
 
 def create_meeting():
@@ -390,3 +329,17 @@ def delete_meeting(time_slot_config: TimeSlotConfig):
     pattern.meetings.pop(index)
 
     print("Meeting deleted successfully.")
+
+
+from src.controllers.class_pattern_value_operations import (
+    _build_class_pattern_from_values as _build_class_pattern_from_values,  # noqa: PLC0414
+)
+from src.controllers.class_pattern_value_operations import (
+    add_class_pattern_from_values as add_class_pattern_from_values,  # noqa: PLC0414
+)
+from src.controllers.class_pattern_value_operations import (
+    delete_class_pattern_from_values as delete_class_pattern_from_values,  # noqa: PLC0414
+)
+from src.controllers.class_pattern_value_operations import (
+    update_class_pattern_from_values as update_class_pattern_from_values,  # noqa: PLC0414
+)
