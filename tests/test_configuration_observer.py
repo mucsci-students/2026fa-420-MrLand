@@ -5,6 +5,7 @@ from src.models.configuration_observer import (
     ConfigurationRelationshipObserver,
     ConfigurationSubject,
     EntityChangeEvent,
+    capture_entity_snapshot,
     publish_entity_changes,
 )
 from tests.test_configuration import make_valid_config
@@ -40,7 +41,7 @@ def test_renaming_faculty_room_and_lab_updates_all_link_fields():
 
 def test_publishing_configuration_changes_updates_subscribed_observer():
     config = make_valid_config()
-    previous = config.model_copy(deep=True)
+    previous = capture_entity_snapshot(config)
     subject = create_subject(config)
 
     config.config.faculty[0].name = "Dr. Jones"
@@ -52,7 +53,7 @@ def test_publishing_configuration_changes_updates_subscribed_observer():
 def test_publishing_detects_renames_after_reordering_entities():
     config = make_valid_config()
     config.config.faculty.append(config.config.faculty[0].model_copy(update={"name": "Dr. Jones"}))
-    previous = config.model_copy(deep=True)
+    previous = capture_entity_snapshot(config)
     subject = create_subject(config)
 
     config.config.faculty.reverse()
@@ -71,7 +72,7 @@ def test_publishing_reports_additions_without_misclassifying_existing_entities()
             self.events.append(event)
 
     config = make_valid_config()
-    previous = config.model_copy(deep=True)
+    previous = capture_entity_snapshot(config)
     subject = ConfigurationSubject()
     recorder = Recorder()
     subject.subscribe(recorder)
@@ -91,7 +92,7 @@ def test_publishing_reports_entity_deletions():
             self.events.append(event)
 
     config = make_valid_config()
-    previous = config.model_copy(deep=True)
+    previous = capture_entity_snapshot(config)
     subject = ConfigurationSubject()
     recorder = Recorder()
     subject.subscribe(recorder)
@@ -114,7 +115,7 @@ def test_publishing_distinguishes_replacement_from_rename():
     config.config.rooms.append(
         config.config.rooms[0].model_copy(update={"name": "Room 202", "capacity": 40})
     )
-    previous = config.model_copy(deep=True)
+    previous = capture_entity_snapshot(config)
     subject = ConfigurationSubject()
     recorder = Recorder()
     subject.subscribe(recorder)
@@ -140,7 +141,7 @@ def test_publishing_ignores_reordering_only():
     config = make_valid_config()
     config.config.rooms.append(config.config.rooms[0].model_copy(update={"name": "Room 202"}))
     config.config.faculty.append(config.config.faculty[0].model_copy(update={"name": "Dr. Jones"}))
-    previous = config.model_copy(deep=True)
+    previous = capture_entity_snapshot(config)
     subject = ConfigurationSubject()
     recorder = Recorder()
     subject.subscribe(recorder)
@@ -161,7 +162,7 @@ def test_publishing_detects_rename_with_other_fields_changed():
             self.events.append(event)
 
     config = make_valid_config()
-    previous = config.model_copy(deep=True)
+    previous = capture_entity_snapshot(config)
     subject = ConfigurationSubject()
     recorder = Recorder()
     subject.subscribe(recorder)
@@ -275,6 +276,7 @@ def test_subject_subscribes_and_unsubscribes_observers():
     subject.subscribe(observer)
     subject.subscribe(observer)
     subject.notify(event)
+    subject.unsubscribe(observer)
     subject.unsubscribe(observer)
     subject.notify(event)
 

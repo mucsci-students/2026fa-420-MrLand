@@ -87,10 +87,8 @@ def update_faculty_from_values(
     mandatory_days,
 ):
     """Replace a faculty member after validating all replacement values."""
-    try:
-        index = next(i for i, member in enumerate(faculty_members) if member is existing_member)
-    except StopIteration as exc:
-        raise ValueError("Faculty member no longer exists.") from exc
+    if not any(member is existing_member for member in faculty_members):
+        raise ValueError("Faculty member no longer exists.")
 
     updated_member = _build_faculty_from_values(
         faculty_members,
@@ -106,8 +104,17 @@ def update_faculty_from_values(
         mandatory_days,
         exclude=existing_member,
     )
-    faculty_members[index] = updated_member
-    return updated_member
+    existing_member.name = updated_member.name
+    existing_member.maximum_credits = updated_member.maximum_credits
+    existing_member.minimum_credits = updated_member.minimum_credits
+    existing_member.unique_course_limit = updated_member.unique_course_limit
+    existing_member.times = updated_member.times
+    existing_member.maximum_days = updated_member.maximum_days
+    existing_member.course_preferences = updated_member.course_preferences
+    existing_member.room_preferences = updated_member.room_preferences
+    existing_member.lab_preferences = updated_member.lab_preferences
+    existing_member.mandatory_days = updated_member.mandatory_days
+    return existing_member
 
 
 def delete_faculty_from_values(faculty_members, member_to_delete):

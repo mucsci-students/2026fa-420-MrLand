@@ -101,12 +101,13 @@ def test_ai_update_uses_controller_observer_workflow():
         {
             "area": "faculty",
             "item_key": "Dr. Adrian",
-            "item": {"name": "Dr. Jones"},
+            "item": {"name": "Dr. Jones", "maximum_credits": 10},
         }
     )
 
     assert result["success"]
     assert config.config.faculty[0].name == "Dr. Jones"
+    assert config.config.faculty[0].maximum_credits == 10
     assert config.config.courses[0].faculty == ["Dr. Jones"]
 
 

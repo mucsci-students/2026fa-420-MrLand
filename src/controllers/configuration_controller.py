@@ -22,6 +22,7 @@ from src.models.configuration_model import (
 from src.models.configuration_observer import (
     ConfigurationRelationshipObserver,
     ConfigurationSubject,
+    capture_entity_snapshot,
     publish_entity_changes,
 )
 
@@ -191,6 +192,7 @@ class ConfigurationController:
                 raise ValueError("No configuration has been created or loaded.")
 
             configuration = self.configuration
+            previous_entities = capture_entity_snapshot(configuration)
             if self._observed_configuration is not configuration:
                 if self._relationship_observer is not None:
                     self._change_subject.unsubscribe(self._relationship_observer)
@@ -202,8 +204,8 @@ class ConfigurationController:
                 configuration,
                 mutation,
                 has_valid_baseline=self._has_valid_configuration,
-                after_mutation=lambda previous, current: publish_entity_changes(
-                    previous,
+                after_mutation=lambda _previous, current: publish_entity_changes(
+                    previous_entities,
                     current,
                     self._change_subject,
                 ),

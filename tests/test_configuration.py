@@ -666,6 +666,26 @@ def test_controller_rename_updates_relationships_in_transaction(controller, vali
     assert before.config.courses[0].faculty == ["Dr. Adrian"]
 
 
+def test_controller_switches_configuration_when_previous_observer_was_removed(
+    controller, valid_config
+):
+    controller.configuration = valid_config
+    controller.apply_change(lambda: None)
+    observer = controller._relationship_observer
+    assert observer is not None
+    controller._change_subject.unsubscribe(observer)
+
+    replacement = make_valid_config()
+    controller.configuration = replacement
+    accepted, problems = controller.apply_change(
+        lambda: setattr(replacement.config.faculty[0], "name", "Dr. Jones")
+    )
+
+    assert accepted
+    assert problems == []
+    assert replacement.config.courses[0].faculty == ["Dr. Jones"]
+
+
 def test_controller_observer_failure_rolls_back_entity_and_relationship_changes(
     controller, valid_config
 ):

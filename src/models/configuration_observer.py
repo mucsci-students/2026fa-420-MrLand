@@ -1,9 +1,6 @@
 """Observer-based propagation of configuration entity changes."""
 
-import json
-from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from functools import partial
 from typing import Any, Literal, Protocol, overload
 
 from scheduler.config import CombinedConfig
@@ -18,6 +15,20 @@ class EntityChangeEvent:
     action: ChangeAction
     old_name: str | None = None
     new_name: str | None = None
+
+
+@dataclass(frozen=True)
+class EntityIdentity:
+    entity: Any
+    name: str
+
+
+@dataclass(frozen=True)
+class ConfigurationEntitySnapshot:
+    faculty: tuple[EntityIdentity, ...]
+    rooms: tuple[EntityIdentity, ...]
+    labs: tuple[EntityIdentity, ...]
+    courses: tuple[EntityIdentity, ...]
 
 
 class ConfigurationObserver(Protocol):
@@ -35,7 +46,8 @@ class ConfigurationSubject:
             self._observers.append(observer)
 
     def unsubscribe(self, observer: ConfigurationObserver) -> None:
-        self._observers.remove(observer)
+        if observer in self._observers:
+            self._observers.remove(observer)
 
     def notify(self, event: EntityChangeEvent) -> None:
         for observer in tuple(self._observers):
@@ -164,151 +176,39 @@ class ConfigurationRelationshipObserver:
             faculty.course_preferences = _remove_mapping_key(faculty.course_preferences, old_key)
 
 
+def capture_entity_snapshot(config: CombinedConfig) -> ConfigurationEntitySnapshot:
+    return ConfigurationEntitySnapshot(
+        faculty=tuple(EntityIdentity(item, item.name) for item in config.config.faculty),
+        rooms=tuple(EntityIdentity(item, item.name) for item in config.config.rooms),
+        labs=tuple(EntityIdentity(item, item.name) for item in config.config.labs),
+        courses=tuple(EntityIdentity(item, item.course_id) for item in config.config.courses),
+    )
+
+
 def publish_entity_changes(
-    previous: CombinedConfig,
+    previous: ConfigurationEntitySnapshot,
     current: CombinedConfig,
     subject: ConfigurationSubject,
 ) -> None:
-    """Publish entity additions, renames, and deletions detected across one edit."""
-    for entity_type, collection_name, name_attribute in (
-        ("faculty", "faculty", "name"),
-        ("room", "rooms", "name"),
-        ("lab", "labs", "name"),
-        ("course", "courses", "course_id"),
+    """Publish entity changes using the identities captured before an edit."""
+    for entity_type, old_entities, new_entities, name_attribute in (
+        ("faculty", previous.faculty, current.config.faculty, "name"),
+        ("room", previous.rooms, current.config.rooms, "name"),
+        ("lab", previous.labs, current.config.labs, "name"),
+        ("course", previous.courses, current.config.courses, "course_id"),
     ):
-        old_entities = getattr(previous.config, collection_name)
-        new_entities = getattr(current.config, collection_name)
-        old_remaining = set(range(len(old_entities)))
-        new_remaining = set(range(len(new_entities)))
-        renames: list[tuple[str, str]] = []
-
-        renames.extend(
-            _match_entities(
-                old_entities,
-                new_entities,
-                old_remaining,
-                new_remaining,
-                name_attribute,
-                _entity_signature,
-            )
-        )
-        renames.extend(
-            _match_entities(
-                old_entities,
-                new_entities,
-                old_remaining,
-                new_remaining,
-                name_attribute,
-                partial(_stable_entity_signature, name_attribute=name_attribute),
-            )
-        )
-        renames.extend(
-            _match_entities(
-                old_entities,
-                new_entities,
-                old_remaining,
-                new_remaining,
-                name_attribute,
-                partial(_entity_name_key, name_attribute=name_attribute),
-            )
-        )
-        if entity_type == "course":
-            renames.extend(
-                _match_entities(
-                    old_entities,
-                    new_entities,
-                    old_remaining,
-                    new_remaining,
-                    name_attribute,
-                    _course_section_key,
-                )
-            )
-        if (
-            len(old_remaining) == len(new_remaining) == 1
-            and len(old_entities) == len(new_entities)
-            and next(iter(old_remaining)) == next(iter(new_remaining))
-        ):
-            old_index = next(iter(old_remaining))
-            new_index = next(iter(new_remaining))
-            old_name = getattr(old_entities[old_index], name_attribute)
-            new_name = getattr(new_entities[new_index], name_attribute)
-            if old_name != new_name:
-                renames.append((old_name, new_name))
-            old_remaining.clear()
-            new_remaining.clear()
-
-        emitted_renames: set[tuple[str, str]] = set()
-        for old_name, new_name in renames:
-            rename_key = (_key(old_name), _key(new_name))
-            if rename_key not in emitted_renames:
-                subject.notify(EntityChangeEvent(entity_type, "renamed", old_name, new_name))
-                emitted_renames.add(rename_key)
-
-        for index in sorted(old_remaining):
-            subject.notify(
-                EntityChangeEvent(
-                    entity_type,
-                    "deleted",
-                    getattr(old_entities[index], name_attribute),
-                )
-            )
-        for index in sorted(new_remaining):
-            subject.notify(
-                EntityChangeEvent(
-                    entity_type,
-                    "created",
-                    None,
-                    getattr(new_entities[index], name_attribute),
-                )
-            )
-
-
-def _match_entities(
-    old_entities: Sequence[Any],
-    new_entities: Sequence[Any],
-    old_remaining: set[int],
-    new_remaining: set[int],
-    name_attribute: str,
-    key: Callable[[Any], Any],
-) -> list[tuple[str, str]]:
-    old_by_key: dict[Any, list[int]] = {}
-    for index in sorted(old_remaining):
-        old_by_key.setdefault(key(old_entities[index]), []).append(index)
-    new_by_key: dict[Any, list[int]] = {}
-    for index in sorted(new_remaining):
-        new_by_key.setdefault(key(new_entities[index]), []).append(index)
-
-    renames = []
-    for value, old_indices in old_by_key.items():
-        new_indices = new_by_key.get(value, [])
-        for old_index, new_index in zip(old_indices, new_indices):
-            old_remaining.remove(old_index)
-            new_remaining.remove(new_index)
-            old_name = getattr(old_entities[old_index], name_attribute)
-            new_name = getattr(new_entities[new_index], name_attribute)
-            if old_name != new_name:
-                renames.append((old_name, new_name))
-    return renames
-
-
-def _entity_signature(entity: Any) -> str:
-    return json.dumps(entity.model_dump(mode="json"), sort_keys=True)
-
-
-def _stable_entity_signature(entity: Any, *, name_attribute: str) -> str:
-    payload = entity.model_dump(mode="json")
-    payload.pop(name_attribute)
-    return json.dumps(payload, sort_keys=True, separators=(",", ":"))
-
-
-def _entity_name_key(entity: Any, *, name_attribute: str) -> str:
-    return _key(getattr(entity, name_attribute))
-
-
-def _course_section_key(entity: Any) -> tuple[str, str | None] | tuple[str, int]:
-    if entity.section_id is None:
-        return "unidentified", id(entity)
-    return "section", entity.section_id
+        old_by_identity = {id(item.entity): item for item in old_entities}
+        current_ids = {id(item) for item in new_entities}
+        for item in old_entities:
+            if id(item.entity) not in current_ids:
+                subject.notify(EntityChangeEvent(entity_type, "deleted", item.name))
+        for entity in new_entities:
+            old_item = old_by_identity.get(id(entity))
+            new_name = getattr(entity, name_attribute)
+            if old_item is None:
+                subject.notify(EntityChangeEvent(entity_type, "created", None, new_name))
+            elif old_item.name != new_name:
+                subject.notify(EntityChangeEvent(entity_type, "renamed", old_item.name, new_name))
 
 
 def _key(value: str) -> str:
