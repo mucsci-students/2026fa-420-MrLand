@@ -543,23 +543,29 @@ The application follows MVC package organization: configuration and schedule sta
 
 ## Sprint 4 Technical Debt Reduction
 
-The following changes address existing maintainability issues. Refactors preserve the supported workflows; malformed schedule files and schedule-directory access failures now produce explicit errors rather than being silently accepted or hidden.
 
 ### 1. Separate interactive CRUD from GUI/AI operations
 
-- **Original problem and location:** The Room, Lab, Class Pattern, and Time Block operation modules mixed terminal prompts and printing with value-based CRUD functions called by the GUI. Weekday and integer prompting was also implemented separately in the Class Pattern and Time Block modules.
+- **Original problem and location:** The Course, Faculty, Room, Lab, Class Pattern, and Time Block operation modules mixed terminal prompts and printing with value-based CRUD functions called by the GUI. Weekday and integer prompting was also implemented separately in the Class Pattern and Time Block modules.
 - **Why it was debt:** A single module had multiple interaction boundaries, making GUI behavior harder to isolate and inviting repeated input validation. The GUI and AI need callable operations that do not depend on terminal input.
-- **Improvement:** Value-based CRUD now lives in `room_value_operations.py`, `lab_value_operations.py`, `class_pattern_value_operations.py`, and `time_block_value_operations.py`. GUI controllers call those modules directly. Legacy operation modules retain their interactive functions and re-export the value operations to preserve existing imports. Shared weekday and integer prompts are in `cli_input.py`. GUI and AI continue to use the same application controllers, such as `RoomController`, `LabController`, `ClassPatternController`, and `TimeBlockController`.
-- **Behavior evidence:** The existing Room, Lab, Class Pattern, and Time Block tests still exercise the terminal flows and value-based CRUD.
+- **Improvement:** Value-based CRUD is separated from interactive workflows for all six entities; the Room, Lab, Class Pattern, and Time Block value operations live in their dedicated `*_value_operations.py` modules. GUI controllers call value-based operations directly, while legacy operation modules retain interactive functions and re-export value operations to preserve existing imports. Shared weekday and integer prompts are in `cli_input.py`. GUI and AI continue to use the same application controllers, including `CourseController`, `FacultyController`, `RoomController`, `LabController`, `ClassPatternController`, and `TimeBlockController`.
+- **Behavior evidence:** Existing tests exercise terminal workflows and value-based CRUD for these entities; the full suite also covers the shared GUI/AI controller paths.
 
-### 2. Make schedule file handling report invalid data and I/O failures
+### 2. Centralize configuration listing and uploaded-file parsing
+
+- **Original problem and location:** Configuration listing and uploaded-configuration handling were split between editor/controller code and the configuration repository/service, including duplicate parsing logic and inconsistent ownership of the configuration directory.
+- **Why it was debt:** Duplicated parsing could diverge in validation behavior, while different path handling made it harder to know which directory the editor listed and loaded.
+- **Improvement:** Configuration names are listed through `ConfigService` and the repository's shared configuration directory. Uploaded JSON is parsed and validated by `ConfigService.load_uploaded`, reached through the configuration controller; the editor no longer maintains a second parser.
+- **Behavior evidence:** Configuration service/controller tests verify listing and repository behavior, and editor upload tests cover valid and invalid uploads, retry behavior, and replacement confirmation.
+
+### 3. Make schedule file handling report invalid data and I/O failures
 
 - **Original problem and location:** `parse_schedule_file` in `src/models/schedule_files.py` silently discarded non-object records and entries without a course name. `ScheduleViewerModel.list_saved_files` in `src/models/schedule_viewer_model.py` converted every directory `OSError` into an empty list.
 - **Why it was debt:** A partially malformed upload could look like a successful import with missing courses, and permission or path failures could look like there were no saved schedules. Both hid actionable failures from users.
 - **Improvement:** Schedule parsing now rejects malformed entries with a position-specific `ValueError`. Schedule listing raises a contextual `OSError`; the controller and export UI surface that failure instead of treating it as success.
 - **Behavior evidence:** Regression tests verify malformed uploads are rejected without adding an entry, ordinary schedule names remain naturally sorted, and valid schedule export/serialization behavior is unchanged. Export tests also verify directory failures are returned as errors.
 
-### 3. Give calendar rendering and configuration history focused responsibilities
+### 4. Give calendar rendering and configuration history focused responsibilities
 
 - **Original problem and location:** `ScheduleCalendarView` combined weekly layout/rendering with a sizeable meeting-details dialog. `configuration_editor` in `src/views/configuration_editor.py` owned both NiceGUI callbacks and the undo/redo stacks and their snapshot operations.
 - **Why it was debt:** UI layout and dialog behavior were difficult to navigate independently, while history state transitions were embedded among editor rendering and event handling.
