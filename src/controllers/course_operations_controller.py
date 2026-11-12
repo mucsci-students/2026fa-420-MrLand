@@ -436,10 +436,8 @@ def update_course_from_values(
     faculty,
 ):
     """Replace a course after validating its complete replacement values."""
-    try:
-        index = next(i for i, course in enumerate(course_members) if course is existing_course)
-    except StopIteration as exc:
-        raise ValueError("Course no longer exists.") from exc
+    if not any(course is existing_course for course in course_members):
+        raise ValueError("Course no longer exists.")
 
     updated_course = _build_course_from_values(
         course_members,
@@ -457,8 +455,19 @@ def update_course_from_values(
         faculty,
         exclude=existing_course,
     )
-    course_members[index] = updated_course
-    return updated_course
+    existing_course.course_id = updated_course.course_id
+    existing_course.section_id = updated_course.section_id
+    existing_course.credits = updated_course.credits
+    existing_course.capacity = updated_course.capacity
+    existing_course.modality = updated_course.modality
+    existing_course.room = updated_course.room
+    existing_course.lab = updated_course.lab
+    existing_course.required_room_features = updated_course.required_room_features
+    existing_course.required_lab_features = updated_course.required_lab_features
+    existing_course.reserve_room_during_lab = updated_course.reserve_room_during_lab
+    existing_course.conflicts = updated_course.conflicts
+    existing_course.faculty = updated_course.faculty
+    return existing_course
 
 
 def delete_course_from_values(course_members, course_to_delete):

@@ -172,15 +172,20 @@ def apply_configuration_change[T](
     mutation: Callable[[], T],
     *,
     has_valid_baseline: bool,
+    after_mutation: Callable[[CombinedConfig, CombinedConfig], None] | None = None,
 ) -> tuple[bool, list[ValidationProblem], T | None]:
     """Apply one edit and restore it when it invalidates a valid configuration.
 
     Incomplete new drafts may be edited until their first valid state. Every
     mutation is validated against the whole configuration before it is accepted.
+    The optional callback runs after the edit and before validation, within the
+    same rollback boundary.
     """
     previous_config = copy.deepcopy(config)
     try:
         result = mutation()
+        if after_mutation is not None:
+            after_mutation(previous_config, config)
         problems = validate_config(config)
     except Exception:
         _restore_config(config, previous_config)

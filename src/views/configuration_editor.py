@@ -347,7 +347,6 @@ def configuration_editor(
         class_patterns_list = (
             getattr(time_slot_config, "classes", []) if time_slot_config is not None else []
         )
-
         with ui.column().classes(panel_classes) as rooms_panel:
             rooms_gui(
                 rooms_list,
@@ -361,7 +360,7 @@ def configuration_editor(
                 on_pending_change=lambda pending: update_pending_form("faculty", pending),
             )
         with ui.column().classes(panel_classes) as courses_panel:
-            courses_gui(
+            refresh_course_list = courses_gui(
                 courses_list,
                 on_change=apply_config_change,
                 on_pending_change=lambda pending: update_pending_form("courses", pending),
@@ -415,6 +414,8 @@ def configuration_editor(
                 return
             for page_name, panel in panels.items():
                 panel.set_visibility(page_name == action)
+            if action == "Courses":
+                refresh_course_list()
 
             # Download the active draft through the browser.
             for index, (combination_name, combination, hat_emoji) in enumerate(PANEL_COMBINATIONS):

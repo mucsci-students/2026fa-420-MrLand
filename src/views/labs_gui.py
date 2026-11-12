@@ -3,6 +3,7 @@
 Used by: GUI."""
 
 from nicegui import ui
+from scheduler.config import LabConfig
 
 from src.controllers.lab_controller import LabController
 from src.views.common import (
@@ -93,7 +94,7 @@ def labs_gui(
         unrestricted.on_value_change(availability_changed)
         set_availability_enabled(False)
 
-        editing_lab = {"lab": None}
+        editing_lab: dict[str, LabConfig | None] = {"lab": None}
 
         # Validate and collect the current form values for the controller.
         def form_values():
@@ -160,9 +161,17 @@ def labs_gui(
 
         # Save edits to the lab currently being modified.
         def update_lab() -> None:
+            existing_lab = editing_lab["lab"]
+            if existing_lab is None:
+                ui.notify("Select a lab before applying changes.", type="negative")
+                return
             if not run_crud_mutation(
                 on_change,
-                lambda: controller.update_lab(labs, editing_lab["lab"], *form_values()),
+                lambda: controller.update_lab(
+                    labs,
+                    existing_lab,
+                    *form_values(),
+                ),
             ):
                 return
             reset_form()
@@ -268,4 +277,5 @@ def labs_gui(
                             "flat round dense"
                         ).tooltip("Delete lab")
 
+    refresh_labs()
     refresh_labs()

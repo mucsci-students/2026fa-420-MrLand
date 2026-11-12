@@ -168,16 +168,17 @@ def add_room_from_values(rooms, name, capacity, features, availability):
 
 def update_room_from_values(rooms, existing_room, name, capacity, features, availability):
     """Replace an existing room after validating all replacement values."""
-    try:
-        index = next(i for i, room in enumerate(rooms) if room is existing_room)
-    except StopIteration as exc:
-        raise ValueError("Room no longer exists.") from exc
+    if not any(room is existing_room for room in rooms):
+        raise ValueError("Room no longer exists.")
 
     updated_room = _build_room_from_values(
         rooms, name, capacity, features, availability, exclude=existing_room
     )
-    rooms[index] = updated_room
-    return updated_room
+    existing_room.name = updated_room.name
+    existing_room.capacity = updated_room.capacity
+    existing_room.features = updated_room.features
+    existing_room.times = updated_room.times
+    return existing_room
 
 
 def delete_room_from_values(rooms, room_to_delete):

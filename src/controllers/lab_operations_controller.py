@@ -46,16 +46,17 @@ def add_lab_from_values(labs, name, capacity, features, times):
 
 def update_lab_from_values(labs, existing_lab, name, capacity, features, times):
     """Replace a lab after validating all replacement values."""
-    try:
-        index = next(i for i, lab in enumerate(labs) if lab is existing_lab)
-    except StopIteration as exc:
-        raise ValueError("Lab no longer exists.") from exc
+    if not any(lab is existing_lab for lab in labs):
+        raise ValueError("Lab no longer exists.")
 
     updated_lab = _build_lab_from_values(
         labs, name, capacity, features, times, exclude=existing_lab
     )
-    labs[index] = updated_lab
-    return updated_lab
+    existing_lab.name = updated_lab.name
+    existing_lab.capacity = updated_lab.capacity
+    existing_lab.features = updated_lab.features
+    existing_lab.times = updated_lab.times
+    return existing_lab
 
 
 def delete_lab_from_values(labs, lab_to_delete):

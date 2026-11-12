@@ -8,6 +8,7 @@ from src.ai.scheduler_agent import SchedulerAgentState, get_tool_list
 from src.controllers.configuration_controller import ConfigurationController
 from src.models.configuration_model import ValidationProblem
 from src.views.configuration_editor import PANEL_COMBINATIONS
+from tests.test_configuration import make_valid_config
 
 
 def test_base_prompt_documents_tool_capabilities_and_behavior(monkeypatch):
@@ -86,7 +87,48 @@ def test_general_create_tool_edits_the_active_configuration_through_controller()
     assert tools["inspect_configuration"].invoke({"area": "rooms"})["data"][0]["name"] == "Room 101"
 
 
-def test_general_create_tool_rejects_case_insensitive_duplicate_names():
+def test_ai_update_uses_controller_observer_workflow():
+    controller = ConfigurationController()
+    controller.configuration = make_valid_config()
+    controller._has_valid_configuration = True
+    config = controller.configuration
+    tools = _tools(
+        SchedulerAgentState(config),
+        apply_change=controller.apply_change,
+    )
+
+    result = tools["update_configuration_item"].invoke(
+        {
+            "area": "faculty",
+            "item_key": "Dr. Adrian",
+            "item": {"name": "Dr. Jones", "maximum_credits": 10},
+        }
+    )
+
+    assert result["success"]
+    assert config.config.faculty[0].name == "Dr. Jones"
+    assert config.config.faculty[0].maximum_credits == 10
+    assert config.config.courses[0].faculty == ["Dr. Jones"]
+
+
+def test_ai_update_without_callback_uses_controller_observer_workflow():
+    config = make_valid_config()
+    tools = _tools(SchedulerAgentState(config))
+
+    result = tools["update_configuration_item"].invoke(
+        {
+            "area": "faculty",
+            "item_key": "Dr. Adrian",
+            "item": {"name": "Dr. Jones"},
+        }
+    )
+
+    assert result["success"]
+    assert config.config.faculty[0].name == "Dr. Jones"
+    assert config.config.courses[0].faculty == ["Dr. Jones"]
+
+
+def test_general_create_tool_preserves_case_sensitive_duplicate_checks():
     config = ConfigurationController().new_configuration()
     tools = _tools(SchedulerAgentState(config))
 

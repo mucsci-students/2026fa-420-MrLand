@@ -74,6 +74,27 @@ def test_multiple_panel_combinations_unlock_in_one_session(editor_controller):
     run_editor_simulation(action, on_unlock=on_unlock)
 
 
+def test_courses_panel_shows_relationship_updates_after_switching_panels(editor_controller):
+    async def action(user, _refresh):
+        await load_demo_config(user, editor_controller)
+        user.find("Faculty").click()
+        await user.should_see("Dr. Adrian")
+
+        course = editor_controller.configuration.config.courses[0]
+        accepted, problems = editor_controller.apply_change(
+            lambda: setattr(editor_controller.configuration.config.faculty[0], "name", "Dr. Jones")
+        )
+        assert accepted
+        assert problems == []
+        assert course.faculty == ["Dr. Jones"]
+
+        user.find("Courses").click()
+        await user.should_see("Faculty: Dr. Jones")
+        await user.should_not_see("Faculty: Dr. Adrian")
+
+    run_editor_simulation(action)
+
+
 async def load_demo_config(user, controller, mark_unsaved=None):
     content = controller.configuration.model_dump_json().encode()
     user.find("Load configuration").click()

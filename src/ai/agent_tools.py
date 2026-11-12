@@ -774,7 +774,7 @@ def get_tool_list(
     if apply_change is None:
         apply_change = ConfigurationController(state.config).apply_change
 
-    # Apply edits through the same validated controller path as GUI changes.
+    # Apply edits through the shared configuration controller workflow.
     def report(result: dict[str, Any]) -> dict[str, Any]:
         if on_tool_result is not None:
             on_tool_result(result)
