@@ -550,7 +550,7 @@ The following changes address existing maintainability issues. Refactors preserv
 - **Original problem and location:** The Room, Lab, Class Pattern, and Time Block operation modules mixed terminal prompts and printing with value-based CRUD functions called by the GUI. Weekday and integer prompting was also implemented separately in the Class Pattern and Time Block modules.
 - **Why it was debt:** A single module had multiple interaction boundaries, making GUI behavior harder to isolate and inviting repeated input validation. The GUI and AI need callable operations that do not depend on terminal input.
 - **Improvement:** Value-based CRUD now lives in `room_value_operations.py`, `lab_value_operations.py`, `class_pattern_value_operations.py`, and `time_block_value_operations.py`. GUI controllers call those modules directly. Legacy operation modules retain their interactive functions and re-export the value operations to preserve existing imports. Shared weekday and integer prompts are in `cli_input.py`. GUI and AI continue to use the same application controllers, such as `RoomController`, `LabController`, `ClassPatternController`, and `TimeBlockController`.
-- **Behavior evidence:** The existing Room, Lab, Class Pattern, and Time Block tests still exercise the terminal flows and value-based CRUD. The complete test suite passes, including configuration-editor and AI tests.
+- **Behavior evidence:** The existing Room, Lab, Class Pattern, and Time Block tests still exercise the terminal flows and value-based CRUD.
 
 ### 2. Make schedule file handling report invalid data and I/O failures
 
@@ -564,8 +564,7 @@ The following changes address existing maintainability issues. Refactors preserv
 - **Original problem and location:** `ScheduleCalendarView` combined weekly layout/rendering with a sizeable meeting-details dialog. `configuration_editor` in `src/views/configuration_editor.py` owned both NiceGUI callbacks and the undo/redo stacks and their snapshot operations.
 - **Why it was debt:** UI layout and dialog behavior were difficult to navigate independently, while history state transitions were embedded among editor rendering and event handling.
 - **Improvement:** The meeting-details dialog is in `schedule_calendar_details.py`, with shared calendar types in `schedule_calendar_types.py`; the calendar keeps its existing `_show_details` method as a delegating wrapper. Undo/redo bookkeeping is encapsulated in `ConfigurationHistory`, while the editor remains responsible for UI refreshes and notifications.
-- **Behavior evidence:** Calendar time/layout tests and the configuration-editor test for AI edits followed by undo and redo pass. The full suite passes after the extraction.
-
+- **Behavior evidence:** Calendar time/layout tests and the configuration-editor test for AI edits followed by undo and redo pass.
 ---
 
 ## Known Limitations
