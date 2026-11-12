@@ -541,6 +541,12 @@ The application uses an MVC organization and includes Strategy, Memento, Composi
 
 The application follows MVC package organization: configuration and schedule state are in `models`, application coordination is in `controllers`, and NiceGUI pages/components are in `views`. AI agent setup and tool definitions are grouped in `src/ai/`.
 
+### Controller boundaries
+
+- Configuration files are listed and loaded through the shared repository in `src/models/configuration_repository.py`, so GUI behavior does not depend on the process working directory. Repository access errors are surfaced rather than presented as an empty list.
+- Uploaded configurations are parsed and validated by `ConfigService.load_uploaded`.
+- GUI Course and Faculty edits use non-interactive, value-based controller operations. Their legacy prompt-and-print workflows live in `course_cli_controller.py` and `faculty_cli_controller.py`; the old operation modules re-export those functions for compatibility.
+
 ---
 
 ## Known Limitations
