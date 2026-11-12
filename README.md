@@ -566,14 +566,6 @@ The following changes address existing maintainability issues. Refactors preserv
 - **Improvement:** The meeting-details dialog is in `schedule_calendar_details.py`, with shared calendar types in `schedule_calendar_types.py`; the calendar keeps its existing `_show_details` method as a delegating wrapper. Undo/redo bookkeeping is encapsulated in `ConfigurationHistory`, while the editor remains responsible for UI refreshes and notifications.
 - **Behavior evidence:** Calendar time/layout tests and the configuration-editor test for AI edits followed by undo and redo pass. The full suite passes after the extraction.
 
-### Validation
-
-- `uv run pytest`: **519 passed**
-- `uv run ruff check src tests`: passed
-- `uv run ruff format --check src tests`: passed
-- `uv run ty check`: passed
-- `git diff --check`: passed
-
 ---
 
 ## Known Limitations
