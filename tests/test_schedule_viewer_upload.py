@@ -137,3 +137,12 @@ def test_upload_rejects_malformed_course_sections(tmp_path, records, message):
         model.load_bytes("schedule.json", json.dumps(records).encode("utf-8"))
 
     assert model.entries == []
+
+
+def test_upload_rejects_non_utf8_schedule_file(tmp_path):
+    model = ScheduleViewerModel(directory=tmp_path)
+
+    with pytest.raises(ValueError, match="The file is not UTF-8 text."):
+        model.load_bytes("schedule.csv", b"\xff")
+
+    assert model.entries == []
