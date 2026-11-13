@@ -103,10 +103,19 @@ def test_current_editor_configuration_disables_upload_and_generates(
 
             with active_client(user):
                 assert not load_button.enabled
+                limit_override_inputs = list(
+                    ElementFilter(
+                        kind=ui.input,
+                        content="Temporary Generation Limit Override",
+                    )
+                )
+                assert len(limit_override_inputs) == 1
+                limit_override_inputs[0].value = "25"
 
             user.find("Generate Schedules").click()
             assert generation_calls
             assert generation_calls[0][0] == "current configuration"
+            assert generation_calls[0][1] == "25"
             assert generation_calls[0][-1] is config
 
     asyncio.run(simulate())

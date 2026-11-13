@@ -1,13 +1,28 @@
 """Main Schedule Analysis page."""
 
-from collections.abc import Callable
-
 from nicegui import ui
 
 from src.controllers.schedule_controller import schedule_controller
 from src.views.schedule_analysis.comparison_tab import build_comparison_tab
 from src.views.schedule_analysis.statistics_tab import build_statistics_tab
 from src.views.schedule_analysis.what_if_tab import build_what_if_tab
+
+
+class ScheduleAnalysisRefresh:
+    """Refresh analysis data and expose the What-If navigation guard."""
+
+    def __init__(self, refresh, what_if_tab) -> None:
+        self._refresh = refresh
+        self.what_if_tab = what_if_tab
+
+    def __call__(self) -> None:
+        self._refresh()
+
+    def has_unsaved_what_if_changes(self) -> bool:
+        return self.what_if_tab.has_unsaved_changes()
+
+    def discard_what_if_changes(self) -> None:
+        self.what_if_tab.discard_changes()
 
 
 async def read_upload(event) -> tuple[str, bytes]:
@@ -18,7 +33,7 @@ async def read_upload(event) -> tuple[str, bytes]:
     return event.name, event.content.read()
 
 
-def schedule_analysis() -> Callable[[], None]:
+def schedule_analysis() -> ScheduleAnalysisRefresh:
     """Build the main Schedule Analysis page."""
 
     schedule_controller.sync_generated()
@@ -111,6 +126,8 @@ def schedule_analysis() -> Callable[[], None]:
 
         refresh_statistics()
         refresh_comparison()
+        what_if_tab.refresh_sources()
+        what_if_tab.refresh_original_schedule()
 
         current = schedule_controller.current
 
@@ -272,11 +289,60 @@ def schedule_analysis() -> Callable[[], None]:
                 refresh_comparison = build_comparison_tab(on_load_schedule=open_load_dialog)
 
             with ui.tab_panel("what-if"):
-                build_what_if_tab()
+                what_if_tab = build_what_if_tab()
+
+        active_analysis_tab = {"value": "statistics"}
+        pending_analysis_tab = {"value": None}
+
+        with (
+            ui.dialog() as what_if_leave_dialog,
+            ui.card().classes("border border-[#29404b] bg-[#182630]"),
+        ):
+            ui.label("Unsaved What-If Changes").classes("text-lg font-semibold text-white")
+            ui.label("What-If changes will be lost if you leave. Continue?").classes(
+                "text-sm text-[#9fb2b8]"
+            )
+            with ui.row().classes("mt-4 w-full justify-end gap-2"):
+                ui.button(
+                    "Stay",
+                    on_click=lambda: stay_in_what_if(),
+                ).props("flat")
+                ui.button(
+                    "Leave and discard",
+                    on_click=lambda: leave_what_if(),
+                ).props("unelevated color=negative")
+
+        def stay_in_what_if() -> None:
+            pending_analysis_tab["value"] = None
+            what_if_leave_dialog.close()
+            analysis_tabs.value = "what-if"
+            active_analysis_tab["value"] = "what-if"
+
+        def leave_what_if() -> None:
+            next_tab = pending_analysis_tab["value"]
+            pending_analysis_tab["value"] = None
+            what_if_leave_dialog.close()
+            what_if_tab.discard_changes()
+            if next_tab is not None:
+                active_analysis_tab["value"] = next_tab
+                analysis_tabs.value = next_tab
+
+        def on_analysis_tab_change(event) -> None:
+            next_tab = event.value
+            if next_tab == active_analysis_tab["value"]:
+                return
+            if active_analysis_tab["value"] == "what-if" and what_if_tab.has_unsaved_changes():
+                pending_analysis_tab["value"] = next_tab
+                analysis_tabs.value = "what-if"
+                what_if_leave_dialog.open()
+                return
+            active_analysis_tab["value"] = next_tab
+
+        analysis_tabs.on_value_change(on_analysis_tab_change)
 
     refresh_button.on_click(refresh)
     upload.on_upload(on_upload)
 
     refresh()
 
-    return refresh
+    return ScheduleAnalysisRefresh(refresh, what_if_tab)
