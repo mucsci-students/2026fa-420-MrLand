@@ -108,14 +108,16 @@ class WhatIfTab:
     def build(self) -> None:
         """Render the configuration source, editor, and comparison results."""
         self._config_loader = ConfigurationController()
-        self._current_schedule = schedule_controller.current
+        current_schedule = schedule_controller.current
+        self._current_schedule = current_schedule
         self._source_options: dict[str, str] = {}
-        self._current_editor_config = editor_controller.configuration
-        if self._current_editor_config is not None:
+        editor_config = editor_controller.configuration
+        self._current_editor_config = editor_config
+        if editor_config is not None:
             self._source_options["editor"] = "Current configuration editor draft"
-        if self._current_schedule is not None and self._current_schedule.config is not None:
+        if current_schedule is not None and current_schedule.config is not None:
             self._source_options["schedule"] = (
-                f"Current schedule configuration ({self._current_schedule.config_name})"
+                f"Current schedule configuration ({current_schedule.config_name})"
             )
         self._source_options.update(
             {
@@ -131,16 +133,20 @@ class WhatIfTab:
             else None
         )
         if self._initial_source is not None:
-            if self._initial_source == "editor":
+            if self._initial_source == "editor" and editor_config is not None:
                 self._set_session(
-                    self._current_editor_config,
+                    editor_config,
                     "Current editor configuration",
                     self._initial_source,
                 )
-            else:
+            elif (
+                self._initial_source == "schedule"
+                and current_schedule is not None
+                and current_schedule.config is not None
+            ):
                 self._set_session(
-                    self._current_schedule.config,
-                    f"Current schedule: {self._current_schedule.config_name}",
+                    current_schedule.config,
+                    f"Current schedule: {current_schedule.config_name}",
                     self._initial_source,
                 )
 
@@ -340,7 +346,7 @@ class WhatIfTab:
         )
         return True
 
-    @ui.refreshable
+    @ui.refreshable_method
     def _configuration_editor(self) -> None:
         if self._session is None:
             with surface_card(
