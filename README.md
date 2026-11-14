@@ -549,6 +549,36 @@ The application uses an MVC organization and includes Strategy, Memento, Composi
 
 The application follows MVC package organization: configuration and schedule state are in `models`, application coordination is in `controllers`, and NiceGUI pages/components are in `views`. AI agent setup and tool definitions are grouped in `src/ai/`.
 
+## Sprint 4 Technical Debt Reduction
+
+
+### 1. Separate interactive CRUD from GUI/AI operations
+
+- **Original problem and location:** The Course, Faculty, Room, Lab, Class Pattern, and Time Block modules mixed terminal questions and the messages with the add, edit, and delete operations used by the GUI. Some input prompts were also done multiple times.
+- **Why it was debt:** These modules were doing two jobs at once. That made GUI and AI behavior harder to work on without involving terminal input, and made it easier for validation to fail.
+- **Improvement:** The add, edit, and delete operations are now separate from the terminal prompts for all the different types. The GUI can call these operations directly, while the existing terminal and imports still work. Shared prompts for weekdays and numbers are in `cli_input.py`.
+- **Behavior evidence:** The tests cover both the terminal workflow and direct operations, including the shared ones used by the GUI and AI.
+
+### 2. Centralize configuration listing and uploaded-file parsing
+
+- **Original problem and location:** Different parts of the app handled listing configs and reading uploaded config files. Some of that work was duplicated, and they didn't always use the same folder.
+- **Why it was debt:** Duplicate parsing could lead to different validation results, and inconsistent folder handling made it hard to tell where configurations were being found / loaded from.
+- **Improvement:** `ConfigService` now handles listing config names and reading and validating the uploaded JSON, using the shared configuration folder. The editor doesn't have its own separate parser anymore.
+- **Behavior evidence:** Tests cover listing configurations and uploading valid or invalid files.
+
+### 3. Make the schedule file handling report invalid data and I/O failures
+
+- **Original problem and location:** `parse_schedule_file` in `src/models/schedule_files.py` could skip over bad schedule entries. `ScheduleViewerModel.list_saved_files` in `src/models/schedule_viewer_model.py` could treat file or folder access problems as if there were no saved schedules on disk.
+- **Why it was debt:** Users could get an incomplete schedule without knowing something was wrong, or could see an empty list instead of a concrete explanation when a file could not be accessed.
+- **Improvement:** The app now reports malformed schedule entries with their position in the file. It also reports schedule-folder access problems, and the controller and export UI show those errors instead of treating them as success.
+- **Behavior evidence:** Tests check that malformed uploads are rejected.
+
+### 4. Give calendar rendering and configuration history their own tasks
+
+- **Original problem and location:** `ScheduleCalendarView` handled both the calendar layout and the meeting details dialog. The config editor also handled the undo and redo history alongside its UI callbacks.
+- **Why it was debt:** It was harder to find and change one piece of behavior when the same files handled several tasks.
+- **Improvement:** The meeting-details dialog and shared calendar types now have their own files. Undo / redo tracking is handled by `ConfigurationHistory`, while the editor continues to handle the display and notifications.
+- **Behavior evidence:** Tests cover calendar layout and time behavior, as well as undoing / redoing an AI edit in the configuration editor.
 ---
 
 ## Known Limitations

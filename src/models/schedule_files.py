@@ -197,8 +197,16 @@ def parse_schedule_file(file_name: str, content: bytes) -> tuple[str, list[dict[
     else:
         raise ValueError("Only .csv and .json schedule files can be loaded.")
 
-    records = [_normalize_record(raw) for raw in raw_records if isinstance(raw, dict)]
-    records = [record for record in records if record["course"]]
+    records = []
+    for position, raw in enumerate(raw_records, start=1):
+        if not isinstance(raw, dict):
+            raise ValueError(  # noqa: TRY004 - malformed file content is a parse error for callers
+                f"Course section {position} must be a JSON object."
+            )
+        record = _normalize_record(raw)
+        if not record["course"]:
+            raise ValueError(f"Course section {position} is missing the course name.")
+        records.append(record)
     if not records:
         raise ValueError("The file does not contain any course sections.")
 

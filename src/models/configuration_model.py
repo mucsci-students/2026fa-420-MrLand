@@ -115,20 +115,6 @@ def _describe(config: CombinedConfig, loc: tuple) -> tuple[str, str | None, str]
     return "Whole configuration", None, ""
 
 
-def load_uploaded(self, content: bytes) -> CombinedConfig:
-    """Parse an uploaded JSON configuration."""
-    try:
-        config = CombinedConfig.model_validate_json(content)
-    except Exception as exc:
-        raise ValueError(f"Unable to load configuration: {exc}") from exc
-
-    problems = validate_config(config)
-    if problems:
-        raise ConfigValidationError(problems)
-
-    return config
-
-
 def validate_config(config: CombinedConfig) -> list[ValidationProblem]:
     """Check the whole configuration. Returns an empty list if it's valid.
 
@@ -217,8 +203,8 @@ class ConfigService:
     def list_names(self) -> list[str]:
         return list_configs()
 
-    # Parse and validate an uploaded JSON configuration
     def load_uploaded(self, content: bytes) -> CombinedConfig:
+        """Parse and validate an uploaded JSON configuration."""
         try:
             config = CombinedConfig.model_validate_json(content)
         except Exception as exc:

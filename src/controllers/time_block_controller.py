@@ -2,7 +2,7 @@
 
 Used by: GUI."""
 
-from src.controllers.time_block_operations_controller import (
+from src.controllers.time_block_value_operations import (
     add_time_block_from_values,
     delete_time_block_from_values,
     update_time_block_from_values,

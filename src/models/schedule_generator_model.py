@@ -3,15 +3,14 @@
 Used by: GUI."""
 
 import json
-import os
 import threading
 from dataclasses import dataclass, replace
 from typing import Any
 
 from scheduler.scheduler import Scheduler
 
-from src.models.configuration_model import config_exists, load_config
-from src.models.configuration_repository import ConfigLoadError
+from src.models.configuration_model import load_config
+from src.models.configuration_repository import ConfigLoadError, list_configs
 from src.models.schedule_files import records_from_result, records_to_csv
 from src.models.schedule_result import ScheduleResult
 
@@ -57,15 +56,8 @@ class ScheduleGeneratorModel:
             return True
 
     def list_config_names(self) -> list[str]:
-        config_directory = os.path.join("src", "configs")
-        try:
-            return sorted(
-                filename[:-5]
-                for filename in os.listdir(config_directory)
-                if filename.endswith(".json") and config_exists(filename[:-5])
-            )
-        except OSError:
-            return []
+        """List saved configurations from the shared, application-rooted repository."""
+        return list_configs()
 
     @staticmethod
     def load_config(config_name: str) -> Any:

@@ -1,4 +1,5 @@
 import asyncio
+import json
 from collections.abc import Callable
 from types import SimpleNamespace
 from typing import Any, cast
@@ -117,3 +118,31 @@ def test_cancel_pending_upload_preserves_schedule_and_allows_next_load(
             assert not load_dialog.value
 
     asyncio.run(simulate())
+
+
+@pytest.mark.parametrize(
+    ("records", "message"),
+    [
+        ([None], "Course section 1 must be a JSON object."),
+        (
+            [{"faculty": "Dr. Smith", "times": "MON 09:00-09:50"}],
+            "Course section 1 is missing the course name.",
+        ),
+    ],
+)
+def test_upload_rejects_malformed_course_sections(tmp_path, records, message):
+    model = ScheduleViewerModel(directory=tmp_path)
+
+    with pytest.raises(ValueError, match=message):
+        model.load_bytes("schedule.json", json.dumps(records).encode("utf-8"))
+
+    assert model.entries == []
+
+
+def test_upload_rejects_non_utf8_schedule_file(tmp_path):
+    model = ScheduleViewerModel(directory=tmp_path)
+
+    with pytest.raises(ValueError, match="The file is not UTF-8 text."):
+        model.load_bytes("schedule.csv", b"\xff")
+
+    assert model.entries == []

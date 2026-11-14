@@ -2,7 +2,7 @@
 
 Used by: GUI."""
 
-from src.controllers.class_pattern_operations_controller import (
+from src.controllers.class_pattern_value_operations import (
     add_class_pattern_from_values,
     delete_class_pattern_from_values,
     update_class_pattern_from_values,

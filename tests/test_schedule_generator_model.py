@@ -60,6 +60,27 @@ def patch_scheduler(monkeypatch):
     )
 
 
+def test_list_config_names_uses_shared_repository_outside_project_cwd(model, tmp_path, monkeypatch):
+    config_directory = tmp_path / "saved-configs"
+    config_directory.mkdir()
+    (config_directory / "beta.json").write_text("{}", encoding="utf-8")
+    (config_directory / "alpha.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr("src.models.configuration_repository.CONFIG_DIR", config_directory)
+    monkeypatch.chdir(tmp_path)
+
+    assert model.list_config_names() == ["alpha", "beta"]
+
+
+def test_list_config_names_does_not_hide_repository_errors(model, monkeypatch):
+    def fail_to_list():
+        raise PermissionError("configuration directory is not readable")
+
+    monkeypatch.setattr("src.models.schedule_generator_model.list_configs", fail_to_list)
+
+    with pytest.raises(PermissionError, match="not readable"):
+        model.list_config_names()
+
+
 class TestBeginGeneration:
     def test_enters_running_state(self, model):
         assert model.begin_generation("test-config", 3) is True
