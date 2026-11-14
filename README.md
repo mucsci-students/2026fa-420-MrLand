@@ -546,31 +546,31 @@ The application follows MVC package organization: configuration and schedule sta
 
 ### 1. Separate interactive CRUD from GUI/AI operations
 
-- **Original problem and location:** The Course, Faculty, Room, Lab, Class Pattern, and Time Block operation modules mixed terminal prompts and printing with value-based CRUD functions called by the GUI. Weekday and integer prompting was also implemented separately in the Class Pattern and Time Block modules.
-- **Why it was debt:** A single module had multiple interaction boundaries, making GUI behavior harder to isolate and inviting repeated input validation. The GUI and AI need callable operations that do not depend on terminal input.
-- **Improvement:** Value-based CRUD is separated from interactive workflows for all six entities; the Room, Lab, Class Pattern, and Time Block value operations live in their dedicated `*_value_operations.py` modules. GUI controllers call value-based operations directly, while legacy operation modules retain interactive functions and re-export value operations to preserve existing imports. Shared weekday and integer prompts are in `cli_input.py`. GUI and AI continue to use the same application controllers, including `CourseController`, `FacultyController`, `RoomController`, `LabController`, `ClassPatternController`, and `TimeBlockController`.
-- **Behavior evidence:** Existing tests exercise terminal workflows and value-based CRUD for these entities; the full suite also covers the shared GUI/AI controller paths.
+- **Original problem and location:** The Course, Faculty, Room, Lab, Class Pattern, and Time Block modules mixed terminal questions and the messages with the add, edit, and delete operations used by the GUI. Some input prompts were also duplicated.
+- **Why it was debt:** These modules were doing two jobs at once. That made GUI and AI behavior harder to work on without involving terminal input, and made it easier for validation to differ.
+- **Improvement:** The add, edit, and delete operations are now separate from the terminal prompts for all the different types. The GUI can call these operations directly, while the existing terminal and imports still work. Shared prompts for weekdays and numbers are in `cli_input.py`.
+- **Behavior evidence:** The tests cover both the terminal workflow and direct operations, including the shared ones used by the GUI and AI.
 
 ### 2. Centralize configuration listing and uploaded-file parsing
 
-- **Original problem and location:** Configuration listing and uploaded-configuration handling were split between editor/controller code and the configuration repository/service, including duplicate parsing logic and inconsistent ownership of the configuration directory.
-- **Why it was debt:** Duplicated parsing could diverge in validation behavior, while different path handling made it harder to know which directory the editor listed and loaded.
-- **Improvement:** Configuration names are listed through `ConfigService` and the repository's shared configuration directory. Uploaded JSON is parsed and validated by `ConfigService.load_uploaded`, reached through the configuration controller; the editor no longer maintains a second parser.
-- **Behavior evidence:** Configuration service/controller tests verify listing and repository behavior, and editor upload tests cover valid and invalid uploads, retry behavior, and replacement confirmation.
+- **Original problem and location:** Different parts of the app handled listing configs and reading uploaded config files. Some of that work was duplicated, and they didn't always use the same folder.
+- **Why it was debt:** Duplicate parsing could lead to different validation results, and inconsistent folder handling made it hard to tell where configurations were being found / loaded from.
+- **Improvement:** `ConfigService` now handles listing configuration names and reading and validating uploaded JSON, using the shared configuration folder. The editor doesn't have its own separate parser anymore.
+- **Behavior evidence:** Tests cover listing configurations and uploading valid or invalid files, including retries and confirming a replacement.
 
 ### 3. Make schedule file handling report invalid data and I/O failures
 
-- **Original problem and location:** `parse_schedule_file` in `src/models/schedule_files.py` silently discarded non-object records and entries without a course name. `ScheduleViewerModel.list_saved_files` in `src/models/schedule_viewer_model.py` converted every directory `OSError` into an empty list.
-- **Why it was debt:** A partially malformed upload could look like a successful import with missing courses, and permission or path failures could look like there were no saved schedules. Both hid actionable failures from users.
-- **Improvement:** Schedule parsing now rejects malformed entries with a position-specific `ValueError`. Schedule listing raises a contextual `OSError`; the controller and export UI surface that failure instead of treating it as success.
-- **Behavior evidence:** Regression tests verify malformed uploads are rejected without adding an entry, ordinary schedule names remain naturally sorted, and valid schedule export/serialization behavior is unchanged. Export tests also verify directory failures are returned as errors.
+- **Original problem and location:** `parse_schedule_file` in `src/models/schedule_files.py` could skip bad schedule entries. `ScheduleViewerModel.list_saved_files` in `src/models/schedule_viewer_model.py` could treat file or folder access problems as if there were no saved schedules.
+- **Why it was debt:** Users could get an incomplete schedule without knowing something was wrong, or could see an empty list instead of a concrete explanation when a file could not be accessed.
+- **Improvement:** The app now reports malformed schedule entries with their position in the file. It also reports schedule-folder access problems, and the controller and export UI show those errors instead of treating them as success.
+- **Behavior evidence:** Tests check that malformed uploads are rejected.
 
 ### 4. Give calendar rendering and configuration history focused responsibilities
 
-- **Original problem and location:** `ScheduleCalendarView` combined weekly layout/rendering with a sizeable meeting-details dialog. `configuration_editor` in `src/views/configuration_editor.py` owned both NiceGUI callbacks and the undo/redo stacks and their snapshot operations.
-- **Why it was debt:** UI layout and dialog behavior were difficult to navigate independently, while history state transitions were embedded among editor rendering and event handling.
-- **Improvement:** The meeting-details dialog is in `schedule_calendar_details.py`, with shared calendar types in `schedule_calendar_types.py`; the calendar keeps its existing `_show_details` method as a delegating wrapper. Undo/redo bookkeeping is encapsulated in `ConfigurationHistory`, while the editor remains responsible for UI refreshes and notifications.
-- **Behavior evidence:** Calendar time/layout tests and the configuration-editor test for AI edits followed by undo and redo pass.
+- **Original problem and location:** `ScheduleCalendarView` handled both the calendar layout and the meeting details dialog. The config editor also handled the undo and redo history alongside its UI callbacks.
+- **Why it was debt:** It was harder to find and change one piece of behavior when the same files handled several responsibilities.
+- **Improvement:** The meeting-details dialog and shared calendar types now have their own files. Undo and redo tracking is handled by `ConfigurationHistory`, while the editor continues to handle the display and notifications.
+- **Behavior evidence:** Tests cover calendar layout and time behavior, as well as undoing and redoing an AI edit in the configuration editor.
 ---
 
 ## Known Limitations
