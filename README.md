@@ -56,6 +56,14 @@ A floating **Scheduler AI Assistant** is available throughout the GUI. It can in
 - Export a selected schedule or all generated schedules in CSV or JSON.
 - Clear generated results without deleting schedules loaded from files.
 
+### What-If Analysis
+
+- Start from the active editor configuration, a generated schedule's configuration, a saved configuration, an uploaded JSON configuration, or a blank draft.
+- Edit the same configuration areas as the Configuration Editor without saving changes to disk.
+- Generate alternative schedules from a snapshot of the temporary configuration without clearing existing generated schedules.
+- Compare an alternative against the schedule currently selected in Schedule Analysis.
+- Confirm before leaving with temporary changes; choosing to leave discards the What-If edits and results.
+
 ### Scheduler AI Assistant
 
 - Open the floating chat assistant from the GUI.

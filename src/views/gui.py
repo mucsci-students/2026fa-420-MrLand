@@ -38,7 +38,11 @@ def build_app() -> None:
                         : 'dark';
             window.addEventListener('beforeunload', event => {
                 const status = document.getElementById('configuration-draft-status');
-                if (status?.textContent.trim() === 'Draft - not saved') {
+                const whatIfStatus = document.getElementById('what-if-draft-status');
+                if (
+                    status?.textContent.trim() === 'Draft - not saved'
+                    || whatIfStatus?.textContent.trim() === 'What-If changes will be lost'
+                ) {
                     event.preventDefault();
                     event.returnValue = '';
                 }
@@ -372,7 +376,7 @@ def build_app() -> None:
         unlock_assistant: Callable[[str, str], None] = lambda _name, _emoji: None
         active_tab = {"value": "configuration"}
         pending_tab = {"value": None}
-        rejected_tab = {"value": None}
+        navigation_reason = {"value": None}
 
         def request_assistant_unlock(combination_name: str, hat_emoji: str) -> None:
             unlock_assistant(combination_name, hat_emoji)
@@ -390,18 +394,31 @@ def build_app() -> None:
 
         def on_tab_change(event) -> None:
             next_tab = event.value
+            if pending_tab["value"] is not None:
+                return
             if next_tab == active_tab["value"]:
                 return
-            if next_tab == pending_tab["value"]:
-                return
-            if next_tab == rejected_tab["value"]:
-                rejected_tab["value"] = None
+            if active_tab["value"] == "configuration" and not editor_is_saved():
+                navigation_reason["value"] = "configuration"
+                pending_tab["value"] = next_tab
+                navigation_title.set_text("Unsaved configuration")
+                navigation_message.set_text(
+                    "Your configuration has unsaved changes. Leave this page without saving?"
+                )
+                stay_button.set_text("Stay in Configuration")
+                leave_button.set_text("Leave without saving")
+                unsaved_navigation_dialog.open()
                 tabs.value = configuration_tab
                 return
-            if active_tab["value"] == "configuration" and not editor_is_saved():
+            if active_tab["value"] == "analysis" and analysis_refresh.has_unsaved_what_if_changes():
+                navigation_reason["value"] = "what-if"
                 pending_tab["value"] = next_tab
-                rejected_tab["value"] = next_tab
+                navigation_title.set_text("Unsaved What-If changes")
+                navigation_message.set_text("What-If changes will be lost if you leave. Continue?")
+                stay_button.set_text("Stay in What-If")
+                leave_button.set_text("Leave and discard")
                 unsaved_navigation_dialog.open()
+                tabs.value = analysis_tab
                 return
             active_tab["value"] = next_tab
             if next_tab == "viewer":
@@ -411,16 +428,22 @@ def build_app() -> None:
 
         def leave_editor_without_saving() -> None:
             next_tab = pending_tab["value"]
+            reason = navigation_reason["value"]
             pending_tab["value"] = None
-            rejected_tab["value"] = None
+            navigation_reason["value"] = None
             unsaved_navigation_dialog.close()
 
             if next_tab is None:
                 return
 
+            if reason == "what-if":
+                analysis_refresh.discard_what_if_changes()
+
             active_tab["value"] = next_tab
 
-            if next_tab == "generator":
+            if next_tab == "configuration":
+                tabs.value = configuration_tab
+            elif next_tab == "generator":
                 tabs.value = generator_tab
             elif next_tab == "viewer":
                 tabs.value = viewer_tab
@@ -430,25 +453,29 @@ def build_app() -> None:
                 analysis_refresh()
 
         def stay_in_configuration() -> None:
-            rejected_tab["value"] = pending_tab["value"]
             pending_tab["value"] = None
+            navigation_reason["value"] = None
             unsaved_navigation_dialog.close()
-            tabs.value = configuration_tab
+            tabs.value = (
+                configuration_tab if active_tab["value"] == "configuration" else analysis_tab
+            )
 
         with (
             ui.dialog() as unsaved_navigation_dialog,
             ui.card().classes("border border-[#29404b] bg-[#182630]"),
         ):
-            ui.label("Unsaved configuration").classes("text-lg font-semibold text-white")
-            ui.label(
+            navigation_title = ui.label("Unsaved configuration").classes(
+                "text-lg font-semibold text-white"
+            )
+            navigation_message = ui.label(
                 "Your configuration has unsaved changes. Leave this page without saving?"
             ).classes("text-sm text-[#9fb2b8]")
             with ui.row().classes("mt-4 w-full justify-end gap-2"):
-                ui.button(
+                stay_button = ui.button(
                     "Stay in Configuration",
                     on_click=stay_in_configuration,
                 ).props("flat")
-                ui.button(
+                leave_button = ui.button(
                     "Leave without saving",
                     on_click=leave_editor_without_saving,
                 ).props("unelevated color=negative")
