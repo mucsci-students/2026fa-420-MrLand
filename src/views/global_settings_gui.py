@@ -17,6 +17,7 @@ def global_settings_gui(
     combined_config: CombinedConfig,
     on_change: ConfigurationChangeHandler | None = None,
     on_pending_change: Callable[[], None] | None = None,
+    on_applied: Callable[[], None] | None = None,
 ) -> Callable[[], bool]:
     """Build controls for the configuration's generation limit and optimizer flags."""
     ui.label("Global settings").classes("text-xl font-semibold text-white")
@@ -67,6 +68,8 @@ def global_settings_gui(
             ui.notify(str(exc), type="negative")
             return False
         pending_settings = False
+        if on_applied is not None:
+            on_applied()
         refresh_summary()
         if notify:
             ui.notify("Global settings saved to the current draft.", type="positive")
@@ -99,6 +102,8 @@ def global_settings_gui(
         generation_limit.value = combined_config.limit
         optimizer_flags.value = [flag.value for flag in combined_config.optimizer_flags]
         pending_settings = False
+        if on_applied is not None:
+            on_applied()
         refresh_summary()
         ui.notify("Global settings reset to defaults.", type="positive")
 
