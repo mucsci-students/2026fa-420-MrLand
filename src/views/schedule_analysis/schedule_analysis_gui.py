@@ -166,10 +166,18 @@ def schedule_analysis() -> ScheduleAnalysisRefresh:
         # newly loaded schedule in that selector.
         if load_target is not None:
             options = schedule_controller.schedule_options()
+            loaded_index = schedule_controller.selected_index
+
             if options:
                 load_target.options = options
-                load_target.value = max(options)
-                load_target.update()
+
+                # Check whether the other comparison selector already
+                # has this schedule selected.
+                if load_target.value != loaded_index and load_target is not None:
+                    load_target.value = loaded_index
+                    load_target.update()
+
+                refresh_comparison()
 
         load_dialog.close()
 

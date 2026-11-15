@@ -11,6 +11,7 @@ update(filtered_schedule) whenever the schedule or a shared filter changes.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from math import ceil, floor
 from typing import Any, TypedDict
 
@@ -25,6 +26,7 @@ from src.controllers.schedule_inspection_controller import (
     get_lab_details,
     get_room_details,
 )
+from src.models.schedule_viewer_model import ScheduleEntry
 
 DAYS = [
     ("MON", "Monday"),
@@ -48,7 +50,17 @@ class SelectedMeeting(TypedDict):
 class ScheduleCalendarView:
     """A simple Monday-Friday calendar with events positioned by time."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        entry_provider: Callable[[], ScheduleEntry | None] | None = None,
+        compact: bool = False,
+    ) -> None:
+        # Each calendar can provide its own schedule context for event details.
+        self.entry_provider = entry_provider or (lambda: controller.current)
+
+        # Compact mode is used by Schedule Comparison only.
+        self.compact = compact
+
         # initialize the schedule object
         self.filtered_schedule: list[dict] = []
         # initialize the selected day variable from the day filter
@@ -159,6 +171,46 @@ class ScheduleCalendarView:
                     color: var(--text-muted);
                     text-align: center;
                 }
+
+                /* Compact calendar styling for Schedule Comparison */
+                .schedule-calendar-compact {
+                    min-width: 0;
+                    width: 100%;
+                }
+
+                .schedule-calendar-compact .schedule-calendar-scroll {
+                    min-width: 0;
+                    overflow-x: hidden;
+                }
+
+                .schedule-calendar-compact .schedule-calendar-grid {
+                    min-width: 0;
+                }
+
+                .schedule-calendar-compact .schedule-calendar-heading {
+                    padding: 8px 3px;
+                    font-size: 11px;
+                }
+
+                .schedule-calendar-compact .schedule-calendar-time {
+                    padding-right: 4px;
+                    font-size: 10px;
+                }
+
+                .schedule-calendar-compact .schedule-calendar-event {
+                    padding: 3px 4px;
+                    border-left-width: 3px;
+                    font-size: 10px;
+                    line-height: 1.2;
+                }
+
+                .schedule-calendar-compact .schedule-calendar-event-title {
+                    font-size: 10px;
+                }
+
+                .schedule-calendar-compact .schedule-calendar-event-details {
+                    font-size: 9px;
+                }
             </style>
             """
         )
@@ -166,6 +218,10 @@ class ScheduleCalendarView:
         # add calendar container and content area
         # Normal calendar and toolbar
         self.container = ui.column().classes("w-full gap-2")
+
+        # updates container if is a compact calendar
+        if self.compact:
+            self.container.classes("schedule-calendar-compact min-w-0")
 
         with self.container:
             with ui.row().classes("w-full items-center justify-end gap-2"):
@@ -175,7 +231,7 @@ class ScheduleCalendarView:
                     on_click=self._open_fullscreen,
                 ).props("outline")
 
-            self.calendar_content = ui.column().classes("w-full gap-0")
+            self.calendar_content = ui.column().classes("w-full min-w-0 gap-0")
 
         # Fullscreen pop-up
         self.fullscreen_dialog = ui.dialog().props("maximized")
@@ -190,11 +246,12 @@ class ScheduleCalendarView:
             ),
         ):
             with ui.row().classes("w-full items-center justify-end gap-2"):
-                ui.button(
+                self.export_button = ui.button(
                     "Export",
                     icon="download",
                     on_click=self._open_export,
                 ).props("outline")
+                self.export_button.set_visibility(False)
 
                 ui.button(
                     "Exit Fullscreen",
@@ -204,7 +261,7 @@ class ScheduleCalendarView:
 
             self.popup_calendar_content = (
                 ui.column()
-                .classes("w-full gap-0")
+                .classes("w-full min-w-0 gap-0")
                 .style("flex: 1; min-height: 0; overflow-x: auto; overflow-y: auto;")
             )
 
@@ -215,6 +272,7 @@ class ScheduleCalendarView:
     # Use the schedule viewer's existing export dialog
     def set_export_callback(self, callback) -> None:
         self.export_callback = callback
+        self.export_button.set_visibility(callback is not None)
 
     def _open_export(self) -> None:
         if self.export_callback is not None:
@@ -290,20 +348,21 @@ class ScheduleCalendarView:
         hour_count = last_hour - first_hour
 
         # add fullscreen styles to the calendar grid and scroll container if the calendar is in fullscreen mode
+        # Compact calendars use a smaller time axis and flexible weekday columns.
+        time_column_width = 48 if self.compact else 76
+        minimum_day_width = "0" if self.compact or popup else "150px"
+
+        grid_style = (
+            f"grid-template-columns: {time_column_width}px repeat("
+            f"{len(visible_days)}, minmax({minimum_day_width}, 1fr));"
+        )
+
         if popup:
-            grid_style = (
-                f"grid-template-columns: 76px repeat("
-                f"{len(visible_days)}, minmax(150px, 1fr));"
-                f"grid-template-columns: 76px repeat("
-                f"{len(visible_days)}, minmax(0, 1fr)); "
-                f"grid-template-rows: 44px repeat("
-                f"{hour_count}, minmax(0, 1fr));"
-            )
+            grid_style += f"grid-template-rows: 44px repeat({hour_count}, minmax(0, 1fr));"
             scroll_style = "width: 100%; overflow: auto;"
+        elif self.compact:
+            scroll_style = "width: 100%; overflow-x: hidden;"
         else:
-            grid_style = (
-                f"grid-template-columns: 76px repeat({len(visible_days)}, minmax(150px, 1fr));"
-            )
             scroll_style = ""
 
         # Creates the calendar grid with day headings, time labels, and event blocks for each course
@@ -353,14 +412,16 @@ class ScheduleCalendarView:
                     day_rows.sort(key=lambda item: item[1])
 
                     # Create event blocks for each course and place them in the correct position based on start and end times
-                    for (
-                        row,
-                        start,
-                        end,
-                        lane,
-                        lane_count,
-                        cluster,
-                    ) in self._layout_day_events(day_rows):
+
+                    # Create event blocks for each course and place them in the correct position.
+                    # Compact comparison calendars display at most two event columns.
+                    layout = self._layout_day_events(
+                        day_rows,
+                        max_lanes=2 if self.compact else None,
+                    )
+
+                    for row, start, end, lane, lane_count, cluster in layout:
+                        # Calculate the event's vertical position
                         top = start - range_start
                         height = max(end - start, 36)
 
@@ -369,7 +430,6 @@ class ScheduleCalendarView:
                         left = lane * width
 
                         course = self._display_value(row.get("course"))
-                        # assigns a color to the course
                         background, border_color = self._course_color(course)
 
                         faculty = self._display_value(row.get("faculty"))
@@ -394,17 +454,20 @@ class ScheduleCalendarView:
                                 f"{self._format_time(start)}–{self._format_time(end)}"
                             ).classes("schedule-calendar-event-details")
 
-                            details = " • ".join(
-                                value for value in (resource, faculty) if value != "—"
-                            )
-                            if details:
-                                ui.label(details).classes("schedule-calendar-event-details")
+                            if not self.compact:
+                                details = " • ".join(
+                                    value for value in (resource, faculty) if value != "—"
+                                )
+                                if details:
+                                    ui.label(details).classes("schedule-calendar-event-details")
 
                         # Add a click event to the event block that shows the details of the
                         # selected meeting and its overlapping group
                         event.on(
                             "click",
-                            lambda r=row, s=start, e=end, c=cluster: self._show_details(r, s, e, c),
+                            lambda r=row, s=start, e=end, c=cluster: self._show_details(
+                                r, s, e, c, self.entry_provider()
+                            ),
                         )
 
     # ---------------------------------------------------------
@@ -415,14 +478,17 @@ class ScheduleCalendarView:
     # Each meeting gets the first available lane. If a meeting overlaps the meeting
     # currently occupying a lane, it gets another lane. When a meeting ends, its lane can be reused.
     @staticmethod
-    def _layout_day_events(day_rows: list[tuple[dict, int, int]]) -> list[tuple]:
-        """Assign overlapping meetings to separate horizontal lanes."""
+    def _layout_day_events(
+        day_rows: list[tuple[dict, int, int]],
+        max_lanes: int | None = None,
+    ) -> list[tuple]:
+        """Assign meetings to horizontal lanes, respecting an optional lane limit."""
         day_rows = sorted(day_rows, key=lambda item: (item[1], item[2]))
         clusters = []
         current_cluster = []
         cluster_end = -1
 
-        # First, group meetings whose time ranges overlap.
+        # Group meetings whose time ranges overlap.
         for item in day_rows:
             row, start, end = item
 
@@ -439,7 +505,7 @@ class ScheduleCalendarView:
 
         layout = []
 
-        # Assign each meeting in a cluster to a lane.
+        # Assign each meeting to a lane.
         for cluster in clusters:
             lane_ends = []
             assigned = []
@@ -451,14 +517,19 @@ class ScheduleCalendarView:
                 )
 
                 if lane is None:
-                    lane = len(lane_ends)
-                    lane_ends.append(end)
+                    if max_lanes is not None and len(lane_ends) >= max_lanes:
+                        # Reuse the final lane when the compact lane limit is reached.
+                        lane = max_lanes - 1
+                        lane_ends[lane] = max(lane_ends[lane], end)
+                    else:
+                        lane = len(lane_ends)
+                        lane_ends.append(end)
                 else:
                     lane_ends[lane] = end
 
                 assigned.append((row, start, end, lane))
 
-            lane_count = len(lane_ends)
+            lane_count = max(1, len(lane_ends))
 
             for row, start, end, lane in assigned:
                 layout.append((row, start, end, lane, lane_count, cluster))
@@ -475,6 +546,7 @@ class ScheduleCalendarView:
         start: int,
         end: int,
         cluster: OverlapCluster,
+        entry: ScheduleEntry | None = None,
     ) -> None:
         selected: SelectedMeeting = {
             "row": row,
@@ -506,7 +578,7 @@ class ScheduleCalendarView:
             RoomConfig | LabConfig | None,
             str | None,
         ]:
-            current = controller.current
+            current = entry
             if current is None or current.config is None:
                 return None, None, None, None
 
@@ -573,10 +645,10 @@ class ScheduleCalendarView:
                     overlapping_meetings = [
                         (other_row, other_start, other_end)
                         for other_row, other_start, other_end in current_cluster
-                        if not (
-                            other_row is current_row
-                            and other_start == current_start
-                            and other_end == current_end
+                        if (
+                            other_row is not current_row
+                            and other_start < current_end
+                            and current_start < other_end
                         )
                     ]
 
@@ -760,5 +832,9 @@ class ScheduleCalendarView:
 
 
 # Create and return a calendar view instance.
-def schedule_calendar_view() -> ScheduleCalendarView:
-    return ScheduleCalendarView()
+def schedule_calendar_view(
+    entry_provider: Callable[[], ScheduleEntry | None] | None = None,
+    compact: bool = False,
+) -> ScheduleCalendarView:
+    """Create and return a calendar view instance."""
+    return ScheduleCalendarView(entry_provider=entry_provider, compact=compact)
