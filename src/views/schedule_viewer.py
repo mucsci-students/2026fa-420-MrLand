@@ -14,6 +14,7 @@ from nicegui import ui
 from src.controllers.schedule_controller import (
     schedule_controller as controller,
 )
+
 # Renee: export only the selected faculty member's classes (Export by faculty)
 from src.controllers.schedule_filtered_export_controller import (
     default_faculty_file_name,
@@ -612,7 +613,9 @@ def schedule_viewer() -> Callable[[], None]:
             # Use the faculty-specific name when filtering by faculty.
             faculty = selected_faculty()
             if faculty and controller.current:
-                export_name.value = default_faculty_file_name(controller.current, faculty, event.value)
+                export_name.value = default_faculty_file_name(
+                    controller.current, faculty, event.value
+                )
                 return
             try:
                 export_name.value = controller.default_export_file_name(event.value)

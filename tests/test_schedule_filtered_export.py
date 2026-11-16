@@ -117,9 +117,7 @@ def test_safe_name_falls_back_when_empty():
 
 
 def test_default_name_for_generated_schedule_uses_config_name(generated_entry):
-    assert default_faculty_file_name(generated_entry, "Hobbes", "csv") == (
-        "fall_config_Hobbes.csv"
-    )
+    assert default_faculty_file_name(generated_entry, "Hobbes", "csv") == ("fall_config_Hobbes.csv")
 
 
 def test_default_name_for_loaded_schedule_uses_file_name(loaded_entry):
@@ -138,6 +136,7 @@ def test_export_only_contains_selected_faculty(generated_entry, file_format):
     export, error = export_faculty_schedule(generated_entry, "Hobbes", file_format, "")
 
     assert error is None
+    assert export is not None
     content, file_name, media_type = export
     text = content.decode("utf-8")
 
@@ -152,6 +151,7 @@ def test_export_only_contains_selected_faculty(generated_entry, file_format):
 def test_exported_json_can_be_loaded_back_into_the_viewer(generated_entry):
     export, error = export_faculty_schedule(generated_entry, "Hobbes", "json", "")
     assert error is None
+    assert export is not None
     content, file_name, _ = export
 
     # Use the same parser the viewer's Load button uses.
@@ -173,6 +173,7 @@ def test_typed_file_name_is_used(generated_entry):
     export, error = export_faculty_schedule(generated_entry, "Hobbes", "csv", "my_schedule.csv")
 
     assert error is None
+    assert export is not None
     assert export[1] == "my_schedule.csv"
 
 
@@ -180,6 +181,7 @@ def test_missing_extension_is_added(generated_entry):
     export, error = export_faculty_schedule(generated_entry, "Hobbes", "json", "hobbes")
 
     assert error is None
+    assert export is not None
     assert export[1] == "hobbes.json"
 
 
@@ -189,6 +191,7 @@ def test_folders_are_stripped_from_file_name(generated_entry):
     )
 
     assert error is None
+    assert export is not None
     assert export[1] == "hobbes.csv"
 
 
@@ -246,4 +249,5 @@ def test_json_export_is_valid_json(generated_entry):
     export, error = export_faculty_schedule(generated_entry, "Hobbes", "json", "")
 
     assert error is None
+    assert export is not None
     json.loads(export[0])  # raises if the file isn't valid JSON
