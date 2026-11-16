@@ -557,8 +557,11 @@ def schedule_viewer() -> Callable[[], None]:
                 f"Download '{entry.label}' to your browser's default location. "
                 f"Check your browser settings to manually choose the save location."
             )
-            export_name.value = controller.default_export_file_name(export_format.value)
             export_status.text = ""
+            try:
+                export_name.value = controller.default_export_file_name(export_format.value)
+            except OSError as error:
+                export_status.text = str(error)
             export_dialog.open()
 
         def open_export_all_dialog():
@@ -573,11 +576,14 @@ def schedule_viewer() -> Callable[[], None]:
         def on_export_format_changed(event):
             name = (export_name.value or "").strip()
             stem = name.rsplit(".", 1)[0] if name.lower().endswith((".csv", ".json")) else name
-            export_name.value = (
-                f"{stem}.{event.value}"
-                if stem
-                else controller.default_export_file_name(event.value)
-            )
+            if stem:
+                export_name.value = f"{stem}.{event.value}"
+                return
+            try:
+                export_name.value = controller.default_export_file_name(event.value)
+                export_status.text = ""
+            except OSError as error:
+                export_status.text = str(error)
 
         def on_export():
             export, error = controller.export_current(

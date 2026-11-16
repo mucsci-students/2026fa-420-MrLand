@@ -112,8 +112,10 @@ class ScheduleViewerModel:
                 for path in self.directory.iterdir()
                 if path.is_file() and path.suffix.lower() in {".csv", ".json"}
             ]
-        except OSError:
-            return []
+        except OSError as error:
+            raise OSError(
+                f"Could not list schedule files in '{self.directory}': {error}"
+            ) from error
         return sorted(names, key=_natural_key)
 
     def load_saved_file(self, file_name: str) -> ScheduleEntry:
