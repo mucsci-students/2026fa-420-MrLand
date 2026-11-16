@@ -19,11 +19,8 @@ except ImportError as exc:  # pragma: no cover - dependency resolution is handle
         "the AI packages to pyproject.toml."
     ) from exc
 
-from src.ai.agent_tools import (
-    SchedulerAgentState,
-    empty_scheduler_config,
-    get_tool_list,
-)
+from src.ai.agent_tools import get_tool_list
+from src.ai.scheduler_agent_state import SchedulerAgentState, empty_scheduler_config
 
 load_dotenv()
 

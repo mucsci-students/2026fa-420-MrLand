@@ -1,0 +1,674 @@
+"""Scheduler configuration state and domain operations for the AI agent."""
+
+from __future__ import annotations
+
+import hmac
+from collections.abc import Callable
+from typing import Any
+
+from pydantic import ValidationError
+from scheduler.config import (
+    ClassPattern,
+    CombinedConfig,
+    CourseConfig,
+    FacultyConfig,
+    LabConfig,
+    Meeting,
+    RoomConfig,
+    TimeBlock,
+)
+
+from src.controllers.class_pattern_controller import ClassPatternController
+from src.controllers.course_controller import CourseController
+from src.controllers.faculty_controller import FacultyController
+from src.controllers.lab_controller import LabController
+from src.controllers.room_controller import RoomController
+from src.controllers.schedule_generator_controller import schedule_generator_controller
+from src.controllers.settings_controller import SettingsController
+from src.controllers.time_block_controller import TimeBlockController
+from src.models.configuration_model import (
+    ConfigService,
+    ConfigValidationError,
+    create_draft_config,
+    validate_config,
+)
+from src.views.configuration_editor import PANEL_COMBINATIONS
+
+COMBINATIONS_PASSWORD = "HaTz"
+
+
+# Return a valid draft config object that can be mutated safely.
+def empty_scheduler_config() -> CombinedConfig:
+    return create_draft_config()
+
+
+class SchedulerAgentState:
+    """Thin bridge between the AI and the scheduler configuration object."""
+
+    def __init__(
+        self,
+        config: CombinedConfig | None = None,
+        save_configuration: Callable[[str], None] | None = None,
+        schedule_generator: Any | None = None,
+        confirm_action: Callable[[str], bool] | None = None,
+        configuration_exists: Callable[[str], bool] | None = None,
+    ):
+        self.config = config if config is not None else empty_scheduler_config()
+        self.has_active_configuration = config is not None
+        self._save_configuration = save_configuration
+        self._schedule_generator = schedule_generator or schedule_generator_controller
+        self._confirm_action = confirm_action
+        self._configuration_exists = configuration_exists or ConfigService().exists
+
+    @staticmethod
+    def _result(success: bool, message: str, **details: Any) -> dict[str, Any]:
+        return {"success": success, "message": message, **details}
+
+    # Return the standard prompt shown when no configuration is active.
+    @staticmethod
+    def configuration_required_message() -> str:
+        return (
+            "Please create or load a configuration in the Configuration Editor "
+            "before working with scheduler configuration."
+        )
+
+    # Report whether the agent can currently access a configuration.
+    def get_active_configuration_status(self) -> dict[str, Any]:
+        if not self.has_active_configuration:
+            return self._result(False, self.configuration_required_message())
+        return self._result(True, "A scheduler configuration is active.")
+
+    # Describe the editor combinations the user can complete to change the duck hat.
+    def list_combinations(self, password: str) -> dict[str, Any]:
+        if not hmac.compare_digest(password.encode("utf-8"), COMBINATIONS_PASSWORD.encode("utf-8")):
+            return self._result(
+                False,
+                "The password is incorrect. Ask the user to try again; do not show "
+                "or guess the combinations.",
+            )
+        combinations = [
+            {
+                "name": name,
+                "panels": list(panels),
+                "hat": hat,
+            }
+            for name, panels, hat in PANEL_COMBINATIONS
+        ]
+        return self._result(
+            True,
+            "Available configuration combinations and their duck hats.",
+            combinations=combinations,
+        )
+
+    # Summarize the counts of configured scheduling resources.
+    def get_config_summary(self) -> dict[str, Any]:
+        summary = (
+            f"Rooms: {len(self.config.config.rooms)}\n"
+            f"Labs: {len(self.config.config.labs)}\n"
+            f"Courses: {len(self.config.config.courses)}\n"
+            f"Faculty: {len(self.config.config.faculty)}"
+        )
+        return self._result(True, summary)
+
+    # Serialize the full configuration or one supported configuration area.
+    def inspect_configuration(self, area: str = "all") -> dict[str, Any]:
+        payload = self.config.model_dump(mode="json")
+        areas = {
+            "rooms": payload["config"]["rooms"],
+            "labs": payload["config"]["labs"],
+            "courses": payload["config"]["courses"],
+            "faculty": payload["config"]["faculty"],
+            "class_patterns": payload["time_slot_config"]["classes"],
+            "meetings": [
+                {
+                    "class_pattern_index": pattern_index,
+                    "class_pattern_credits": pattern["credits"],
+                    **meeting,
+                }
+                for pattern_index, pattern in enumerate(payload["time_slot_config"]["classes"])
+                for meeting in pattern["meetings"]
+            ],
+            "time_blocks": payload["time_slot_config"]["times"],
+            "global_settings": {
+                "limit": payload["limit"],
+                "optimizer_flags": payload["optimizer_flags"],
+                "max_time_gap": payload["time_slot_config"]["max_time_gap"],
+                "min_time_overlap": payload["time_slot_config"]["min_time_overlap"],
+            },
+        }
+        if area == "all":
+            result = payload
+        elif area in areas:
+            result = areas[area]
+        else:
+            return self._result(False, f"Unknown configuration area '{area}'.")
+        return self._result(
+            True,
+            f"Inspected configuration area '{area}'.",
+            data=result,
+        )
+
+    # Create a typed item or a weekday's time-block set.
+    def create_configuration_item(
+        self,
+        *,
+        area: str,
+        item: dict[str, Any],
+        item_key: str | None = None,
+    ) -> dict[str, Any]:
+        try:
+            if area in {"rooms", "labs", "courses", "faculty", "class_patterns"}:
+                item = dict(item)
+                defaults = {
+                    "rooms": {"capacity": 1, "features": [], "times": None},
+                    "labs": {"capacity": 1, "features": [], "times": None},
+                    "courses": {
+                        "credits": 3,
+                        "capacity": 1,
+                        "room": [],
+                        "lab": [],
+                        "conflicts": [],
+                        "faculty": None,
+                        "modality": "in_person",
+                        "required_room_features": [],
+                        "required_lab_features": [],
+                        "reserve_room_during_lab": False,
+                    },
+                    "faculty": {
+                        "maximum_credits": 12,
+                        "maximum_days": 5,
+                        "minimum_credits": 0,
+                        "unique_course_limit": 3,
+                        "times": {},
+                        "course_preferences": {},
+                        "room_preferences": {},
+                        "lab_preferences": {},
+                        "mandatory_days": [],
+                    },
+                    "class_patterns": {},
+                }[area]
+                for field, default in defaults.items():
+                    item.setdefault(field, default)
+                collection = self._item_collection(area)
+                parsed = self._parse_item(area, item)
+                key = self._item_identity(area, parsed)
+                if area != "class_patterns" and any(
+                    self._same_item_identity(area, current, parsed) for current in collection
+                ):
+                    return self._result(
+                        False,
+                        f"A {area.rstrip('s')} item with key '{key}' already exists.",
+                    )
+                self._apply_item_values(area, collection, parsed)
+            elif area == "meetings":
+                pattern = self._find_pattern(item_key)
+                parsed = Meeting.model_validate(item)
+                if any(existing.day == parsed.day for existing in pattern.meetings):
+                    return self._result(
+                        False,
+                        f"Pattern {item_key} already has a meeting on {parsed.day}.",
+                    )
+                pattern.meetings.append(parsed)
+            elif area == "time_blocks":
+                if not item_key:
+                    return self._result(False, "A weekday item_key is required for time_blocks.")
+                day = item_key.upper()
+                if day not in {"MON", "TUE", "WED", "THU", "FRI"}:
+                    return self._result(False, f"Unknown weekday '{item_key}'.")
+                blocks = item.get("blocks")
+                if not isinstance(blocks, list) or not blocks:
+                    return self._result(False, "time_blocks item must include a 'blocks' list.")
+                parsed_blocks = [TimeBlock.model_validate(block) for block in blocks]
+                for block in parsed_blocks:
+                    TimeBlockController.add_block(
+                        self.config.time_slot_config.times,
+                        day,
+                        block.start,
+                        block.spacing,
+                        block.end,
+                    )
+            else:
+                return self._result(
+                    False, f"Items cannot be created in configuration area '{area}'."
+                )
+        except (ValidationError, TypeError, ValueError) as error:
+            return self._result(False, f"Could not create {area} item: {error}")
+        created_key = item_key or (key if "key" in locals() else "")
+        return self._result(True, f"Created {area} item '{created_key}'.")
+
+    # Merge changed fields into an existing configuration item.
+    def update_configuration_item(
+        self,
+        *,
+        area: str,
+        item_key: str | None,
+        item: dict[str, Any],
+    ) -> dict[str, Any]:
+        if not item_key:
+            return self._result(False, "An item_key is required to update a configuration item.")
+        try:
+            if area == "time_blocks":
+                day = item_key.upper()
+                if day not in {"MON", "TUE", "WED", "THU", "FRI"}:
+                    return self._result(False, f"Unknown weekday '{item_key}'.")
+                if day not in self.config.time_slot_config.times:
+                    return self._result(False, f"No time blocks found for {day}.")
+                blocks = item.get("blocks")
+                if not isinstance(blocks, list):
+                    return self._result(False, "time_blocks item must include a 'blocks' list.")
+                self.config.time_slot_config.times[day] = [
+                    TimeBlock.model_validate(block) for block in blocks
+                ]
+            elif area == "meetings":
+                pattern_key, day = self._meeting_key(item_key)
+                pattern = self._find_pattern(pattern_key)
+                index = next(
+                    (i for i, meeting in enumerate(pattern.meetings) if meeting.day == day),
+                    None,
+                )
+                if index is None:
+                    return self._result(
+                        False, f"No meeting found for pattern {pattern_key} on {day}."
+                    )
+                values = pattern.meetings[index].model_dump(mode="json")
+                values.update(item)
+                updated_meeting = Meeting.model_validate(values)
+                if any(
+                    other_index != index and meeting.day == updated_meeting.day
+                    for other_index, meeting in enumerate(pattern.meetings)
+                ):
+                    return self._result(
+                        False,
+                        f"Pattern {pattern_key} already has a meeting on {updated_meeting.day}.",
+                    )
+                pattern.meetings[index] = updated_meeting
+            elif area in {"rooms", "labs", "courses", "faculty", "class_patterns"}:
+                collection = self._item_collection(area)
+                index = self._find_item_index(area, collection, item_key)
+                if isinstance(index, str):
+                    return self._result(False, index)
+                existing = collection[index]
+                values = existing.model_dump(mode="json")
+                values.update(item)
+                parsed = self._parse_item(area, values)
+                if area != "class_patterns" and any(
+                    position != index and self._same_item_identity(area, current, parsed)
+                    for position, current in enumerate(collection)
+                ):
+                    new_key = self._item_identity(area, parsed)
+                    return self._result(
+                        False,
+                        f"A {area.rstrip('s')} item with key '{new_key}' already exists.",
+                    )
+                self._apply_item_values(area, collection, parsed, existing=existing)
+            else:
+                return self._result(
+                    False, f"Items cannot be updated in configuration area '{area}'."
+                )
+        except (ValidationError, TypeError, ValueError) as error:
+            return self._result(False, f"Could not update {area} item '{item_key}': {error}")
+        return self._result(True, f"Updated {area} item '{item_key}'.")
+
+    # Delete a keyed configuration item or a weekday's time blocks.
+    def delete_configuration_item(self, *, area: str, item_key: str) -> dict[str, Any]:
+        if area == "time_blocks":
+            day = item_key.upper()
+            if day not in {"MON", "TUE", "WED", "THU", "FRI"}:
+                return self._result(False, f"Unknown weekday '{item_key}'.")
+            if day not in self.config.time_slot_config.times:
+                return self._result(False, f"No time blocks found for {day}.")
+            del self.config.time_slot_config.times[day]
+        elif area == "meetings":
+            try:
+                pattern_key, day = self._meeting_key(item_key)
+                pattern = self._find_pattern(pattern_key)
+            except ValueError as error:
+                return self._result(False, str(error))
+            index = next(
+                (i for i, meeting in enumerate(pattern.meetings) if meeting.day == day),
+                None,
+            )
+            if index is None:
+                return self._result(False, f"No meeting found for pattern {pattern_key} on {day}.")
+            if len(pattern.meetings) == 1:
+                return self._result(
+                    False,
+                    "Cannot delete the only meeting in a class pattern; "
+                    "delete the class pattern instead.",
+                )
+            del pattern.meetings[index]
+        elif area in {"rooms", "labs", "courses", "faculty", "class_patterns"}:
+            collection = self._item_collection(area)
+            index = self._find_item_index(area, collection, item_key)
+            if isinstance(index, str):
+                return self._result(False, index)
+            del collection[index]
+        else:
+            return self._result(False, f"Items cannot be deleted from configuration area '{area}'.")
+        return self._result(True, f"Deleted {area} item '{item_key}'.")
+
+    def _find_pattern(self, pattern_key: str | None) -> ClassPattern:
+        if not pattern_key:
+            raise ValueError("A class-pattern index is required.")
+        try:
+            index = int(pattern_key)
+        except ValueError as error:
+            raise ValueError("Class-pattern key must be its zero-based index.") from error
+        if not 0 <= index < len(self.config.time_slot_config.classes):
+            raise ValueError(f"No class pattern found at index {index}.")
+        return self.config.time_slot_config.classes[index]
+
+    @staticmethod
+    def _meeting_key(item_key: str) -> tuple[str, str]:
+        if "::" not in item_key:
+            raise ValueError("Meeting item_key must be CLASS_PATTERN_INDEX::DAY.")
+        pattern_key, day = item_key.rsplit("::", 1)
+        return pattern_key, day.upper()
+
+    # Apply provided global and time-slot settings.
+    def update_configuration_settings(
+        self,
+        *,
+        limit: int | None = None,
+        optimizer_flags: list[str] | None = None,
+        max_time_gap: int | None = None,
+        min_time_overlap: int | None = None,
+    ) -> dict[str, Any]:
+        if limit is not None and limit <= 0:
+            return self._result(False, "limit must be a positive integer.")
+        if max_time_gap is not None and max_time_gap < 0:
+            return self._result(False, "max_time_gap cannot be negative.")
+        if min_time_overlap is not None and min_time_overlap < 0:
+            return self._result(False, "min_time_overlap cannot be negative.")
+        changed: list[str] = []
+        if limit is not None or optimizer_flags is not None:
+            try:
+                SettingsController.update_settings(
+                    self.config,
+                    self.config.limit if limit is None else limit,
+                    self.config.optimizer_flags if optimizer_flags is None else optimizer_flags,
+                )
+            except (TypeError, ValueError) as error:
+                return self._result(False, f"Could not update global settings: {error}")
+            if limit is not None:
+                changed.append("limit")
+            if optimizer_flags is not None:
+                changed.append("optimizer_flags")
+        if max_time_gap is not None:
+            object.__setattr__(self.config.time_slot_config, "max_time_gap", max_time_gap)
+            changed.append("max_time_gap")
+        if min_time_overlap is not None:
+            object.__setattr__(self.config.time_slot_config, "min_time_overlap", min_time_overlap)
+            changed.append("min_time_overlap")
+        if not changed:
+            return self._result(False, "No settings were provided to update.")
+        return self._result(True, f"Updated global settings: {', '.join(changed)}.")
+
+    # Format validation problems for the active configuration.
+    def validate_current_config(self) -> dict[str, Any]:
+        problems = validate_config(self.config)
+        if not problems:
+            return self._result(True, "The current configuration is valid.")
+        lines = [f"Validation issues ({len(problems)}):"]
+        for problem in problems:
+            item = problem.item or "overall configuration"
+            lines.append(f"- {problem.area}: {item} -> {problem.message}")
+        return self._result(
+            False,
+            "\n".join(lines),
+            errors=[
+                {"area": problem.area, "item": problem.item, "message": problem.message}
+                for problem in problems
+            ],
+        )
+
+    # Validate and save the active configuration through the app callback.
+    def save_current_config(self, config_name: str) -> dict[str, Any]:
+        if self._save_configuration is None:
+            problems = validate_config(self.config)
+            if problems:
+                return self._result(
+                    False,
+                    "Configuration was not saved because validation failed.",
+                    errors=[
+                        {"area": problem.area, "item": problem.item, "message": problem.message}
+                        for problem in problems
+                    ],
+                )
+        try:
+            if (
+                self._save_configuration is None
+                and self._configuration_exists(config_name)
+                and (
+                    self._confirm_action is None
+                    or not self._confirm_action(
+                        f"Replace the saved configuration '{config_name}.json'?"
+                    )
+                )
+            ):
+                return self._result(False, "Save cancelled; the existing file was not changed.")
+            if self._save_configuration is not None:
+                self._save_configuration(config_name)
+            else:
+                ConfigService().save(self.config, config_name)
+        except (ConfigValidationError, OSError, ValueError) as error:
+            if isinstance(error, ConfigValidationError):
+                return self._result(
+                    False,
+                    "Configuration was not saved because validation failed.",
+                    errors=[
+                        {
+                            "area": problem.area,
+                            "item": problem.item,
+                            "message": problem.message,
+                        }
+                        for problem in error.problems
+                    ],
+                )
+            return self._result(False, f"Could not save configuration '{config_name}': {error}")
+        return self._result(
+            True,
+            (
+                f"Configuration queued for download as '{config_name}.json'."
+                if self._save_configuration is not None
+                else f"Configuration saved as '{config_name}.json'."
+            ),
+            action="saved",
+        )
+
+    # Generate from the active config and direct results to the viewer.
+    def generate_schedules(self) -> dict[str, Any]:
+        problems = validate_config(self.config)
+        if problems:
+            return self._result(
+                False,
+                "Cannot generate schedules until the configuration is valid.",
+                errors=[
+                    {"area": problem.area, "item": problem.item, "message": problem.message}
+                    for problem in problems
+                ],
+            )
+        state, error = self._schedule_generator.generate_active_configuration(self.config)
+        if error:
+            return self._result(False, f"Schedule generation failed: {error}")
+
+        if state is None or state.generated == 0:
+            return self._result(False, "No valid schedules could be generated.")
+        return self._result(
+            True,
+            f"Schedule generation complete. Generated {state.generated} schedule(s), "
+            f"{state.valid} valid. View generated schedules in the Schedule Viewer tab.",
+            action="generated",
+            generated=state.generated,
+            valid=state.valid,
+        )
+
+    # Resolve a supported area to its mutable configuration collection.
+    def _item_collection(self, area: str) -> list[Any]:
+        if area in {"rooms", "labs", "courses", "faculty"}:
+            return getattr(self.config.config, area)
+        if area == "class_patterns":
+            return self.config.time_slot_config.classes
+        raise ValueError(f"Unknown configuration area '{area}'.")
+
+    # Validate an item dictionary with its scheduler configuration type.
+    @staticmethod
+    def _parse_item(area: str, item: dict[str, Any]) -> Any:
+        model = {
+            "rooms": RoomConfig,
+            "labs": LabConfig,
+            "courses": CourseConfig,
+            "faculty": FacultyConfig,
+            "class_patterns": ClassPattern,
+        }.get(area)
+        if model is None:
+            raise ValueError(f"Unknown configuration area '{area}'.")
+        return model.model_validate(item)
+
+    @staticmethod
+    def _same_item_identity(area: str, first: Any, second: Any) -> bool:
+        if area == "courses":
+            return (
+                first.course_id.casefold() == second.course_id.casefold()
+                and first.section_id == second.section_id
+            )
+        if area == "class_patterns":
+            return first.credits == second.credits
+        return first.name.casefold() == second.name.casefold()
+
+    @staticmethod
+    def _availability_values(times: Any) -> dict[str, list[str]] | None:
+        if times is None:
+            return None
+        return {
+            day: [
+                f"{item['start']}-{item['end']}"
+                if isinstance(item, dict)
+                else f"{item.start}-{item.end}"
+                for item in ranges
+            ]
+            for day, ranges in times.items()
+        }
+
+    @classmethod
+    def _apply_item_values(
+        cls,
+        area: str,
+        collection: list[Any],
+        item: Any,
+        *,
+        existing: Any | None = None,
+    ) -> None:
+        update = existing is not None
+        if area == "rooms":
+            availability = cls._availability_values(item.times)
+            if update:
+                RoomController.update_room(
+                    collection, existing, item.name, item.capacity, item.features, availability
+                )
+            else:
+                RoomController.add_room(
+                    collection, item.name, item.capacity, item.features, availability
+                )
+            return
+        if area == "labs":
+            if update:
+                LabController.update_lab(
+                    collection, existing, item.name, item.capacity, item.features, item.times
+                )
+            else:
+                LabController.add_lab(
+                    collection, item.name, item.capacity, item.features, item.times
+                )
+            return
+        if area == "faculty":
+            values = (
+                item.name,
+                item.maximum_credits,
+                item.minimum_credits,
+                item.unique_course_limit,
+                item.times,
+                item.maximum_days,
+                item.course_preferences,
+                item.room_preferences,
+                item.lab_preferences,
+                item.mandatory_days,
+            )
+            if update:
+                FacultyController.update_member(collection, existing, *values)
+            else:
+                FacultyController.add_member(collection, *values)
+            return
+        if area == "courses":
+            values = (
+                item.course_id,
+                item.section_id,
+                item.credits,
+                item.capacity,
+                item.modality,
+                item.room,
+                item.lab,
+                item.required_room_features,
+                item.required_lab_features,
+                item.reserve_room_during_lab,
+                item.conflicts,
+                item.faculty,
+            )
+            if update:
+                CourseController.update_course(collection, existing, *values)
+            else:
+                CourseController.add_course(collection, *values)
+            return
+        if area == "class_patterns":
+            values = (item.credits, item.meetings, item.disabled, item.start_time)
+            if update:
+                ClassPatternController.update_pattern(collection, existing, *values)
+            else:
+                ClassPatternController.add_pattern(collection, *values)
+            return
+        raise ValueError(f"Unknown configuration area '{area}'.")
+
+    # Return the stable key used to find or de-duplicate an item.
+    @staticmethod
+    def _item_identity(area: str, item: Any) -> str:
+        if area == "courses":
+            return f"{item.course_id}::{item.section_id or 'default'}"
+        if area == "class_patterns":
+            return str(item.credits)
+        return item.name
+
+    # Find an item by key or return a message explaining why it is unresolved.
+    def _find_item_index(self, area: str, collection: list[Any], item_key: str) -> int | str:
+        if area == "class_patterns":
+            try:
+                index = int(item_key)
+            except ValueError:
+                return "Class-pattern item_key must be its zero-based index."
+            if not 0 <= index < len(collection):
+                return f"No class pattern found at index {index}."
+            return index
+        if area == "courses":
+            if "::" in item_key:
+                course_id, section = item_key.split("::", 1)
+                matches = [
+                    index
+                    for index, course in enumerate(collection)
+                    if course.course_id.casefold() == course_id.casefold()
+                    and (course.section_id or "default") == section
+                ]
+            else:
+                matches = [
+                    index
+                    for index, course in enumerate(collection)
+                    if course.course_id.casefold() == item_key.casefold()
+                ]
+            if len(matches) > 1:
+                keys = [self._item_identity(area, collection[index]) for index in matches]
+                return f"'{item_key}' is ambiguous. Use one of: {', '.join(keys)}."
+            if not matches:
+                return f"No course found with key '{item_key}'."
+            return matches[0]
+        for index, item in enumerate(collection):
+            if self._item_identity(area, item).casefold() == item_key.casefold():
+                return index
+        return f"No {area.rstrip('s')} item found with key '{item_key}'."

@@ -385,7 +385,7 @@ def test_meeting_tools_create_update_inspect_and_confirm_delete():
 def test_download_save_callback_uses_gui_download_behavior_without_replacement_prompt(
     monkeypatch,
 ):
-    from src.ai import agent_tools
+    from src.ai import scheduler_agent_state
 
     config = ConfigurationController().new_configuration()
     saved_names = []
@@ -393,7 +393,7 @@ def test_download_save_callback_uses_gui_download_behavior_without_replacement_p
     def validation_is_deferred(_config):
         raise AssertionError("The editor callback must flush pending settings before validation.")
 
-    monkeypatch.setattr(agent_tools, "validate_config", validation_is_deferred)
+    monkeypatch.setattr(scheduler_agent_state, "validate_config", validation_is_deferred)
     tools = _tools(
         SchedulerAgentState(
             config,
@@ -438,11 +438,11 @@ def test_invalid_tool_arguments_return_structured_failure():
 
 
 def test_save_tool_uses_the_application_save_callback(monkeypatch):
-    from src.ai import agent_tools
+    from src.ai import scheduler_agent_state
 
     config = ConfigurationController().new_configuration()
     saved_names = []
-    monkeypatch.setattr(agent_tools, "validate_config", lambda _config: [])
+    monkeypatch.setattr(scheduler_agent_state, "validate_config", lambda _config: [])
     tools = _tools(
         SchedulerAgentState(config, configuration_exists=lambda _name: False),
         save_configuration=saved_names.append,
@@ -456,7 +456,7 @@ def test_save_tool_uses_the_application_save_callback(monkeypatch):
 
 
 def test_generate_schedules_uses_the_active_configuration(monkeypatch):
-    from src.ai import agent_tools
+    from src.ai import scheduler_agent_state
     from src.controllers.schedule_controller import ScheduleController
     from src.controllers.schedule_generator_controller import ScheduleGeneratorController
     from src.models import schedule_generator_model
@@ -484,7 +484,7 @@ def test_generate_schedules_uses_the_active_configuration(monkeypatch):
             return SimpleNamespace(is_valid=True)
 
     monkeypatch.setattr(schedule_generator_model, "Scheduler", FakeScheduler)
-    monkeypatch.setattr(agent_tools, "validate_config", lambda _config: [])
+    monkeypatch.setattr(scheduler_agent_state, "validate_config", lambda _config: [])
     generator = ScheduleGeneratorController(ScheduleGeneratorModel())
     state = SchedulerAgentState(config, schedule_generator=generator)
 
