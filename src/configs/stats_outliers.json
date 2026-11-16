@@ -1,0 +1,202 @@
+{
+    "config": {
+        "rooms": [
+            {
+                "name": "Early Room",
+                "capacity": 24,
+                "features": [],
+                "times": {
+                    "MON": [
+                        {
+                            "start": "08:00",
+                            "end": "09:00"
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "Standard Room",
+                "capacity": 24,
+                "features": [],
+                "times": {
+                    "TUE": [
+                        {
+                            "start": "09:00",
+                            "end": "10:00"
+                        }
+                    ]
+                }
+            },
+            {
+                "name": "Late Room",
+                "capacity": 24,
+                "features": [],
+                "times": {
+                    "WED": [
+                        {
+                            "start": "16:00",
+                            "end": "18:00"
+                        }
+                    ]
+                }
+            }
+        ],
+        "labs": [
+            {
+                "name": "Unused Lab",
+                "capacity": 24,
+                "features": [],
+                "times": null
+            }
+        ],
+        "courses": [
+            {
+                "course_id": "Early Course",
+                "section_id": "01",
+                "credits": 1,
+                "capacity": 20,
+                "room": [
+                    "Early Room"
+                ],
+                "lab": [],
+                "conflicts": [],
+                "faculty": [
+                    "Test Faculty"
+                ]
+            },
+            {
+                "course_id": "Standard Course",
+                "section_id": "01",
+                "credits": 2,
+                "capacity": 20,
+                "room": [
+                    "Standard Room"
+                ],
+                "lab": [],
+                "conflicts": [],
+                "faculty": [
+                    "Test Faculty"
+                ]
+            },
+            {
+                "course_id": "Late Course",
+                "section_id": "01",
+                "credits": 3,
+                "capacity": 20,
+                "room": [
+                    "Late Room"
+                ],
+                "lab": [],
+                "conflicts": [],
+                "faculty": [
+                    "Test Faculty"
+                ]
+            }
+        ],
+        "faculty": [
+            {
+                "name": "Test Faculty",
+                "maximum_credits": 12,
+                "maximum_days": 5,
+                "minimum_credits": 0,
+                "unique_course_limit": 3,
+                "times": {
+                    "MON": [
+                        {
+                            "start": "08:00",
+                            "end": "10:00"
+                        }
+                    ],
+                    "TUE": [
+                        {
+                            "start": "09:00",
+                            "end": "12:00"
+                        }
+                    ],
+                    "WED": [
+                        {
+                            "start": "15:00",
+                            "end": "18:00"
+                        }
+                    ]
+                }
+            }
+        ]
+    },
+    "time_slot_config": {
+        "times": {
+            "MON": [
+                {
+                    "start": "08:00",
+                    "spacing": 30,
+                    "end": "18:00"
+                }
+            ],
+            "TUE": [
+                {
+                    "start": "08:00",
+                    "spacing": 30,
+                    "end": "18:00"
+                }
+            ],
+            "WED": [
+                {
+                    "start": "08:00",
+                    "spacing": 30,
+                    "end": "18:00"
+                }
+            ],
+            "THU": [
+                {
+                    "start": "08:00",
+                    "spacing": 30,
+                    "end": "18:00"
+                }
+            ],
+            "FRI": [
+                {
+                    "start": "08:00",
+                    "spacing": 30,
+                    "end": "18:00"
+                }
+            ]
+        },
+        "classes": [
+            {
+                "credits": 1,
+                "meetings": [
+                    {
+                        "day": "MON",
+                        "start_time": "08:00",
+                        "duration": 60,
+                        "lab": false
+                    }
+                ]
+            },
+            {
+                "credits": 2,
+                "meetings": [
+                    {
+                        "day": "TUE",
+                        "start_time": "09:00",
+                        "duration": 60,
+                        "lab": false
+                    }
+                ]
+            },
+            {
+                "credits": 3,
+                "meetings": [
+                    {
+                        "day": "WED",
+                        "start_time": "16:00",
+                        "duration": 120,
+                        "lab": false
+                    }
+                ]
+            }
+        ]
+    },
+    "limit": 3,
+    "optimizer_flags": []
+}
