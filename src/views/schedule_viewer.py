@@ -5,6 +5,7 @@ Used by: GUI."""
 # File name: schedule_viewer.py
 # Primary author: Dylan Groff
 # Secondary Author: Micah Schafer
+# Tertiary Author: Renee Watts
 
 from collections.abc import Callable
 
@@ -12,6 +13,11 @@ from nicegui import ui
 
 from src.controllers.schedule_controller import (
     schedule_controller as controller,
+)
+# Renee: export only the selected faculty member's classes (Export by faculty)
+from src.controllers.schedule_filtered_export_controller import (
+    default_faculty_file_name,
+    export_faculty_schedule,
 )
 from src.controllers.schedule_filters_controller import (
     filter_by_course,
@@ -549,19 +555,42 @@ def schedule_viewer() -> Callable[[], None]:
         # Exporting
         # ---------------------------------------------------------
 
+        def selected_faculty() -> str | None:
+            """Return the faculty member the user is filtering by.
+
+            Returns None when the filter isn't set to Faculty, which means
+            Export should use the normal full-schedule export.
+            """
+            if filter_select.value == "Faculty" and filter_value_select.value:
+                return filter_value_select.value
+            return None
+
         def open_export_dialog():
             entry = controller.current
             if entry is None:
                 return
-            export_description.text = (
-                f"Download '{entry.label}' to your browser's default location. "
-                f"Check your browser settings to manually choose the save location."
-            )
             export_status.text = ""
-            try:
-                export_name.value = controller.default_export_file_name(export_format.value)
-            except OSError as error:
-                export_status.text = str(error)
+            faculty = selected_faculty()
+
+            # Reset the format choices each time the dialog opens.
+            # TODO: add "pdf": "PDF" to these options once Sohil's PDF export is ready
+            export_format.set_options({"csv": "CSV", "json": "JSON"}, value="csv")
+
+            if faculty:
+                # Filtering by faculty: explain that only their classes are exported
+                # and suggest a file name that includes their name.
+                export_description.text = f"Export only {faculty}'s classes from '{entry.label}'."
+                export_name.value = default_faculty_file_name(entry, faculty, "csv")
+            else:
+                # No faculty filter: normal export of the whole schedule.
+                export_description.text = (
+                    f"Download '{entry.label}' to your browser's default location. "
+                    f"Check your browser settings to manually choose the save location."
+                )
+                try:
+                    export_name.value = controller.default_export_file_name("csv")
+                except OSError as error:
+                    export_status.text = str(error)
             export_dialog.open()
 
         def open_export_all_dialog():
@@ -579,6 +608,12 @@ def schedule_viewer() -> Callable[[], None]:
             if stem:
                 export_name.value = f"{stem}.{event.value}"
                 return
+            # Name box is empty: suggest a default name.
+            # Use the faculty-specific name when filtering by faculty.
+            faculty = selected_faculty()
+            if faculty and controller.current:
+                export_name.value = default_faculty_file_name(controller.current, faculty, event.value)
+                return
             try:
                 export_name.value = controller.default_export_file_name(event.value)
                 export_status.text = ""
@@ -586,10 +621,19 @@ def schedule_viewer() -> Callable[[], None]:
                 export_status.text = str(error)
 
         def on_export():
-            export, error = controller.export_current(
-                export_format.value,
-                export_name.value or "",
-            )
+            # If the user is filtering by faculty, export just that person's classes.
+            # Otherwise export the whole schedule like before.
+            # Both functions return (export, error) in the same shape.
+            faculty = selected_faculty()
+            if faculty:
+                export, error = export_faculty_schedule(
+                    controller.current, faculty, export_format.value, export_name.value or ""
+                )
+            else:
+                export, error = controller.export_current(
+                    export_format.value,
+                    export_name.value or "",
+                )
             if error:
                 export_status.text = error
                 return
