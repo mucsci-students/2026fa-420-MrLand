@@ -172,6 +172,92 @@ class TestGenerateConfiguration:
         assert state.message == "No valid schedules could be generated."
         assert model.generated_schedules == []
 
+    def test_reports_diagnosis_progress_while_diagnose_runs(
+        self, model, config, monkeypatch
+    ):
+        diagnosis_started = threading.Event()
+        finish_diagnosis = threading.Event()
+
+        class SlowDiagnosisScheduler(FakeScheduler):
+            def get_models(self):
+                return iter(())
+
+            def diagnose(self):
+                diagnosis_started.set()
+                finish_diagnosis.wait()
+                return {"reason": "No compatible room assignments"}
+
+        monkeypatch.setattr(
+            "src.models.schedule_generator_model.Scheduler",
+            SlowDiagnosisScheduler,
+        )
+        model.begin_generation("test-config", config.limit)
+        worker = threading.Thread(
+            target=model.generate_configuration,
+            args=("test-config", config),
+        )
+        worker.start()
+        started = diagnosis_started.wait(timeout=5)
+        state_during_diagnosis = model.state_snapshot()
+        finish_diagnosis.set()
+        worker.join(timeout=5)
+
+        assert started
+        assert not worker.is_alive()
+        assert state_during_diagnosis.running is True
+        assert state_during_diagnosis.finished is False
+        assert state_during_diagnosis.diagnosing is True
+        assert state_during_diagnosis.message == "No schedules found. Analyzing constraints..."
+        assert model.state_snapshot().diagnosing is False
+
+    def test_cancel_diagnosis_finishes_as_no_solution_and_allows_retry(
+        self, model, config, monkeypatch
+    ):
+        diagnosis_started = threading.Event()
+        diagnosis_interrupted = threading.Event()
+
+        class InterruptibleContext:
+            def interrupt(self):
+                diagnosis_interrupted.set()
+
+        class InterruptibleScheduler:
+            def __init__(self, _config):
+                self._diagnostics = SimpleNamespace(_ctx=InterruptibleContext())
+
+            def get_models(self):
+                return iter(())
+
+            def diagnose(self):
+                diagnosis_started.set()
+                if not diagnosis_interrupted.wait(timeout=5):
+                    raise TimeoutError("diagnosis was not interrupted")
+                raise RuntimeError("diagnosis interrupted")
+
+        monkeypatch.setattr(
+            "src.models.schedule_generator_model.Scheduler",
+            InterruptibleScheduler,
+        )
+        model.begin_generation("test-config", config.limit)
+        worker = threading.Thread(
+            target=model.generate_configuration,
+            args=("test-config", config),
+        )
+        worker.start()
+        assert diagnosis_started.wait(timeout=5)
+
+        assert model.cancel_diagnosis() is True
+        worker.join(timeout=5)
+
+        state = model.state_snapshot()
+        assert not worker.is_alive()
+        assert state.running is False
+        assert state.finished is True
+        assert state.diagnosing is False
+        assert state.diagnosis_cancelled is True
+        assert state.error is None
+        assert state.message == "No valid schedules could be generated."
+        assert model.begin_generation("retry-config", config.limit) is True
+
     def test_scheduler_exception_clears_running_state(self, model, config, patch_scheduler):
         FakeScheduler.schedules = RuntimeError("scheduler failed")
 
