@@ -42,8 +42,11 @@ def schedule_generator() -> None:
                 ui.notify("Please select a .json file.", type="negative")
                 return
 
-            config = config_loader.load_uploaded_configuration(content)
             config_name = Path(file_name).stem
+            config = config_loader.load_uploaded_configuration(
+                content,
+                config_name=config_name,
+            )
             selected_config["name"] = config_name
             selected_config["config"] = config
             show_config(config, f"Loaded: {config_name}")

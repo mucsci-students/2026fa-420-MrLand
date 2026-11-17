@@ -56,6 +56,14 @@ A floating **Scheduler AI Assistant** is available throughout the GUI. It can in
 - Export a selected schedule or all generated schedules in CSV or JSON.
 - Clear generated results without deleting schedules loaded from files.
 
+### Schedule Analysis
+
+- View schedule quality as letter grades for the largest individual faculty gap total, geometric-mean room and lab utilization, faculty workload balance, and weekday teaching-hours balance.
+- Grades use per-configuration A-grade targets, with defaults of 300 weekly faculty gap minutes, 60% room utilization, 50% lab utilization, and 2 hours for each balance standard deviation.
+- Edit targets under Global Settings in the Configuration Editor. The composite grade averages the available component grades using A=4 through F=0; unavailable measures are excluded.
+- The composite averages available grades as points (A=4 through F=0) and rounds to the nearest letter grade. Custom targets are saved with the configuration and included in JSON exports when they differ from defaults.
+- Top 5 Schedules ranks generated schedules for the selected schedule's configuration by the average points of available component grades.
+
 ### What-If Analysis
 
 - Start from the active editor configuration, a generated schedule's configuration, a saved configuration, an uploaded JSON configuration, or a blank draft.

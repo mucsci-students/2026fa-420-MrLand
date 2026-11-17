@@ -3,6 +3,7 @@
 Used by: GUI."""
 
 import copy
+import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,6 +26,11 @@ from src.models.configuration_observer import (
     capture_entity_snapshot,
     publish_entity_changes,
 )
+from src.models.quality_grade_settings_repository import (
+    load_quality_grade_settings,
+    save_quality_grade_settings,
+)
+from src.models.quality_grading import QualityGradeSettings, settings_from_document
 
 T = TypeVar("T")
 
@@ -39,6 +45,7 @@ class ConfigurationController:
     def __init__(self, configuration: CombinedConfig | None = None) -> None:
         self.config_service = ConfigService()
         self.configuration = configuration
+        self.quality_grade_settings = QualityGradeSettings()
         self._has_valid_configuration = configuration is not None and not validate_config(
             configuration
         )
@@ -80,6 +87,7 @@ class ConfigurationController:
         """
         with self._lock:
             self.configuration = create_draft_config()
+            self.quality_grade_settings = QualityGradeSettings()
             self._has_valid_configuration = False
 
             return self.configuration
@@ -99,7 +107,12 @@ class ConfigurationController:
             if problems:
                 raise ConfigValidationError(problems)
 
-            self.config_service.save(self.configuration, config_name)
+            self.config_service.save(
+                self.configuration,
+                config_name,
+                self.quality_grade_settings,
+            )
+            save_quality_grade_settings(config_name, self.quality_grade_settings)
 
     def export_configuration(self, file_name: str) -> tuple[bytes, str, str]:
         """
@@ -124,7 +137,12 @@ class ConfigurationController:
             if Path(file_name).suffix.lower() != ".json":
                 file_name = f"{file_name}.json"
 
-            content = self.configuration.model_dump_json(indent=4).encode("utf-8")
+            document = self.configuration.model_dump(mode="json")
+            if self.quality_grade_settings != QualityGradeSettings():
+                document["quality_grade_settings"] = (
+                    self.quality_grade_settings.model_dump(mode="json")
+                )
+            content = json.dumps(document, indent=4).encode("utf-8")
             return content, file_name, "application/json"
 
     def load_configuration(self, config_name: str) -> CombinedConfig:
@@ -141,17 +159,37 @@ class ConfigurationController:
         """
 
         with self._lock:
+            quality_grade_settings = load_quality_grade_settings(config_name)
             self.configuration = self.config_service.load(config_name)
+            self.quality_grade_settings = quality_grade_settings
             self._has_valid_configuration = True
             return self.configuration
 
     # Load and validate a configuration from an uploaded JSON file
-    def load_uploaded_configuration(self, content: bytes) -> CombinedConfig:
+    def load_uploaded_configuration(
+        self,
+        content: bytes,
+        config_name: str | None = None,
+    ) -> CombinedConfig:
+        quality_grade_settings = settings_from_document(json.loads(content))
         configuration = self.config_service.load_uploaded(content)
         with self._lock:
             self.configuration = configuration
+            self.quality_grade_settings = quality_grade_settings
+            if config_name:
+                save_quality_grade_settings(config_name, quality_grade_settings)
             self._has_valid_configuration = True
             return self.configuration
+
+    def set_quality_grade_settings(
+        self,
+        config_name: str,
+        settings: QualityGradeSettings,
+    ) -> None:
+        """Update the active profile and persist it for future schedule analysis."""
+        with self._lock:
+            save_quality_grade_settings(config_name, settings)
+            self.quality_grade_settings = settings
 
     def list_names(self) -> list[str]:
         return self.config_service.list_names()

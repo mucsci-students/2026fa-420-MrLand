@@ -6,7 +6,10 @@ from nicegui import ui
 
 from src.controllers.schedule_analysis_controller import schedule_analysis_controller
 from src.controllers.schedule_controller import schedule_controller
+from src.models.quality_grade_settings_repository import load_quality_grade_settings
+from src.models.quality_grading import QualityGradeSettings, grade_schedule_analysis
 from src.models.schedule_analysis_model import ResourceUsage, ScheduleAnalysis
+from src.models.schedule_viewer_model import ScheduleEntry
 from src.views.schedule_analysis.analysis_components import surface_card
 
 DAYS = ("MON", "TUE", "WED", "THU", "FRI")
@@ -43,34 +46,34 @@ def _metric_card(title: str, description: str = ""):
     return value
 
 
-def _score_breakdown() -> None:
-    """Display the expandable quality-score breakdown."""
+def _score_breakdown():
+    """Display letter grades for the quality measures."""
     criteria = [
-        "Faculty Gaps",
-        "Room Utilization",
-        "Faculty Workload Balance",
-        "Weekday Course Balance",
+        ("faculty_gaps", "Faculty Gaps"),
+        ("resource_utilization", "Room & Lab Utilization"),
+        ("faculty_balance", "Faculty Workload Balance"),
+        ("weekday_balance", "Weekday Teaching-Hours Balance"),
     ]
 
+    values = {}
     with (
         ui.expansion(
-            "View score breakdown",
+            "View quality grades",
             icon="analytics",
         ).classes("w-full"),
         ui.column().classes("w-full gap-3 pt-2"),
     ):
-        for criterion in criteria:
-            with ui.column().classes("w-full gap-1"):
-                with ui.row().classes("w-full justify-between items-center"):
-                    ui.label(criterion).classes("text-sm")
-                    ui.label("—").classes("text-sm font-semibold").style("color: var(--text-muted)")
-
-                with (
-                    ui.element("div")
-                    .classes("h-2 w-full overflow-hidden rounded-full")
-                    .style("background: var(--surface-hover)")
-                ):
-                    pass
+        ui.label(
+            "Faculty gaps use the largest individual weekly total; utilization uses "
+            "the geometric mean; balance uses standard deviation."
+        ).classes("text-xs").style("color: var(--text-muted)")
+        for key, criterion in criteria:
+            with ui.row().classes("w-full justify-between items-center"):
+                ui.label(criterion).classes("text-sm")
+                values[key] = ui.label("—").classes("text-sm font-semibold").style(
+                    "color: var(--text-muted)"
+                )
+    return values
 
 
 def _weekday_bars():
@@ -195,6 +198,37 @@ def _resource_rows(resources: list[ResourceUsage]) -> list[dict[str, str]]:
     ]
 
 
+def _top_schedule_rows(
+    config_name: str | None,
+    entries: list[ScheduleEntry],
+    quality_settings: QualityGradeSettings,
+) -> list[dict[str, str | int]]:
+    if not config_name:
+        return []
+
+    scored_schedules = []
+    for entry in entries:
+        if entry.config_name != config_name:
+            continue
+        analysis = schedule_analysis_controller.analyze_schedule(entry)
+        if analysis is None:
+            continue
+        grades = grade_schedule_analysis(analysis, quality_settings)
+        score = grades.average_points
+        if score is not None:
+            scored_schedules.append((score, grades.composite, entry.label))
+
+    scored_schedules.sort(key=lambda result: result[0], reverse=True)
+    return [
+        {
+            "rank": rank,
+            "label": label,
+            "score": f"{score:.2f} ({composite})",
+        }
+        for rank, (score, composite, label) in enumerate(scored_schedules[:5], start=1)
+    ]
+
+
 def _update_resource_heatmap(heatmap, resources: list[ResourceUsage]) -> None:
     heatmap.clear()
     with heatmap:
@@ -235,6 +269,8 @@ def _update_resource_heatmap(heatmap, resources: list[ResourceUsage]) -> None:
 def _update_analysis(
     analysis: ScheduleAnalysis | None,
     metric_values,
+    quality_values,
+    quality_settings: QualityGradeSettings,
     workload_table,
     class_bars,
     faculty_bars,
@@ -246,10 +282,12 @@ def _update_analysis(
     room_heatmap,
     lab_table,
     lab_heatmap,
-    unscheduled_table,
 ) -> None:
     if analysis is None:
         for value in metric_values.values():
+            value.text = "—"
+            value.update()
+        for value in quality_values.values():
             value.text = "—"
             value.update()
         class_summary["busy"].text = "Busiest Day: —"
@@ -269,8 +307,6 @@ def _update_analysis(
         lab_table.rows = []
         for table in (workload_table, room_table, lab_table):
             table.update()
-        unscheduled_table.rows = []
-        unscheduled_table.update()
         _set_weekday_bars(class_bars, {})
         _set_weekday_bars(faculty_bars, {})
         _update_resource_heatmap(room_heatmap, [])
@@ -279,14 +315,24 @@ def _update_analysis(
 
     metric_values["scheduled"].text = str(analysis.scheduled_sections)
     metric_values["faculty"].text = str(analysis.faculty_assigned)
-    metric_values["unscheduled"].text = (
-        str(len(analysis.unscheduled_courses))
-        if analysis.unscheduled_courses is not None
-        else "—"
-    )
+    grades = grade_schedule_analysis(analysis, quality_settings)
+    metric_values["quality"].text = grades.composite or "—"
     metric_values["scheduled"].update()
     metric_values["faculty"].update()
-    metric_values["unscheduled"].update()
+    metric_values["quality"].update()
+
+    for key, grade in (
+        ("faculty_gaps", grades.faculty_gaps),
+        (
+            "resource_utilization",
+            f"Rooms {grades.room_utilization or '—'} · Labs {grades.lab_utilization or '—'}",
+        ),
+        ("faculty_balance", grades.faculty_workload_balance),
+        ("weekday_balance", grades.weekday_teaching_hours_balance),
+    ):
+        value = quality_values[key]
+        value.text = grade or "—"
+        value.update()
 
     workload_table.rows = [
         {
@@ -335,25 +381,12 @@ def _update_analysis(
     lab_table.rows = _resource_rows(analysis.lab_utilization)
     room_table.update()
     lab_table.update()
-    unscheduled_table.rows = (
-        [
-            {
-                "course": course.course,
-                "section": course.section,
-                "reason": "Not assigned in this schedule",
-            }
-            for course in analysis.unscheduled_courses
-        ]
-        if analysis.unscheduled_courses is not None
-        else []
-    )
-    unscheduled_table.update()
     _update_resource_heatmap(room_heatmap, analysis.room_utilization)
     _update_resource_heatmap(lab_heatmap, analysis.lab_utilization)
 
 
 def build_statistics_tab(on_load_schedule: Callable[[], None]):
-    """Build the Statistics tab and return the unscheduled courses container."""
+    """Build the Statistics tab and return its refresh callback."""
 
     # ---------------------------------------------------------
     # Schedule controls
@@ -408,8 +441,8 @@ def build_statistics_tab(on_load_schedule: Callable[[], None]):
         with ui.row().classes("w-full flex-wrap gap-3"):
             metric_values = {}
             metric_values["quality"] = _metric_card(
-                "Quality Score",
-                "Overall schedule rating",
+                "Composite Grade",
+                "Average component points (A=4 through F=0), rounded to the nearest grade.",
             )
 
             metric_values["scheduled"] = _metric_card(
@@ -422,7 +455,7 @@ def build_statistics_tab(on_load_schedule: Callable[[], None]):
                 "Distinct faculty members",
             )
 
-        _score_breakdown()
+        quality_values = _score_breakdown()
 
     # ---------------------------------------------------------
     # Faculty Workload
@@ -530,9 +563,9 @@ def build_statistics_tab(on_load_schedule: Callable[[], None]):
 
     with surface_card(
         "Top 5 Schedules",
-        "Compare the highest-ranked generated schedules.",
+        "Highest composite quality scores for the selected schedule's configuration.",
     ):
-        _placeholder_table(
+        top_schedules_table = _placeholder_table(
             [
                 {
                     "name": "rank",
@@ -555,48 +588,6 @@ def build_statistics_tab(on_load_schedule: Callable[[], None]):
             ]
         )
 
-        ui.label("Schedule rankings will appear here when available.").classes("text-xs").style(
-            "color: var(--text-muted)"
-        )
-
-    # ---------------------------------------------------------
-    # Unscheduled Courses
-    # ---------------------------------------------------------
-
-    with (
-        ui.column().classes("w-full") as unscheduled_card,
-        surface_card(
-            "Unscheduled Courses",
-            "Courses from the configuration that were not assigned.",
-        ),
-    ):
-        unscheduled_table = _placeholder_table(
-            [
-                {
-                    "name": "course",
-                    "label": "Course",
-                    "field": "course",
-                    "align": "left",
-                },
-                {
-                    "name": "section",
-                    "label": "Section",
-                    "field": "section",
-                    "align": "left",
-                },
-                {
-                    "name": "reason",
-                    "label": "Reason",
-                    "field": "reason",
-                    "align": "left",
-                },
-            ]
-        )
-
-        ui.label(
-            "Unscheduled sections are listed when the selected schedule has its source configuration."
-        ).classes("text-xs").style("color: var(--text-muted)")
-
     def refresh_statistics() -> None:
         """Refresh the selector and statistics for the currently selected schedule."""
         options = schedule_controller.schedule_options()
@@ -609,9 +600,21 @@ def build_statistics_tab(on_load_schedule: Callable[[], None]):
 
         schedule_select.update()
         analysis = schedule_analysis_controller.analyze_selected_schedule()
+        entry = schedule_controller.current
+        quality_settings = load_quality_grade_settings(
+            entry.config_name if entry is not None else None
+        )
+        top_schedules_table.rows = _top_schedule_rows(
+            entry.config_name if entry is not None else None,
+            schedule_controller.generated_entries,
+            quality_settings,
+        )
+        top_schedules_table.update()
         _update_analysis(
             analysis,
             metric_values,
+            quality_values,
+            quality_settings,
             workload_table,
             class_bars,
             faculty_bars,
@@ -623,7 +626,6 @@ def build_statistics_tab(on_load_schedule: Callable[[], None]):
             room_heatmap,
             lab_table,
             lab_heatmap,
-            unscheduled_table,
         )
 
-    return unscheduled_card, refresh_statistics
+    return refresh_statistics

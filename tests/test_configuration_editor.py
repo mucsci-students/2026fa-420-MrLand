@@ -237,6 +237,19 @@ def test_ai_save_callback_flushes_pending_global_settings_and_downloads(
     run_editor_simulation(action)
 
 
+def test_global_settings_save_custom_quality_target(editor_controller):
+    async def action(user, _refresh):
+        await load_demo_config(user, editor_controller)
+        user.find("Global settings").click()
+        user.find("Quality grade targets").click()
+        user.find("Max weekly faculty gap for A (minutes)").clear().type("420")
+        user.find("Save settings").click()
+
+        assert editor_controller.quality_grade_settings.max_faculty_gap_minutes == 420
+
+    run_editor_simulation(action)
+
+
 def test_ai_edits_use_editor_undo_and_redo_history(editor_controller):
     from src.controllers.room_controller import RoomController
 

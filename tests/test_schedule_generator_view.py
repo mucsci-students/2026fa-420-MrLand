@@ -21,8 +21,9 @@ def test_schedule_generator_loads_uploaded_configuration(monkeypatch):
         def __init__(self):
             self.uploaded_content = None
 
-        def load_uploaded_configuration(self, uploaded_content):
+        def load_uploaded_configuration(self, uploaded_content, config_name=None):
             self.uploaded_content = uploaded_content
+            self.config_name = config_name
             return config
 
     config_controller = FakeConfigurationController()
@@ -62,6 +63,7 @@ def test_schedule_generator_loads_uploaded_configuration(monkeypatch):
 
             await user.should_see("Loaded: demo")
             assert config_controller.uploaded_content == content
+            assert config_controller.config_name == "demo"
 
     asyncio.run(simulate())
 
@@ -130,7 +132,7 @@ def test_progress_display_recovers_for_retries_after_no_solution(monkeypatch):
     monkeypatch.setattr(generator, "controller", controller)
 
     class TestConfigurationController:
-        def load_uploaded_configuration(self, _content):
+        def load_uploaded_configuration(self, _content, config_name=None):
             return controller.load_config("not_working")
 
     monkeypatch.setattr(generator, "ConfigurationController", TestConfigurationController)
@@ -218,7 +220,7 @@ def test_diagnosis_cancel_button_appears_after_sixty_seconds_and_allows_retry(mo
     monkeypatch.setattr(generator, "controller", controller)
 
     class TestConfigurationController:
-        def load_uploaded_configuration(self, _content):
+        def load_uploaded_configuration(self, _content, config_name=None):
             return config
 
     monkeypatch.setattr(generator, "ConfigurationController", TestConfigurationController)

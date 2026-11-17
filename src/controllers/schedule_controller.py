@@ -44,6 +44,10 @@ class ScheduleController:
         return self.model.current
 
     @property
+    def generated_entries(self) -> list[ScheduleEntry]:
+        return [entry for entry in self.model.entries if entry.source == "generated"]
+
+    @property
     def selected_index(self) -> int:
         return self.model.selected_index
 

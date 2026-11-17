@@ -4,7 +4,11 @@ from scheduler.config import CombinedConfig
 from scheduler.scheduler import Scheduler
 
 from src.models.configuration_repository import load_config
-from src.models.schedule_analysis_model import ScheduleAnalysisModel
+from src.models.schedule_analysis_model import (
+    ResourceUsage,
+    ScheduleAnalysis,
+    ScheduleAnalysisModel,
+)
 from src.models.schedule_files import parse_schedule_file, records_from_result
 from src.models.schedule_result import ScheduleResult
 from src.models.schedule_viewer_model import ScheduleEntry
@@ -107,11 +111,13 @@ def test_analysis_uses_config_for_unscheduled_and_availability_statistics():
     assert room.available_hours == 2
     assert room.utilization_percent == 50
     assert room.unused_hours == 1
+    assert analysis.room_utilization_geomean_percent == 50
     lab = analysis.lab_utilization[0]
     assert lab.resource == "Lab A"
     assert lab.available_hours == 15
     assert lab.utilization_percent == 0
     assert lab.unused_hours == 15
+    assert analysis.lab_utilization_geomean_percent == 0
 
 
 def test_analysis_leaves_configuration_statistics_unavailable_for_uploaded_schedules():
@@ -127,6 +133,8 @@ def test_analysis_leaves_configuration_statistics_unavailable_for_uploaded_sched
     assert analysis is not None
     assert analysis.unscheduled_courses is None
     assert analysis.available_empty_blocks is None
+    assert analysis.room_utilization_geomean_percent is None
+    assert analysis.lab_utilization_geomean_percent is None
 
 
 def test_analysis_counts_early_starts_and_late_ends_per_meeting():
@@ -153,6 +161,67 @@ def test_analysis_counts_early_starts_and_late_ends_per_meeting():
     assert analysis is not None
     assert analysis.early_starts == 2
     assert analysis.late_ends == 1
+
+
+def test_analysis_calculates_gap_penalty_and_teaching_hour_balance():
+    entry = ScheduleEntry(
+        label="Uploaded schedule",
+        config_name="test",
+        source="file",
+        records=[
+            {
+                "course": "CS 101.01",
+                "faculty": "Dr. Smith",
+                "room": "",
+                "lab": "",
+                "times": "MON 09:00-10:00,MON 11:00-12:00,TUE 09:00-11:00,TUE 12:00-13:00",
+            },
+            {
+                "course": "CS 102.01",
+                "faculty": "Dr. Jones",
+                "room": "",
+                "lab": "",
+                "times": "MON 13:00-14:00,MON 14:30-15:00",
+            },
+        ],
+    )
+
+    analysis = ScheduleAnalysisModel().analyze(entry)
+
+    assert analysis is not None
+    assert [workload.gap_minutes for workload in analysis.faculty_workload] == [30, 120]
+    assert analysis.faculty_gap_penalty == 15_300
+    assert analysis.faculty_workload_stddev_hours == 1.75
+    assert analysis.weekday_teaching_hours == {
+        "MON": 3.5,
+        "TUE": 3.0,
+        "WED": 0.0,
+        "THU": 0.0,
+        "FRI": 0.0,
+    }
+    assert analysis.weekday_teaching_hours_stddev == 1.6
+
+
+def test_resource_utilization_geomean_weights_resources_equally():
+    analysis = ScheduleAnalysis(
+        schedule_label="Test schedule",
+        scheduled_sections=0,
+        faculty_assigned=0,
+        weekday_meetings={},
+        faculty_workload=[],
+        room_utilization=[
+            ResourceUsage("Room 101", 0, 1, {}, available_hours=4),
+            ResourceUsage("Room 102", 0, 4, {}, available_hours=4),
+        ],
+        lab_utilization=[],
+        unscheduled_courses=None,
+        available_empty_blocks=None,
+        early_starts=0,
+        late_ends=0,
+    )
+
+    assert analysis.room_utilization_geomean_percent == 50
+    assert analysis.lab_utilization_geomean_percent is None
 
 
 def test_stats_outliers_config_generates_flagged_schedule():

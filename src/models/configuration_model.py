@@ -19,6 +19,11 @@ from src.models.configuration_repository import (
     load_config,
     save_config,
 )
+from src.models.quality_grading import (
+    QUALITY_GRADE_SETTINGS_KEY,
+    QualityGradeSettings,
+    settings_from_document,
+)
 
 _CONFIG_SCHEMA_PATH = (
     Path(__file__).resolve().parents[1] / "schemas" / "combined-config.schema.json"
@@ -191,8 +196,17 @@ def _restore_config(config: CombinedConfig, snapshot: CombinedConfig) -> None:
 
 
 class ConfigService:
-    def save(self, config: CombinedConfig, config_name: str) -> None:
-        save_config(config, clean_config_name(config_name))
+    def save(
+        self,
+        config: CombinedConfig,
+        config_name: str,
+        quality_grade_settings: QualityGradeSettings | None = None,
+    ) -> None:
+        save_config(
+            config,
+            clean_config_name(config_name),
+            quality_grade_settings,
+        )
 
     def load(self, config_name: str) -> CombinedConfig:
         return load_config(config_name)
@@ -206,7 +220,11 @@ class ConfigService:
     def load_uploaded(self, content: bytes) -> CombinedConfig:
         """Parse and validate an uploaded JSON configuration."""
         try:
-            config = CombinedConfig.model_validate_json(content)
+            document = json.loads(content)
+            settings_from_document(document)
+            if isinstance(document, dict):
+                document.pop(QUALITY_GRADE_SETTINGS_KEY, None)
+            config = CombinedConfig.model_validate(document)
         except Exception as exc:
             raise ValueError(f"Unable to parse configuration JSON: {exc}") from exc
 

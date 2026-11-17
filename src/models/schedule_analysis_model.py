@@ -2,7 +2,10 @@
 
 import re
 from collections import Counter, defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from itertools import pairwise
+from math import exp, log
+from statistics import pstdev
 
 from scheduler.config import CombinedConfig, LabConfig, RoomConfig
 
@@ -26,6 +29,7 @@ class FacultyWorkload:
     teaching_hours: float
     hours_by_day: dict[str, float]
     longest_daily_span_hours: float
+    gap_minutes: int = 0
 
 
 @dataclass(frozen=True)
@@ -74,6 +78,49 @@ class ScheduleAnalysis:
     available_empty_blocks: int | None
     early_starts: int
     late_ends: int
+    weekday_teaching_hours: dict[str, float] = field(default_factory=dict)
+
+    @property
+    def faculty_gap_penalty(self) -> int:
+        return sum(workload.gap_minutes**2 for workload in self.faculty_workload)
+
+    @property
+    def room_utilization_geomean_percent(self) -> float | None:
+        return _resource_utilization_geomean(self.room_utilization)
+
+    @property
+    def lab_utilization_geomean_percent(self) -> float | None:
+        return _resource_utilization_geomean(self.lab_utilization)
+
+    @property
+    def faculty_workload_stddev_hours(self) -> float | None:
+        if not self.faculty_workload:
+            return None
+        return round(pstdev(item.teaching_hours for item in self.faculty_workload), 2)
+
+    @property
+    def weekday_teaching_hours_stddev(self) -> float | None:
+        if self.scheduled_sections == 0:
+            return None
+        return round(
+            pstdev(self.weekday_teaching_hours.get(day, 0) for day in DAYS),
+            2,
+        )
+
+
+def _resource_utilization_geomean(
+    resources: list[ResourceUsage],
+) -> float | None:
+    utilizations = [
+        resource.used_hours / resource.available_hours * 100
+        for resource in resources
+        if resource.available_hours is not None and resource.available_hours > 0
+    ]
+    if not utilizations:
+        return None
+    if any(utilization == 0 for utilization in utilizations):
+        return 0.0
+    return round(exp(sum(log(utilization) for utilization in utilizations) / len(utilizations)), 1)
 
 
 def _meeting_duration(meeting: str, course: str) -> tuple[str, int, int]:
@@ -188,6 +235,14 @@ def _unused_blocks(
     return count
 
 
+def _internal_gap_minutes(ranges: list[tuple[int, int]]) -> int:
+    merged = _merged_ranges(ranges)
+    return sum(
+        next_start - current_end
+        for (_, current_end), (next_start, _) in pairwise(merged)
+    )
+
+
 def _configured_courses(
     config: CombinedConfig,
     scheduled_names: set[str],
@@ -241,6 +296,7 @@ class ScheduleAnalysisModel:
             return None
 
         weekday_meetings: Counter[str] = Counter()
+        weekday_minutes: dict[str, int] = defaultdict(int)
         faculty_sections: dict[str, set[str]] = defaultdict(set)
         faculty_daily: dict[str, dict[str, int]] = defaultdict(
             lambda: defaultdict(int)
@@ -280,6 +336,7 @@ class ScheduleAnalysisModel:
                 day, start, end = _meeting_duration(meeting_text, course)
                 duration = end - start
                 weekday_meetings[day] += 1
+                weekday_minutes[day] += duration
                 early_starts += start < 9 * 60
                 late_ends += end > 17 * 60
 
@@ -304,6 +361,10 @@ class ScheduleAnalysisModel:
         for faculty in sorted(faculty_sections):
             daily_minutes = faculty_daily[faculty]
             spans = faculty_spans[faculty]
+            gap_minutes = sum(
+                _internal_gap_minutes(ranges)
+                for ranges in faculty_scheduled[faculty].values()
+            )
             longest_span = max(
                 (max(times) - min(times) for times in spans.values()),
                 default=0,
@@ -315,6 +376,7 @@ class ScheduleAnalysisModel:
                     teaching_hours=_hours(sum(daily_minutes.values())),
                     hours_by_day={day: _hours(daily_minutes.get(day, 0)) for day in DAYS},
                     longest_daily_span_hours=_hours(longest_span),
+                    gap_minutes=gap_minutes,
                 )
             )
 
@@ -362,4 +424,7 @@ class ScheduleAnalysisModel:
             available_empty_blocks=available_empty_blocks,
             early_starts=early_starts,
             late_ends=late_ends,
+            weekday_teaching_hours={
+                day: _hours(weekday_minutes.get(day, 0)) for day in DAYS
+            },
         )
