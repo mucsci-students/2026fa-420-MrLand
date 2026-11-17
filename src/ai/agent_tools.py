@@ -5,7 +5,7 @@ from __future__ import annotations
 import hmac
 import json
 from collections.abc import Callable, Mapping, Sequence
-from typing import Literal, Protocol, TypeVar
+from typing import Literal, Protocol, TypedDict, TypeVar, Unpack
 
 from pydantic import BaseModel, Field, ValidationError
 from scheduler.config import (
@@ -46,7 +46,6 @@ COMBINATIONS_PASSWORD = "HaTz"
 
 type JsonValue = str | int | float | bool | None | Sequence[JsonValue] | Mapping[str, JsonValue]
 type JsonObject = dict[str, JsonValue]
-type ToolResult = dict[str, JsonValue]
 type ConfigurationItem = RoomConfig | LabConfig | CourseConfig | FacultyConfig | ClassPattern
 type ConfigurationItemCollection = (
     list[RoomConfig]
@@ -56,6 +55,21 @@ type ConfigurationItemCollection = (
     | list[ClassPattern]
 )
 ConfigurationItemType = TypeVar("ConfigurationItemType", bound=ConfigurationItem)
+
+
+class ToolResultDetails(TypedDict, total=False):
+    action: str
+    combinations: object
+    data: object
+    errors: object
+    generated: int
+    valid: int
+    warnings: object
+
+
+class ToolResult(ToolResultDetails):
+    success: bool
+    message: str
 
 
 class ScheduleGenerator(Protocol):
@@ -103,7 +117,11 @@ class SchedulerAgentState:
         self._configuration_exists = configuration_exists or ConfigService().exists
 
     @staticmethod
-    def _result(success: bool, message: str, **details: JsonValue) -> ToolResult:
+    def _result(
+        success: bool,
+        message: str,
+        **details: Unpack[ToolResultDetails],
+    ) -> ToolResult:
         return {"success": success, "message": message, **details}
 
     # Return the standard prompt shown when no configuration is active.
@@ -943,19 +961,17 @@ def get_tool_list(
                     f"- {problem.area}: {problem.item or 'overall'}: {problem.message}"
                     for problem in problems
                 )
-                outcome = {
-                    **outcome,
-                    "message": str(outcome["message"])
-                    + f"\nThe draft still has validation issues:\n{details}",
-                    "warnings": [
-                        {
-                            "area": problem.area,
-                            "item": problem.item,
-                            "message": problem.message,
-                        }
-                        for problem in problems
-                    ],
-                }
+                outcome["message"] = (
+                    outcome["message"] + f"\nThe draft still has validation issues:\n{details}"
+                )
+                outcome["warnings"] = [
+                    {
+                        "area": problem.area,
+                        "item": problem.item,
+                        "message": problem.message,
+                    }
+                    for problem in problems
+                ]
             return report(outcome)
 
         return guarded_operation

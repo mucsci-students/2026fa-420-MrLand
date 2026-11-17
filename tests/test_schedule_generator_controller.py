@@ -13,6 +13,7 @@ from src.controllers.schedule_generator_controller import (
     ScheduleGeneratorController,
 )
 from src.models.schedule_generator_model import ScheduleGeneratorModel
+from tests.test_configuration import make_valid_config
 
 
 class FakeGeneratorModel:
@@ -251,7 +252,8 @@ class TestGenerateActiveConfiguration:
     def test_rejects_request_when_already_running(self):
         model = FakeGeneratorModel(running=True)
         controller = ScheduleGeneratorController(model=cast(ScheduleGeneratorModel, model))
-        config = SimpleNamespace(limit=5)
+        config = make_valid_config()
+        config.limit = 5
 
         state, error = controller.generate_active_configuration(config, "active")
 
@@ -262,7 +264,8 @@ class TestGenerateActiveConfiguration:
         assert model.generate_configuration_calls == []
 
     def test_begins_and_generates_active_configuration(self, controller, model):
-        config = SimpleNamespace(limit=5)
+        config = make_valid_config()
+        config.limit = 5
 
         state, error = controller.generate_active_configuration(config, "active")
 
