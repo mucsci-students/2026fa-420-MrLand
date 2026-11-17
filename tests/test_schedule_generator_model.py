@@ -172,9 +172,7 @@ class TestGenerateConfiguration:
         assert state.message == "No valid schedules could be generated."
         assert model.generated_schedules == []
 
-    def test_reports_diagnosis_progress_while_diagnose_runs(
-        self, model, config, monkeypatch
-    ):
+    def test_reports_diagnosis_progress_while_diagnose_runs(self, model, config, monkeypatch):
         diagnosis_started = threading.Event()
         finish_diagnosis = threading.Event()
 

@@ -116,10 +116,7 @@ class ScheduleGeneratorModel:
     def _interrupt_diagnosis_until_stopped(self, scheduler: Scheduler) -> None:
         while True:
             with self._lock:
-                if (
-                    not self._cancel_diagnosis_requested
-                    or self._active_scheduler is not scheduler
-                ):
+                if not self._cancel_diagnosis_requested or self._active_scheduler is not scheduler:
                     return
             scheduler._diagnostics._ctx.interrupt()
             sleep(0.05)

@@ -32,10 +32,14 @@ class ScheduleGenerationProgress:
                 )
             self.cancel_button = None
             if on_cancel is not None:
-                self.cancel_button = ui.button(
-                    "Stop analysis and show no-solution result",
-                    on_click=on_cancel,
-                ).props("outline").classes("border-[#45616b] text-[#d8e7e8]")
+                self.cancel_button = (
+                    ui.button(
+                        "Stop analysis and show no-solution result",
+                        on_click=on_cancel,
+                    )
+                    .props("outline")
+                    .classes("border-[#45616b] text-[#d8e7e8]")
+                )
             self.destination = ui.label("").classes("text-sm text-gray-400")
         self.container.set_visibility(False)
         if self.cancel_button is not None:
