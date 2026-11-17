@@ -126,7 +126,6 @@ def schedule_analysis() -> ScheduleAnalysisRefresh:
 
         refresh_statistics()
         refresh_comparison()
-        what_if_tab.refresh_sources()
         what_if_tab.refresh_original_schedule()
 
         current = schedule_controller.current
