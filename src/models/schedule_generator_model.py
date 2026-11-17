@@ -20,6 +20,9 @@ from src.models.schedule_result import ScheduleResult
 class ScheduleGenerationState:
     running: bool = False
     finished: bool = False
+    diagnosing: bool = False
+    cancel_requested: bool = False
+    diagnosis_cancelled: bool = False
     error: str | None = None
     config_name: str | None = None
     requested: int = 0
@@ -38,6 +41,8 @@ class ScheduleGeneratorModel:
         self._state = ScheduleGenerationState()
         self._generated_schedules: list[ScheduleResult] = []
         self._generation_id = 0
+        self._active_scheduler: Scheduler | None = None
+        self._cancel_diagnosis_requested = False
 
     @property
     def generated_schedules(self) -> list[ScheduleResult]:
@@ -107,6 +112,8 @@ class ScheduleGeneratorModel:
 
             self._generation_id += 1
             self._generated_schedules.clear()
+            self._active_scheduler = None
+            self._cancel_diagnosis_requested = False
             self._state = ScheduleGenerationState(
                 generation_id=self._generation_id,
                 running=True,
@@ -160,6 +167,8 @@ class ScheduleGeneratorModel:
             )
 
             scheduler = Scheduler(config)
+            with self._lock:
+                self._active_scheduler = scheduler
             self.update_state(message="Generating schedules...")
             generated = []
 
@@ -176,13 +185,21 @@ class ScheduleGeneratorModel:
                     break
 
             if not generated:
-                diagnosis = scheduler.diagnose()
                 self.update_state(
-                    message="No valid schedules could be generated.",
-                    diagnosis=diagnosis,
-                    finished=True,
-                    running=False,
+                    diagnosing=True,
+                    message="No schedules found. Analyzing constraints...",
                 )
+                diagnosis = scheduler.diagnose()
+                with self._lock:
+                    if self._cancel_diagnosis_requested:
+                        self._finish_cancelled_diagnosis()
+                    else:
+                        self._state.diagnosing = False
+                        self._state.message = "No valid schedules could be generated."
+                        self._state.diagnosis = diagnosis
+                        self._state.finished = True
+                        self._state.running = False
+                        self._active_scheduler = None
                 return
 
             valid_count = sum(
@@ -203,13 +220,18 @@ class ScheduleGeneratorModel:
                 self._state.message = f"Generated {len(generated)} of {limit} schedules."
                 self._state.finished = True
                 self._state.running = False
+                self._active_scheduler = None
         except Exception as error:  # noqa: BLE001 - worker boundary must publish scheduler failures
-            self.update_state(
-                error=str(error),
-                message="Schedule generation failed.",
-                finished=True,
-                running=False,
-            )
+            with self._lock:
+                if self._cancel_diagnosis_requested and self._state.diagnosing:
+                    self._finish_cancelled_diagnosis()
+                else:
+                    self._state.diagnosing = False
+                    self._state.error = str(error)
+                    self._state.message = "Schedule generation failed."
+                    self._state.finished = True
+                    self._state.running = False
+                    self._active_scheduler = None
 
     @staticmethod
     def schedule_to_json(result: ScheduleResult, schedule_number: int) -> bytes:
