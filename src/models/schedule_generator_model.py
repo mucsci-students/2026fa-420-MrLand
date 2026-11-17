@@ -74,6 +74,9 @@ class ScheduleGeneratorModel:
         *,
         running: bool | None = None,
         finished: bool | None = None,
+        diagnosing: bool | None = None,
+        cancel_requested: bool | None = None,
+        diagnosis_cancelled: bool | None = None,
         error: str | None = None,
         config_name: str | None = None,
         requested: int | None = None,
@@ -88,6 +91,12 @@ class ScheduleGeneratorModel:
                 self._state.running = running
             if finished is not None:
                 self._state.finished = finished
+            if diagnosing is not None:
+                self._state.diagnosing = diagnosing
+            if cancel_requested is not None:
+                self._state.cancel_requested = cancel_requested
+            if diagnosis_cancelled is not None:
+                self._state.diagnosis_cancelled = diagnosis_cancelled
             if error is not None:
                 self._state.error = error
             if config_name is not None:
@@ -122,6 +131,36 @@ class ScheduleGeneratorModel:
                 message="Starting scheduler...",
             )
             return True
+
+    def cancel_diagnosis(self) -> bool:
+        with self._lock:
+            if not self._state.running or not self._state.diagnosing:
+                return False
+
+            self._cancel_diagnosis_requested = True
+            self._state.cancel_requested = True
+            self._state.message = "Stopping diagnosis..."
+            if self._active_scheduler is not None:
+                diagnostics = getattr(self._active_scheduler, "_diagnostics", None)
+                context = getattr(diagnostics, "_ctx", None)
+                interrupt = getattr(context, "interrupt", None)
+                if callable(interrupt):
+                    interrupt()
+            return True
+
+    def _finish_cancelled_diagnosis(self) -> None:
+        self._cancel_diagnosis_requested = False
+        self._state.diagnosing = False
+        self._state.cancel_requested = False
+        self._state.diagnosis_cancelled = True
+        self._state.error = None
+        self._state.finished = True
+        self._state.running = False
+        self._state.generated = 0
+        self._state.valid = 0
+        self._state.message = "No valid schedules could be generated."
+        self._state.diagnosis = None
+        self._active_scheduler = None
 
     def generate(
         self,
