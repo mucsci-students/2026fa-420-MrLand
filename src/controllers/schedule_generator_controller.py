@@ -33,6 +33,9 @@ class ScheduleGeneratorController:
     def state_snapshot(self) -> ScheduleGenerationState:
         return self.model.state_snapshot()
 
+    def cancel_diagnosis(self) -> bool:
+        return self.model.cancel_diagnosis()
+
     def clear_generated_schedules(self) -> bool:
         return self.model.clear_generated_schedules()
 

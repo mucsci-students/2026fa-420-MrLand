@@ -5,72 +5,23 @@ Used by: GUI."""
 from pydantic import ValidationError
 from scheduler.config import TimeBlock, TimeSlotConfig
 
+from src.controllers.cli_input import get_integer as _get_integer
+from src.controllers.cli_input import get_weekday
+
 VALID_DAYS = {"MON", "TUE", "WED", "THU", "FRI"}
-
-
-def _build_time_block(day, start, spacing, end):
-    day = day.strip().upper()
-    if day not in VALID_DAYS:
-        raise ValueError("Day must be MON, TUE, WED, THU, or FRI.")
-    if isinstance(spacing, bool) or not isinstance(spacing, int) or spacing <= 0:
-        raise ValueError("Spacing must be a positive integer.")
-    return day, TimeBlock(start=start, spacing=spacing, end=end)
-
-
-def add_time_block_from_values(times, day, start, spacing, end):
-    """Validate and append a time block to a weekday's block list."""
-    day, block = _build_time_block(day, start, spacing, end)
-    times.setdefault(day, []).append(block)
-    return block
-
-
-def update_time_block_from_values(times, existing_day, existing_block, day, start, spacing, end):
-    """Replace a block, optionally moving it to another weekday."""
-    existing_day = existing_day.strip().upper()
-    try:
-        blocks = times[existing_day]
-        index = next(i for i, block in enumerate(blocks) if block is existing_block)
-    except (KeyError, StopIteration) as exc:
-        raise ValueError("Time block no longer exists.") from exc
-
-    day, updated_block = _build_time_block(day, start, spacing, end)
-    if day == existing_day:
-        blocks[index] = updated_block
-    else:
-        blocks.pop(index)
-        times.setdefault(day, []).append(updated_block)
-    return updated_block
-
-
-def delete_time_block_from_values(times, day, block_to_delete):
-    """Remove and return a selected time block by object identity."""
-    day = day.strip().upper()
-    try:
-        blocks = times[day]
-        index = next(i for i, block in enumerate(blocks) if block is block_to_delete)
-    except (KeyError, StopIteration) as exc:
-        raise ValueError("Time block no longer exists.") from exc
-    return blocks.pop(index)
 
 
 def get_day():
     """Get a valid weekday from the user."""
-    day = input("Enter day (MON, TUE, WED, THU, FRI): ").strip().upper()
-
-    if day not in VALID_DAYS:
-        print("Invalid day. Please enter MON, TUE, WED, THU, or FRI.")
-        return None
-
-    return day
+    return get_weekday(
+        "Enter day (MON, TUE, WED, THU, FRI): ",
+        "Invalid day. Please enter MON, TUE, WED, THU, or FRI.",
+    )
 
 
 def get_integer(prompt):
     """Get a valid integer from the user."""
-    while True:
-        try:
-            return int(input(prompt).strip())
-        except ValueError:
-            print("Please enter a valid number.")
+    return _get_integer(prompt)
 
 
 def add_time_block(time_slot_config: TimeSlotConfig):
@@ -195,3 +146,17 @@ def delete_time_block(time_slot_config: TimeSlotConfig):
     blocks.pop(index)
 
     print("Time block deleted successfully.")
+
+
+from src.controllers.time_block_value_operations import (
+    _build_time_block as _build_time_block,  # noqa: PLC0414
+)
+from src.controllers.time_block_value_operations import (
+    add_time_block_from_values as add_time_block_from_values,  # noqa: PLC0414
+)
+from src.controllers.time_block_value_operations import (
+    delete_time_block_from_values as delete_time_block_from_values,  # noqa: PLC0414
+)
+from src.controllers.time_block_value_operations import (
+    update_time_block_from_values as update_time_block_from_values,  # noqa: PLC0414
+)

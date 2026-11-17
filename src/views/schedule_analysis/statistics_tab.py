@@ -46,11 +46,10 @@ def _metric_card(title: str, description: str = ""):
 def _score_breakdown() -> None:
     """Display the expandable quality-score breakdown."""
     criteria = [
-        "Conflict Avoidance",
         "Faculty Gaps",
         "Room Utilization",
-        "Workload Balance",
-        "Scheduled Courses",
+        "Faculty Workload Balance",
+        "Weekday Course Balance",
     ]
 
     with (
@@ -421,11 +420,6 @@ def build_statistics_tab(on_load_schedule: Callable[[], None]):
             metric_values["faculty"] = _metric_card(
                 "Faculty Assigned",
                 "Distinct faculty members",
-            )
-
-            metric_values["unscheduled"] = _metric_card(
-                "Unscheduled Courses",
-                "Courses not assigned",
             )
 
         _score_breakdown()

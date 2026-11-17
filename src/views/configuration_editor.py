@@ -24,6 +24,7 @@ from src.models.configuration_model import (
 from src.models.configuration_repository import ConfigLoadError
 from src.views.class_patterns_gui import class_patterns_gui
 from src.views.common import coming_soon, section_header
+from src.views.configuration_history import ConfigurationHistory
 from src.views.courses_gui import courses_gui
 from src.views.faculty_gui import faculty_gui
 from src.views.global_settings_gui import global_settings_gui
@@ -115,8 +116,8 @@ def configuration_editor(
     combination_progress = [0] * len(PANEL_COMBINATIONS)
     completed_combinations: set[str] = set()
     load_generation = 0
-    undo_history: list[ConfigurationMemento] = []
-    redo_history: list[ConfigurationMemento] = []
+    history = ConfigurationHistory()
+    download_target = ui.row().style("display: none")
 
     # Update the saved indicator after a draft change or successful save.
     def set_saved_status(saved: bool) -> None:
@@ -140,7 +141,7 @@ def configuration_editor(
     def update_history_buttons() -> None:
         undo_button = state["undo_button"]
         if undo_button is not None:
-            undo_enabled = bool(undo_history) and state["config"] is not None
+            undo_enabled = history.can_undo and state["config"] is not None
             undo_button.set_enabled(undo_enabled)
             if undo_enabled:
                 undo_button.classes(
@@ -157,7 +158,7 @@ def configuration_editor(
                 undo_button.style(remove="opacity: 0.3 !important; filter: grayscale(1);")
         redo_button = state["redo_button"]
         if redo_button is not None:
-            redo_enabled = bool(redo_history) and state["config"] is not None
+            redo_enabled = history.can_redo and state["config"] is not None
             redo_button.set_enabled(redo_enabled)
             if redo_enabled:
                 redo_button.classes(
@@ -174,8 +175,7 @@ def configuration_editor(
                 redo_button.style(remove="opacity: 0.3 !important; filter: grayscale(1);")
 
     def clear_history() -> None:
-        undo_history.clear()
-        redo_history.clear()
+        history.clear()
         update_history_buttons()
 
     # Apply edits through model validation and restore rejected changes.
@@ -196,8 +196,7 @@ def configuration_editor(
             editor_body.refresh()
             show_problems("Change rejected", problems, restored=True)
             return False, problems
-        undo_history.append(previous_state)
-        redo_history.clear()
+        history.record(previous_state)
         update_history_buttons()
         set_saved_status(False)
         if problems:
@@ -209,47 +208,40 @@ def configuration_editor(
         return accepted
 
     def undo_last_change() -> CombinedConfig | None:
-        if not undo_history or state["config"] is None:
+        if not history.can_undo or state["config"] is None:
             return None
         try:
-            current_state = controller.create_memento()
-            controller.restore_memento(undo_history[-1])
+            restored_config = history.undo(controller)
         except Exception as exc:  # noqa: BLE001 - report unexpected history-restore failures in the UI
             ui.notify(f"Unable to undo change: {exc}", type="negative")
             return None
-        undo_history.pop()
-        redo_history.append(current_state)
-        state["config"] = controller.configuration
+        state["config"] = restored_config
         set_saved_status(False)
         update_history_buttons()
         editor_body.refresh()
         return state["config"]
 
     def redo_last_change() -> CombinedConfig | None:
-        if not redo_history or state["config"] is None:
+        if not history.can_redo or state["config"] is None:
             return None
         try:
-            current_state = controller.create_memento()
-            controller.restore_memento(redo_history[-1])
+            restored_config = history.redo(controller)
         except Exception as exc:  # noqa: BLE001 - report unexpected history-restore failures in the UI
             ui.notify(f"Unable to redo change: {exc}", type="negative")
             return None
-        redo_history.pop()
-        undo_history.append(current_state)
-        state["config"] = controller.configuration
+        state["config"] = restored_config
         set_saved_status(False)
         update_history_buttons()
         editor_body.refresh()
         return state["config"]
 
     def create_history_snapshot() -> tuple[list[ConfigurationMemento], list[ConfigurationMemento]]:
-        return undo_history.copy(), redo_history.copy()
+        return history.snapshot()
 
     def restore_history_snapshot(
         snapshot: tuple[list[ConfigurationMemento], list[ConfigurationMemento]],
     ) -> None:
-        undo_history[:] = snapshot[0]
-        redo_history[:] = snapshot[1]
+        history.restore(snapshot)
         update_history_buttons()
 
     # Render the current configuration and its category-specific editors.
@@ -436,7 +428,8 @@ def configuration_editor(
     # Download the active draft and report validation or browser errors.
     def download_configuration(file_name: str) -> str:
         content, file_name, media_type = controller.export_configuration(file_name)
-        ui.download(content, filename=file_name, media_type=media_type)
+        with download_target:
+            ui.download(content, filename=file_name, media_type=media_type)
         set_saved_status(True)
         return file_name
 
