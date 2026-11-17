@@ -20,9 +20,7 @@ class ScheduleAnalysisController:
         """Analyze the selected schedule, or return ``None`` if none is available."""
         return self.analyze_schedule(self.schedules.current)
 
-    def analyze_schedule(
-        self, entry: ScheduleEntry | None
-    ) -> ScheduleAnalysis | None:
+    def analyze_schedule(self, entry: ScheduleEntry | None) -> ScheduleAnalysis | None:
         """Analyze a schedule entry without changing the viewer's selection."""
         return self.model.analyze(entry)
 

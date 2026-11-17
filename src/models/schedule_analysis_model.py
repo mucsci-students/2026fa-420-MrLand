@@ -133,12 +133,7 @@ def _meeting_duration(meeting: str, course: str) -> tuple[str, int, int]:
     start_minute = int(match["start_minute"])
     end_hour = int(match["end"])
     end_minute = int(match["end_minute"])
-    if (
-        start_hour > 23
-        or end_hour > 23
-        or start_minute > 59
-        or end_minute > 59
-    ):
+    if start_hour > 23 or end_hour > 23 or start_minute > 59 or end_minute > 59:
         raise ValueError(f"Invalid clock time '{meeting.strip()}' for {course}.")
 
     start = start_hour * 60 + start_minute
@@ -209,9 +204,7 @@ def _availability_windows(
 
 
 def _available_hours(windows: dict[str, list[tuple[int, int]]]) -> float:
-    return _hours(
-        sum(end - start for ranges in windows.values() for start, end in ranges)
-    )
+    return _hours(sum(end - start for ranges in windows.values() for start, end in ranges))
 
 
 def _unused_blocks(
@@ -237,10 +230,7 @@ def _unused_blocks(
 
 def _internal_gap_minutes(ranges: list[tuple[int, int]]) -> int:
     merged = _merged_ranges(ranges)
-    return sum(
-        next_start - current_end
-        for (_, current_end), (next_start, _) in pairwise(merged)
-    )
+    return sum(next_start - current_end for (_, current_end), (next_start, _) in pairwise(merged))
 
 
 def _configured_courses(
@@ -274,9 +264,7 @@ def _resource_usage(
             resource=resource,
             meetings=meetings[resource],
             used_hours=_hours(totals.get(resource, 0)),
-            hours_by_day={
-                day: _hours(daily_totals[resource].get(day, 0)) for day in DAYS
-            },
+            hours_by_day={day: _hours(daily_totals[resource].get(day, 0)) for day in DAYS},
             available_hours=(
                 _available_hours(availability_by_resource[resource])
                 if resource in availability_by_resource
@@ -298,21 +286,13 @@ class ScheduleAnalysisModel:
         weekday_meetings: Counter[str] = Counter()
         weekday_minutes: dict[str, int] = defaultdict(int)
         faculty_sections: dict[str, set[str]] = defaultdict(set)
-        faculty_daily: dict[str, dict[str, int]] = defaultdict(
-            lambda: defaultdict(int)
-        )
-        faculty_spans: dict[str, dict[str, list[int]]] = defaultdict(
-            lambda: defaultdict(list)
-        )
+        faculty_daily: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+        faculty_spans: dict[str, dict[str, list[int]]] = defaultdict(lambda: defaultdict(list))
         room_totals: dict[str, int] = defaultdict(int)
-        room_daily: dict[str, dict[str, int]] = defaultdict(
-            lambda: defaultdict(int)
-        )
+        room_daily: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
         room_meetings: Counter[str] = Counter()
         lab_totals: dict[str, int] = defaultdict(int)
-        lab_daily: dict[str, dict[str, int]] = defaultdict(
-            lambda: defaultdict(int)
-        )
+        lab_daily: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
         lab_meetings: Counter[str] = Counter()
         early_starts = 0
         late_ends = 0
@@ -362,8 +342,7 @@ class ScheduleAnalysisModel:
             daily_minutes = faculty_daily[faculty]
             spans = faculty_spans[faculty]
             gap_minutes = sum(
-                _internal_gap_minutes(ranges)
-                for ranges in faculty_scheduled[faculty].values()
+                _internal_gap_minutes(ranges) for ranges in faculty_scheduled[faculty].values()
             )
             longest_span = max(
                 (max(times) - min(times) for times in spans.values()),
@@ -424,7 +403,5 @@ class ScheduleAnalysisModel:
             available_empty_blocks=available_empty_blocks,
             early_starts=early_starts,
             late_ends=late_ends,
-            weekday_teaching_hours={
-                day: _hours(weekday_minutes.get(day, 0)) for day in DAYS
-            },
+            weekday_teaching_hours={day: _hours(weekday_minutes.get(day, 0)) for day in DAYS},
         )

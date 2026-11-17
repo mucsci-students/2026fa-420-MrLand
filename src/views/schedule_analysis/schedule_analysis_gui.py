@@ -276,9 +276,7 @@ def schedule_analysis() -> ScheduleAnalysisRefresh:
             value="statistics",
         ).classes("w-full"):
             with ui.tab_panel("statistics"):
-                refresh_statistics = build_statistics_tab(
-                    on_load_schedule=open_load_dialog
-                )
+                refresh_statistics = build_statistics_tab(on_load_schedule=open_load_dialog)
 
             with ui.tab_panel("comparison"):
                 refresh_comparison = build_comparison_tab(on_load_schedule=open_load_dialog)

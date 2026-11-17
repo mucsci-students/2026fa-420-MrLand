@@ -29,9 +29,7 @@ def load_quality_grade_settings(config_name: str | None) -> QualityGradeSettings
                 sidecar_path.read_text(encoding="utf-8")
             )
         except ValidationError as exc:
-            raise ValueError(
-                f"Invalid quality grade settings for '{config_name}': {exc}"
-            ) from exc
+            raise ValueError(f"Invalid quality grade settings for '{config_name}': {exc}") from exc
 
     try:
         config_path = configuration_repository.CONFIG_DIR / (

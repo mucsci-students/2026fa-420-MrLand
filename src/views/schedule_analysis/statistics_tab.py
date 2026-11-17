@@ -17,10 +17,14 @@ DAYS = ("MON", "TUE", "WED", "THU", "FRI")
 
 def _placeholder_table(columns: list[dict]):
     """Display a formatted table without fabricated data."""
-    return ui.table(
-        columns=columns,
-        rows=[],
-    ).classes("w-full").props("flat bordered dense")
+    return (
+        ui.table(
+            columns=columns,
+            rows=[],
+        )
+        .classes("w-full")
+        .props("flat bordered dense")
+    )
 
 
 def _metric_card(title: str, description: str = ""):
@@ -36,9 +40,7 @@ def _metric_card(title: str, description: str = ""):
     ):
         ui.label(title).classes("text-sm").style("color: var(--text-muted)")
 
-        value = ui.label("—").classes("text-3xl font-bold").style(
-            "color: var(--text-primary)"
-        )
+        value = ui.label("—").classes("text-3xl font-bold").style("color: var(--text-primary)")
 
         if description:
             ui.label(description).classes("text-xs").style("color: var(--text-muted)")
@@ -70,8 +72,8 @@ def _score_breakdown():
         for key, criterion in criteria:
             with ui.row().classes("w-full justify-between items-center"):
                 ui.label(criterion).classes("text-sm")
-                values[key] = ui.label("—").classes("text-sm font-semibold").style(
-                    "color: var(--text-muted)"
+                values[key] = (
+                    ui.label("—").classes("text-sm font-semibold").style("color: var(--text-muted)")
                 )
     return values
 
@@ -91,12 +93,16 @@ def _weekday_bars():
                     .classes("h-3 flex-1 overflow-hidden rounded-full")
                     .style("background: var(--surface-hover)")
                 ):
-                    bar = ui.element("div").classes("h-full rounded-full").style(
-                        "width: 0%; background: var(--accent-color)"
+                    bar = (
+                        ui.element("div")
+                        .classes("h-full rounded-full")
+                        .style("width: 0%; background: var(--accent-color)")
                     )
 
-                value = ui.label("—").classes("w-6 text-right text-xs font-semibold").style(
-                    "color: var(--text-muted)"
+                value = (
+                    ui.label("—")
+                    .classes("w-6 text-right text-xs font-semibold")
+                    .style("color: var(--text-muted)")
                 )
                 bars[day] = (bar, value)
     return bars
@@ -115,41 +121,45 @@ def _resource_section(resource_type: str):
         f"{resource_type} Utilization",
         icon="meeting_room" if resource_type == "Room" else "science",
     ).classes("w-full"):
-        table = ui.table(
-            columns=[
-                {
-                    "name": "resource",
-                    "label": resource_type,
-                    "field": "resource",
-                    "align": "left",
-                },
-                {
-                    "name": "used",
-                    "label": "Used Hours",
-                    "field": "used",
-                    "align": "right",
-                },
-                {
-                    "name": "util",
-                    "label": "Utilization",
-                    "field": "util",
-                    "align": "right",
-                },
-                {
-                    "name": "capacity",
-                    "label": "Unused Hours",
-                    "field": "capacity",
-                    "align": "right",
-                },
-                {
-                    "name": "days",
-                    "label": "Hours by Day",
-                    "field": "days",
-                    "align": "left",
-                },
-            ],
-            rows=[],
-        ).classes("w-full").props("flat bordered dense")
+        table = (
+            ui.table(
+                columns=[
+                    {
+                        "name": "resource",
+                        "label": resource_type,
+                        "field": "resource",
+                        "align": "left",
+                    },
+                    {
+                        "name": "used",
+                        "label": "Used Hours",
+                        "field": "used",
+                        "align": "right",
+                    },
+                    {
+                        "name": "util",
+                        "label": "Utilization",
+                        "field": "util",
+                        "align": "right",
+                    },
+                    {
+                        "name": "capacity",
+                        "label": "Unused Hours",
+                        "field": "capacity",
+                        "align": "right",
+                    },
+                    {
+                        "name": "days",
+                        "label": "Hours by Day",
+                        "field": "days",
+                        "align": "left",
+                    },
+                ],
+                rows=[],
+            )
+            .classes("w-full")
+            .props("flat bordered dense")
+        )
 
         ui.label("Weekly Usage Heat Map").classes("text-sm font-semibold mt-4").style(
             "color: var(--text-primary)"
@@ -181,18 +191,12 @@ def _resource_rows(resources: list[ResourceUsage]) -> list[dict[str, str]]:
             "resource": item.resource,
             "used": _format_hours(item.used_hours),
             "util": (
-                f"{item.utilization_percent:.1f}%"
-                if item.utilization_percent is not None
-                else "—"
+                f"{item.utilization_percent:.1f}%" if item.utilization_percent is not None else "—"
             ),
             "capacity": (
-                _format_hours(item.unused_hours)
-                if item.unused_hours is not None
-                else "—"
+                _format_hours(item.unused_hours) if item.unused_hours is not None else "—"
             ),
-            "days": " · ".join(
-                f"{day} {_format_hours(item.hours_by_day[day])}" for day in DAYS
-            ),
+            "days": " · ".join(f"{day} {_format_hours(item.hours_by_day[day])}" for day in DAYS),
         }
         for item in resources
     ]
@@ -351,7 +355,9 @@ def _update_analysis(
     class_counts = analysis.weekday_meetings
     _set_weekday_bars(class_bars, class_counts)
     busiest = max(DAYS, key=lambda day: class_counts[day]) if any(class_counts.values()) else None
-    least_busy = min(DAYS, key=lambda day: class_counts[day]) if any(class_counts.values()) else None
+    least_busy = (
+        min(DAYS, key=lambda day: class_counts[day]) if any(class_counts.values()) else None
+    )
     class_summary["busy"].text = f"Busiest Day: {busiest or '—'}"
     class_summary["quiet"].text = f"Least Busy Day: {least_busy or '—'}"
 
@@ -535,9 +541,9 @@ def build_statistics_tab(on_load_schedule: Callable[[], None]):
             ui.separator().style("background: var(--border-color)")
 
             faculty_summary = ui.label("Empty Weekdays: —").classes("text-sm")
-            empty_blocks_summary = ui.label(
-                "Available Empty Blocks (30+ min): —"
-            ).classes("text-sm")
+            empty_blocks_summary = ui.label("Available Empty Blocks (30+ min): —").classes(
+                "text-sm"
+            )
 
     # ---------------------------------------------------------
     # Room and Lab Utilization

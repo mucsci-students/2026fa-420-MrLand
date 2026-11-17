@@ -378,6 +378,7 @@ def configuration_editor(
             )
         with ui.column().classes(panel_classes) as global_settings_panel:
             if hasattr(config, "limit") and hasattr(config, "optimizer_flags"):
+
                 def save_quality_grade_settings(settings: QualityGradeSettings) -> None:
                     config_name = state["name"]
                     if not config_name:

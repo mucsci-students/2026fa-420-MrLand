@@ -65,8 +65,7 @@ def analysis_config() -> CombinedConfig:
             },
             "time_slot_config": {
                 "times": {
-                    day: [{"start": "09:00", "spacing": 30, "end": "12:00"}]
-                    for day in weekdays
+                    day: [{"start": "09:00", "spacing": 30, "end": "12:00"}] for day in weekdays
                 },
                 "classes": [
                     {
@@ -148,10 +147,7 @@ def test_analysis_counts_early_starts_and_late_ends_per_meeting():
                 "faculty": "Dr. Smith",
                 "room": "Room 101",
                 "lab": "",
-                "times": (
-                    "MON 08:59-09:00,TUE 16:00-17:01,"
-                    "WED 09:00-17:00,THU 08:00-17:00"
-                ),
+                "times": ("MON 08:59-09:00,TUE 16:00-17:01,WED 09:00-17:00,THU 08:00-17:00"),
             }
         ],
     )

@@ -139,8 +139,8 @@ class ConfigurationController:
 
             document = self.configuration.model_dump(mode="json")
             if self.quality_grade_settings != QualityGradeSettings():
-                document["quality_grade_settings"] = (
-                    self.quality_grade_settings.model_dump(mode="json")
+                document["quality_grade_settings"] = self.quality_grade_settings.model_dump(
+                    mode="json"
                 )
             content = json.dumps(document, indent=4).encode("utf-8")
             return content, file_name, "application/json"

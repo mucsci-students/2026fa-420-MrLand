@@ -133,10 +133,7 @@ def global_settings_gui(
                 ),
             ):
                 return False
-            if (
-                updated_quality_settings is not None
-                and on_quality_settings_change is not None
-            ):
+            if updated_quality_settings is not None and on_quality_settings_change is not None:
                 on_quality_settings_change(updated_quality_settings)
         except (TypeError, ValueError) as exc:
             ui.notify(str(exc), type="negative")
