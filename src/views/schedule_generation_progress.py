@@ -9,7 +9,7 @@ class ScheduleGenerationProgress:
     def __init__(self, container_classes: str) -> None:
         with ui.column().classes(container_classes) as self.container:
             self.message = ui.label("Starting scheduler...").classes("text-sm text-gray-300")
-            self.bar = ui.linear_progress(value=0).classes("w-full")
+            self.bar = ui.linear_progress(value=0, show_value=False).classes("w-full")
             with ui.row().classes("w-full items-center justify-between"):
                 self.percentage = ui.label("0%").classes("text-sm text-gray-300")
                 self.status = ui.label("Generated 0 of 0 schedules").classes(

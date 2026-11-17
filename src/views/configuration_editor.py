@@ -117,6 +117,7 @@ def configuration_editor(
     completed_combinations: set[str] = set()
     load_generation = 0
     history = ConfigurationHistory()
+    download_target = ui.row().style("display: none")
 
     # Update the saved indicator after a draft change or successful save.
     def set_saved_status(saved: bool) -> None:
@@ -427,7 +428,8 @@ def configuration_editor(
     # Download the active draft and report validation or browser errors.
     def download_configuration(file_name: str) -> str:
         content, file_name, media_type = controller.export_configuration(file_name)
-        ui.download(content, filename=file_name, media_type=media_type)
+        with download_target:
+            ui.download(content, filename=file_name, media_type=media_type)
         set_saved_status(True)
         return file_name
 
