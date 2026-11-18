@@ -65,6 +65,7 @@ def test_print_dialog_keeps_schedule_until_reopened(monkeypatch, tmp_path, updat
                 orientation.value = "faculty"
             await user.should_see(f"Selected schedule: {original.label}")
             with active_client(user):
+                assert isinstance(group.options, dict)
                 assert "Dr. Original" in group.options.values()
                 assert "Dr. Replacement" not in group.options.values()
                 group.value = next(k for k, v in group.options.items() if v == "Dr. Original")
@@ -77,8 +78,11 @@ def test_print_dialog_keeps_schedule_until_reopened(monkeypatch, tmp_path, updat
             assert "Replacement101" not in content
 
             user.find(kind=ui.button, content="Print / Export PDF").click()
-            await user.should_see(f"Selected schedule: {controller.current.label}")
+            current = controller.current
+            assert current is not None
+            await user.should_see(f"Selected schedule: {current.label}")
             with active_client(user):
+                assert isinstance(group.options, dict)
                 assert "Room: Room Replacement" in group.options.values()
                 assert "Room: Room Original" not in group.options.values()
 
