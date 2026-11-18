@@ -15,14 +15,9 @@ from src.controllers.schedule_controller import (
     schedule_controller as controller,
 )
 
-# Renee: export only the selected faculty member's or room/lab's classes
-# (Export by faculty, Export by room or lab)
-from src.controllers.schedule_filtered_export_controller import (
-    default_filtered_file_name,
-    export_extension,
-    export_faculty_schedule,
-    export_room_schedule,
-)
+# Renee: start the Print / Export PDF dialog on the viewer's faculty or
+# room/lab filter (Export by faculty, Export by room or lab)
+from src.controllers.schedule_filtered_export_controller import print_defaults_for_filter
 from src.controllers.schedule_filters_controller import (
     filter_by_course,
     filter_by_faculty,
@@ -607,61 +602,19 @@ def schedule_viewer() -> Callable[[], None]:
         # Exporting
         # ---------------------------------------------------------
 
-        def selected_export_filter() -> tuple[str, str] | None:
-            """Return what the user is filtering by, for the Export button.
-
-            Returns ("Faculty", "<name>") or ("Room / Lab", "<room>"), or None
-            when not filtering by faculty or room/lab, which means Export
-            should use the normal full-schedule export.
-            (Filtering by Course doesn't change the export.)
-            """
-            filter_type = filter_select.value
-            filter_value = filter_value_select.value
-            if filter_type in ("Faculty", "Room / Lab") and filter_value:
-                return filter_type, filter_value
-            return None
-
         def open_export_dialog():
             entry = controller.current
             if entry is None:
                 return
+            export_description.text = (
+                f"Download '{entry.label}' to your browser's default location. "
+                f"Check your browser settings to manually choose the save location."
+            )
             export_status.text = ""
-            export_filter = selected_export_filter()
-
-            # Reset the format choices each time the dialog opens.
-            # PDF is only offered when filtering by faculty or room/lab; it uses
-            # Sohil's print layout for just that one person or room. (The full
-            # schedule has its own "Print / Export PDF" button.)
-            if export_filter:
-                export_format.set_options(
-                    {"csv": "CSV", "json": "JSON", "pdf": "PDF (print layout)"}, value="csv"
-                )
-            else:
-                export_format.set_options({"csv": "CSV", "json": "JSON"}, value="csv")
-
-            if export_filter:
-                # Filtering: explain that only those classes are exported and
-                # suggest a file name that includes the faculty member or room.
-                filter_type, filter_value = export_filter
-                if filter_type == "Faculty":
-                    export_description.text = (
-                        f"Export only {filter_value}'s classes from '{entry.label}'."
-                    )
-                else:
-                    export_description.text = (
-                        f"Export only the classes that meet in {filter_value} from '{entry.label}'."
-                    )
-                export_name.value = default_filtered_file_name(entry, filter_value, "csv")
-            else:
-                # No faculty filter: normal export of the whole schedule.
-                export_description.text = (
-                    f"Download '{entry.label}' to your browser's default location. "
-                    f"Check your browser settings to manually choose the save location."
-                )
-                try:
-                    export_name.value = controller.default_export_file_name("csv")
-                except OSError as error:
-                    export_status.text = str(error)
+            try:
+                export_name.value = controller.default_export_file_name(export_format.value)
+            except OSError as error:
+                export_status.text = str(error)
             export_dialog.open()
 
         def open_export_all_dialog():
@@ -690,8 +643,18 @@ def schedule_viewer() -> Callable[[], None]:
             print_entry = entry
             print_export_status.text = ""
             print_schedule_description.text = f"Selected schedule: {print_entry.label}"
-            print_orientation.value = "resource"
+
+            # Renee: if the viewer is filtered by a faculty member or a room/lab,
+            # open on that one (e.g. Group by Faculty, "Hobbes"). Otherwise this
+            # returns the normal default: Group by Room / lab, all rooms.
+            # The user can still change both dropdowns before printing.
+            group_by, group_key = print_defaults_for_filter(
+                print_entry, filter_select.value, filter_value_select.value
+            )
+            print_orientation.value = group_by
             update_print_group_options()
+            print_group.set_value(group_key)
+
             print_export_dialog.open()
 
         def on_print_export():
@@ -716,19 +679,9 @@ def schedule_viewer() -> Callable[[], None]:
 
         def on_export_format_changed(event):
             name = (export_name.value or "").strip()
-            known_extensions = (".csv", ".json", ".html")
-            stem = name.rsplit(".", 1)[0] if name.lower().endswith(known_extensions) else name
+            stem = name.rsplit(".", 1)[0] if name.lower().endswith((".csv", ".json")) else name
             if stem:
-                # "pdf" downloads as a .html print layout, so use the right extension
-                export_name.value = f"{stem}.{export_extension(event.value)}"
-                return
-            # Name box is empty: suggest a default name.
-            # Use the faculty/room-specific name when filtering.
-            export_filter = selected_export_filter()
-            if export_filter and controller.current:
-                export_name.value = default_filtered_file_name(
-                    controller.current, export_filter[1], event.value
-                )
+                export_name.value = f"{stem}.{event.value}"
                 return
             try:
                 export_name.value = controller.default_export_file_name(event.value)
@@ -737,29 +690,10 @@ def schedule_viewer() -> Callable[[], None]:
                 export_status.text = str(error)
 
         def on_export():
-            # If the user is filtering by faculty or room/lab, export just those
-            # classes. Otherwise export the whole schedule like before.
-            # All of these functions return (export, error) in the same shape.
-            export_filter = selected_export_filter()
-            if export_filter and export_filter[0] == "Faculty":
-                export, error = export_faculty_schedule(
-                    controller.current,
-                    export_filter[1],
-                    export_format.value,
-                    export_name.value or "",
-                )
-            elif export_filter:
-                export, error = export_room_schedule(
-                    controller.current,
-                    export_filter[1],
-                    export_format.value,
-                    export_name.value or "",
-                )
-            else:
-                export, error = controller.export_current(
-                    export_format.value,
-                    export_name.value or "",
-                )
+            export, error = controller.export_current(
+                export_format.value,
+                export_name.value or "",
+            )
             if error:
                 export_status.text = error
                 return
@@ -769,14 +703,10 @@ def schedule_viewer() -> Callable[[], None]:
             content, file_name, media_type = export
             ui.download(content, filename=file_name, media_type=media_type)
             export_dialog.close()
-            if export_format.value == "pdf":
-                # Same instructions Sohil's print export shows
-                ui.notify(
-                    f"Downloaded {file_name}. Open it in a browser and choose Print > Save as PDF.",
-                    type="positive",
-                )
-            else:
-                ui.notify(f"Exporting {file_name}.", type="positive")
+            ui.notify(
+                f"Exporting {file_name};",
+                type="positive",
+            )
 
         def on_export_all():
             export, error = controller.export_all_generated(export_all_format.value)
