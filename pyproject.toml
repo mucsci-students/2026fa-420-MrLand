@@ -11,6 +11,7 @@ dependencies = [
     "nicegui>=3.17.1",
     "pydantic",
     "python-dotenv>=1.2.3",
+    "reportlab>=4.4.0",
 ]
 
 [project.scripts]
@@ -31,6 +32,7 @@ packages = ["src"]
 dev = [
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
+    "pypdf>=5.0.0",
     "ruff>=0.17.1",
     "ty>=0.0.90",
 ]

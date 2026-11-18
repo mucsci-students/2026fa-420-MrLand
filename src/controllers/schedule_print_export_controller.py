@@ -1,19 +1,33 @@
-"""Build print-ready schedule layouts for the browser's Save as PDF workflow."""
+"""Generate directly downloadable PDFs for schedule print layouts."""
 
-import html
 import re
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass
+from io import BytesIO
 from pathlib import Path
 from typing import ClassVar
+from xml.sax.saxutils import escape
+
+import reportlab
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 from src.models.schedule_viewer_model import ScheduleEntry
 
 ALL_GROUPS = "__all__"
-PRINT_MEDIA_TYPE = "text/html"
+PRINT_MEDIA_TYPE = "application/pdf"
 DAY_ORDER = {"MON": 0, "TUE": 1, "WED": 2, "THU": 3, "FRI": 4}
 MEETING_PATTERN = re.compile(r"^(MON|TUE|WED|THU|FRI) (\d{2}:\d{2})-(\d{2}:\d{2})(@online)?(\^)?$")
+
+REPORTLAB_FONTS = Path(reportlab.__file__).parent / "fonts"
+pdfmetrics.registerFont(TTFont("Vera", str(REPORTLAB_FONTS / "Vera.ttf")))
+pdfmetrics.registerFont(TTFont("Vera-Bold", str(REPORTLAB_FONTS / "VeraBd.ttf")))
 
 
 @dataclass(frozen=True)
@@ -53,7 +67,7 @@ class PrintLayoutTemplate(ABC):
         entry: ScheduleEntry,
         meetings: list[PrintableMeeting],
         group_key: str,
-    ) -> str:
+    ) -> bytes:
         """Run the common layout algorithm using subclass grouping details."""
         groups = self.group(meetings)
         if group_key == ALL_GROUPS:
@@ -63,10 +77,53 @@ class PrintLayoutTemplate(ABC):
         else:
             raise ValueError("Please choose a group available in the selected schedule.")
 
-        schedule_label = html.escape(entry.label)
-        sections = []
-        for key, group_meetings in selected_groups:
-            group_label = self.label(key)
+        buffer = BytesIO()
+        document = SimpleDocTemplate(
+            buffer,
+            pagesize=letter,
+            leftMargin=0.55 * inch,
+            rightMargin=0.55 * inch,
+            topMargin=0.55 * inch,
+            bottomMargin=0.55 * inch,
+            title=f"Print schedule - {entry.label}",
+        )
+        title_style = ParagraphStyle(
+            "ScheduleTitle",
+            fontName="Vera-Bold",
+            fontSize=19,
+            leading=23,
+            spaceAfter=4,
+        )
+        schedule_style = ParagraphStyle(
+            "ScheduleName",
+            fontName="Vera",
+            fontSize=9,
+            leading=12,
+            spaceAfter=16,
+        )
+        group_style = ParagraphStyle(
+            "GroupHeading",
+            fontName="Vera-Bold",
+            fontSize=12,
+            leading=15,
+        )
+        column_style = ParagraphStyle(
+            "ColumnHeading",
+            fontName="Vera-Bold",
+            fontSize=8,
+            leading=10,
+        )
+        cell_style = ParagraphStyle(
+            "TableCell",
+            fontName="Vera",
+            fontSize=8,
+            leading=10,
+        )
+        story = [
+            Paragraph(f"Schedule - {escape(self.orientation)} grouping", title_style),
+            Paragraph(f"<b>Schedule:</b> {escape(entry.label)}", schedule_style),
+        ]
+        for index, (key, group_meetings) in enumerate(selected_groups):
             rows = sorted(
                 group_meetings,
                 key=lambda meeting: (
@@ -76,66 +133,53 @@ class PrintLayoutTemplate(ABC):
                     meeting.course.casefold(),
                 ),
             )
-            group_heading = html.escape(f"{self.orientation} — {group_label}")
-            headings = "".join(
-                f"<th scope='col'>{html.escape(column)}</th>" for column in self.columns()
-            )
-            row_html = []
+            group_heading = f"{self.orientation} - {self.label(key)}"
+            table_data = [
+                [Paragraph(escape(group_heading), group_style), "", "", "", ""],
+                [Paragraph(escape(column), column_style) for column in self.columns()],
+            ]
             for meeting in rows:
-                cells = "".join(
-                    f"<td>{html.escape(value)}</td>" for value in self.row_values(meeting)
+                table_data.append(
+                    [Paragraph(escape(value), cell_style) for value in self.row_values(meeting)]
                 )
-                row_html.append(f"<tr>{cells}</tr>")
-            sections.append(
-                "<section><table><thead>"
-                f"<tr><th class='group-heading' colspan='5'>{group_heading}</th></tr>"
-                f"<tr>{headings}</tr></thead><tbody>{''.join(row_html)}</tbody></table></section>"
+            table = Table(
+                table_data,
+                colWidths=(2.37 * inch, 1.92 * inch, 0.89 * inch, 1.11 * inch, 1.11 * inch),
+                repeatRows=2,
             )
+            table.setStyle(
+                TableStyle(
+                    [
+                        ("SPAN", (0, 0), (-1, 0)),
+                        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#dddddd")),
+                        ("BACKGROUND", (0, 1), (-1, 1), colors.HexColor("#eeeeee")),
+                        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#777777")),
+                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                        ("TOPPADDING", (0, 0), (-1, -1), 5),
+                        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                    ]
+                )
+            )
+            story.append(table)
+            if index < len(selected_groups) - 1:
+                story.append(Spacer(1, 15))
 
-        body = "".join(sections)
         if not selected_groups:
-            body = "<p class='empty'>No meetings are available in this schedule.</p>"
-        return self._document(schedule_label, body)
+            empty_style = ParagraphStyle(
+                "EmptySchedule",
+                fontName="Vera",
+                fontSize=10,
+                leading=14,
+                borderColor=colors.HexColor("#777777"),
+                borderWidth=0.5,
+                borderPadding=12,
+            )
+            story.append(Paragraph("No meetings are available in this schedule.", empty_style))
 
-    def _document(self, schedule_label: str, body: str) -> str:
-        return f"""<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Print schedule — {schedule_label}</title>
-<style>
-    @page {{ size: Letter portrait; margin: 0.55in; }}
-    * {{ box-sizing: border-box; }}
-    body {{ color: #111; background: #fff; font: 10pt/1.35 Arial, sans-serif; }}
-    h1 {{ font-size: 19pt; margin: 0 0 4pt; }}
-    .schedule-name {{ margin: 0 0 16pt; overflow-wrap: anywhere; }}
-    .instructions {{ padding: 10px 12px; border: 1px solid #777; margin-bottom: 18px; }}
-    section {{ margin: 0 0 15pt; }}
-    table {{ width: 100%; border-collapse: collapse; table-layout: fixed; }}
-    th, td {{ border: 1px solid #777; padding: 5px 6px; text-align: left;
-        vertical-align: top; overflow-wrap: anywhere; }}
-    thead {{ display: table-header-group; }}
-    th {{ background: #eee; color: #111; }}
-    .group-heading {{ background: #ddd; font-size: 12pt; }}
-    tr {{ break-inside: avoid; page-break-inside: avoid; }}
-    section {{ break-inside: auto; }}
-    .empty {{ border: 1px solid #777; padding: 12px; }}
-    @media print {{
-        .instructions {{ display: none; }}
-        body {{ margin: 0; }}
-    }}
-</style>
-</head>
-<body>
-<h1>Schedule — {html.escape(self.orientation)} grouping</h1>
-<p class="schedule-name"><strong>Schedule:</strong> {schedule_label}</p>
-<p class="instructions">To create a PDF, open the browser's Print dialog (Ctrl+P or
-use the browser menu), choose <strong>Save as PDF</strong>, and select the destination.
-Paper size: Letter.</p>
-{body}
-</body>
-</html>"""
+        document.build(story)
+        return buffer.getvalue()
 
 
 class ResourcePrintLayoutTemplate(PrintLayoutTemplate):
@@ -226,7 +270,7 @@ def export_print_schedule(
     orientation: str,
     group_key: str,
 ) -> tuple[tuple[bytes, str, str] | None, str | None]:
-    """Return an HTML print layout to download, or a user-readable error."""
+    """Return a PDF schedule to download, or a user-readable error."""
     if entry is None:
         return None, "There is no schedule to export."
     try:
@@ -236,10 +280,10 @@ def export_print_schedule(
         base_name = _safe_name(Path(entry.file_name).stem if entry.file_name else entry.config_name)
         grouping = "rooms_labs" if orientation == "resource" else "faculty"
         suffix = "" if group_key == ALL_GROUPS else f"_{_safe_name(template.label(group_key))}"
-        file_name = f"{base_name}_{grouping}{suffix}_print.html"
+        file_name = f"{base_name}_{grouping}{suffix}.pdf"
     except ValueError as error:
-        return None, f"Could not prepare the print layout: {error}"
-    return (content.encode("utf-8"), file_name, PRINT_MEDIA_TYPE), None
+        return None, f"Could not prepare the PDF: {error}"
+    return (content, file_name, PRINT_MEDIA_TYPE), None
 
 
 def _layout_template(orientation: str) -> PrintLayoutTemplate:
