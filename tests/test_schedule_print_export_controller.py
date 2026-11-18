@@ -112,8 +112,7 @@ def test_export_rejects_missing_group_and_malformed_meeting(schedule_entry):
     missing, missing_error = export_print_schedule(schedule_entry, "resource", "Room:missing")
     assert missing is None
     assert missing_error == (
-        "Could not prepare the PDF: "
-        "Please choose a group available in the selected schedule."
+        "Could not prepare the PDF: Please choose a group available in the selected schedule."
     )
 
     schedule_entry.records[0]["times"] = "not-a-meeting"

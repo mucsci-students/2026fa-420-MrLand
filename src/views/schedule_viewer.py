@@ -265,9 +265,7 @@ def schedule_viewer() -> Callable[[], None]:
                 .props("outlined dark")
                 .classes("schedule-dropdown w-full")
             )
-            ui.label(
-                "Downloads a Letter-size PDF."
-            ).classes("text-sm text-gray-400")
+            ui.label("Downloads a Letter-size PDF.").classes("text-sm text-gray-400")
             print_export_status = ui.label("").classes("text-sm text-red-400")
             with ui.row().classes("w-full justify-end gap-2"):
                 ui.button("Cancel", on_click=print_export_dialog.close).props("flat")

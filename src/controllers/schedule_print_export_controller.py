@@ -27,9 +27,7 @@ MEETING_PATTERN = re.compile(r"^(MON|TUE|WED|THU|FRI) (\d{2}:\d{2})-(\d{2}:\d{2}
 
 REPORTLAB_FONTS = Path(reportlab.__file__).parent / "fonts"
 pdfmetrics.registerFont(TTFont("Vera", str(REPORTLAB_FONTS / "Vera.ttf")))
-pdfmetrics.registerFont(
-    TTFont("Vera-Bold", str(REPORTLAB_FONTS / "VeraBd.ttf"))
-)
+pdfmetrics.registerFont(TTFont("Vera-Bold", str(REPORTLAB_FONTS / "VeraBd.ttf")))
 
 
 @dataclass(frozen=True)
