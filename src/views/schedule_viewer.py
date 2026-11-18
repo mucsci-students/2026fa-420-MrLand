@@ -25,6 +25,11 @@ from src.controllers.schedule_filters_controller import (
     filter_by_faculty,
     filter_by_resource,
 )
+from src.controllers.schedule_print_export_controller import (
+    ALL_GROUPS,
+    export_print_schedule,
+    print_group_options,
+)
 from src.views.schedule_calendar_view import schedule_calendar_view
 from src.views.schedule_table_view import schedule_table_view
 
@@ -235,6 +240,39 @@ def schedule_viewer() -> Callable[[], None]:
                 ui.button("Cancel", on_click=export_all_dialog.close).props("flat")
                 export_all_button = ui.button("Export All", icon="folder_zip")
 
+        with (
+            ui.dialog() as print_export_dialog,
+            ui.card().classes("bg-[#101820] border border-[#29404b] w-[520px] gap-3"),
+        ):
+            ui.label("Print / Export PDF").classes("text-lg font-semibold text-white")
+            print_schedule_description = ui.label("").classes("text-sm text-gray-400")
+            print_orientation = (
+                ui.select(
+                    {"resource": "Room / lab", "faculty": "Faculty"},
+                    value="resource",
+                    label="Group by",
+                )
+                .props("outlined dark")
+                .classes("schedule-dropdown w-full")
+            )
+            print_group = (
+                ui.select(
+                    {ALL_GROUPS: "All rooms, labs, and online/unassigned meetings"},
+                    value=ALL_GROUPS,
+                    label="Resource or faculty",
+                )
+                .props("outlined dark")
+                .classes("schedule-dropdown w-full")
+            )
+            ui.label(
+                "Downloads a Letter-size print layout. Open it in your browser, "
+                "choose Print, then Save as PDF to select the destination."
+            ).classes("text-sm text-gray-400")
+            print_export_status = ui.label("").classes("text-sm text-red-400")
+            with ui.row().classes("w-full justify-end gap-2"):
+                ui.button("Cancel", on_click=print_export_dialog.close).props("flat")
+                print_export_button = ui.button("Prepare print layout", icon="picture_as_pdf")
+
         # ---------------------------------------------------------
         # Schedule controls
         # ---------------------------------------------------------
@@ -252,6 +290,12 @@ def schedule_viewer() -> Callable[[], None]:
                 "Export",
                 icon="file_download",
                 on_click=lambda: open_export_dialog(),
+            ).props("outline")
+
+            print_export_open_button = ui.button(
+                "Print / Export PDF",
+                icon="picture_as_pdf",
+                on_click=lambda: open_print_export_dialog(),
             ).props("outline")
 
             export_all_open_button = ui.button(
@@ -474,6 +518,7 @@ def schedule_viewer() -> Callable[[], None]:
             empty_label.visible = not has_schedules
             schedule_select.set_enabled(has_schedules)
             export_open_button.set_enabled(has_schedules)
+            print_export_open_button.set_enabled(has_schedules)
             export_all_open_button.set_enabled(controller.has_generated_schedules)
             clear_generated_button.set_enabled(controller.has_generated_schedules)
             previous_button.set_enabled(controller.can_step(-1))
@@ -600,6 +645,45 @@ def schedule_viewer() -> Callable[[], None]:
             export_all_status.text = ""
             export_all_dialog.open()
 
+        def update_print_group_options():
+            try:
+                options = print_group_options(controller.current, print_orientation.value)
+            except ValueError as error:
+                print_export_status.text = str(error)
+                return
+            current_value = print_group.value
+            print_group.set_options(
+                options,
+                value=current_value if current_value in options else ALL_GROUPS,
+            )
+
+        def open_print_export_dialog():
+            entry = controller.current
+            if entry is None:
+                return
+            print_export_status.text = ""
+            print_schedule_description.text = f"Selected schedule: {entry.label}"
+            print_orientation.value = "resource"
+            update_print_group_options()
+            print_export_dialog.open()
+
+        def on_print_export():
+            export, error = export_print_schedule(
+                controller.current,
+                print_orientation.value,
+                print_group.value,
+            )
+            if error or export is None:
+                print_export_status.text = error or "Could not prepare the print layout."
+                return
+            content, file_name, media_type = export
+            ui.download(content, filename=file_name, media_type=media_type)
+            print_export_dialog.close()
+            ui.notify(
+                f"Downloaded {file_name}. Open it in a browser and choose Print > Save as PDF.",
+                type="positive",
+            )
+
         # Give the calendar fullscreen toolbar access to the existing export dialog.
         calendar_view.set_export_callback(open_export_dialog)
 
@@ -667,6 +751,8 @@ def schedule_viewer() -> Callable[[], None]:
         export_format.on_value_change(on_export_format_changed)
         export_button.on_click(on_export)
         export_all_button.on_click(on_export_all)
+        print_orientation.on_value_change(lambda _: update_print_group_options())
+        print_export_button.on_click(on_print_export)
 
         # ---------------------------------------------------------
         # Dropdown events
