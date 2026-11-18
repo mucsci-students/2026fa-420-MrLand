@@ -215,6 +215,8 @@ The agent uses the following registered tools in `src/ai/agent_tools.py`:
 
 The assistant must use these tools for configuration changes and application actions. It is instructed not to claim that it changed or saved something unless the corresponding tool/application workflow confirms the result.
 
+Tool results use a `success` and `message` envelope, with optional details for the action. LangChain returns invalid-argument failures as JSON text; decoding that text yields the same envelope. Save results use a consistent completion message and include `save_destination` (`download` in the editor or `file` for a direct save). Schedule-generation results report the generator's actual counts in both the message and the `generated`/`valid` details.
+
 ### Example requests
 
 The following are representative prompts. The exact item fields still need to satisfy the scheduler's configuration model and validation rules.
