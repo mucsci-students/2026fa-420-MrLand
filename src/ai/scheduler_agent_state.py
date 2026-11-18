@@ -4,20 +4,31 @@ from __future__ import annotations
 
 import hmac
 from collections.abc import Callable
-from typing import Any
+from typing import Unpack
 
 from pydantic import ValidationError
 from scheduler.config import (
     ClassPattern,
     CombinedConfig,
     CourseConfig,
+    Day,
     FacultyConfig,
     LabConfig,
     Meeting,
     RoomConfig,
     TimeBlock,
+    TimeRange,
 )
 
+from src.ai.agent_tool_types import (
+    ConfigurationItem,
+    ConfigurationItemCollection,
+    ConfigurationItemType,
+    JsonObject,
+    ScheduleGenerator,
+    ToolResult,
+    ToolResultDetails,
+)
 from src.controllers.class_pattern_controller import ClassPatternController
 from src.controllers.course_controller import CourseController
 from src.controllers.faculty_controller import FacultyController
@@ -49,7 +60,7 @@ class SchedulerAgentState:
         self,
         config: CombinedConfig | None = None,
         save_configuration: Callable[[str], None] | None = None,
-        schedule_generator: Any | None = None,
+        schedule_generator: ScheduleGenerator | None = None,
         confirm_action: Callable[[str], bool] | None = None,
         configuration_exists: Callable[[str], bool] | None = None,
     ):
@@ -61,7 +72,11 @@ class SchedulerAgentState:
         self._configuration_exists = configuration_exists or ConfigService().exists
 
     @staticmethod
-    def _result(success: bool, message: str, **details: Any) -> dict[str, Any]:
+    def _result(
+        success: bool,
+        message: str,
+        **details: Unpack[ToolResultDetails],
+    ) -> ToolResult:
         return {"success": success, "message": message, **details}
 
     # Return the standard prompt shown when no configuration is active.
@@ -73,13 +88,13 @@ class SchedulerAgentState:
         )
 
     # Report whether the agent can currently access a configuration.
-    def get_active_configuration_status(self) -> dict[str, Any]:
+    def get_active_configuration_status(self) -> ToolResult:
         if not self.has_active_configuration:
             return self._result(False, self.configuration_required_message())
         return self._result(True, "A scheduler configuration is active.")
 
     # Describe the editor combinations the user can complete to change the duck hat.
-    def list_combinations(self, password: str) -> dict[str, Any]:
+    def list_combinations(self, password: str) -> ToolResult:
         if not hmac.compare_digest(password.encode("utf-8"), COMBINATIONS_PASSWORD.encode("utf-8")):
             return self._result(
                 False,
@@ -101,7 +116,7 @@ class SchedulerAgentState:
         )
 
     # Summarize the counts of configured scheduling resources.
-    def get_config_summary(self) -> dict[str, Any]:
+    def get_config_summary(self) -> ToolResult:
         summary = (
             f"Rooms: {len(self.config.config.rooms)}\n"
             f"Labs: {len(self.config.config.labs)}\n"
@@ -111,7 +126,7 @@ class SchedulerAgentState:
         return self._result(True, summary)
 
     # Serialize the full configuration or one supported configuration area.
-    def inspect_configuration(self, area: str = "all") -> dict[str, Any]:
+    def inspect_configuration(self, area: str = "all") -> ToolResult:
         payload = self.config.model_dump(mode="json")
         areas = {
             "rooms": payload["config"]["rooms"],
@@ -153,9 +168,9 @@ class SchedulerAgentState:
         self,
         *,
         area: str,
-        item: dict[str, Any],
+        item: JsonObject,
         item_key: str | None = None,
-    ) -> dict[str, Any]:
+    ) -> ToolResult:
         try:
             if area in {"rooms", "labs", "courses", "faculty", "class_patterns"}:
                 item = dict(item)
@@ -199,7 +214,7 @@ class SchedulerAgentState:
                         False,
                         f"A {area.rstrip('s')} item with key '{key}' already exists.",
                     )
-                self._apply_item_values(area, collection, parsed)
+                self._apply_item_values(area, parsed)
             elif area == "meetings":
                 pattern = self._find_pattern(item_key)
                 parsed = Meeting.model_validate(item)
@@ -242,8 +257,8 @@ class SchedulerAgentState:
         *,
         area: str,
         item_key: str | None,
-        item: dict[str, Any],
-    ) -> dict[str, Any]:
+        item: JsonObject,
+    ) -> ToolResult:
         if not item_key:
             return self._result(False, "An item_key is required to update a configuration item.")
         try:
@@ -300,7 +315,7 @@ class SchedulerAgentState:
                         False,
                         f"A {area.rstrip('s')} item with key '{new_key}' already exists.",
                     )
-                self._apply_item_values(area, collection, parsed, existing=existing)
+                self._apply_item_values(area, parsed, existing=existing)
             else:
                 return self._result(
                     False, f"Items cannot be updated in configuration area '{area}'."
@@ -310,7 +325,7 @@ class SchedulerAgentState:
         return self._result(True, f"Updated {area} item '{item_key}'.")
 
     # Delete a keyed configuration item or a weekday's time blocks.
-    def delete_configuration_item(self, *, area: str, item_key: str) -> dict[str, Any]:
+    def delete_configuration_item(self, *, area: str, item_key: str) -> ToolResult:
         if area == "time_blocks":
             day = item_key.upper()
             if day not in {"MON", "TUE", "WED", "THU", "FRI"}:
@@ -373,7 +388,7 @@ class SchedulerAgentState:
         optimizer_flags: list[str] | None = None,
         max_time_gap: int | None = None,
         min_time_overlap: int | None = None,
-    ) -> dict[str, Any]:
+    ) -> ToolResult:
         if limit is not None and limit <= 0:
             return self._result(False, "limit must be a positive integer.")
         if max_time_gap is not None and max_time_gap < 0:
@@ -405,7 +420,7 @@ class SchedulerAgentState:
         return self._result(True, f"Updated global settings: {', '.join(changed)}.")
 
     # Format validation problems for the active configuration.
-    def validate_current_config(self) -> dict[str, Any]:
+    def validate_current_config(self) -> ToolResult:
         problems = validate_config(self.config)
         if not problems:
             return self._result(True, "The current configuration is valid.")
@@ -423,7 +438,7 @@ class SchedulerAgentState:
         )
 
     # Validate and save the active configuration through the app callback.
-    def save_current_config(self, config_name: str) -> dict[str, Any]:
+    def save_current_config(self, config_name: str) -> ToolResult:
         if self._save_configuration is None:
             problems = validate_config(self.config)
             if problems:
@@ -468,16 +483,13 @@ class SchedulerAgentState:
             return self._result(False, f"Could not save configuration '{config_name}': {error}")
         return self._result(
             True,
-            (
-                f"Configuration queued for download as '{config_name}.json'."
-                if self._save_configuration is not None
-                else f"Configuration saved as '{config_name}.json'."
-            ),
+            f"Configuration save completed for '{config_name}.json'.",
             action="saved",
+            save_destination="download" if self._save_configuration is not None else "file",
         )
 
     # Generate from the active config and direct results to the viewer.
-    def generate_schedules(self) -> dict[str, Any]:
+    def generate_schedules(self) -> ToolResult:
         problems = validate_config(self.config)
         if problems:
             return self._result(
@@ -504,141 +516,223 @@ class SchedulerAgentState:
         )
 
     # Resolve a supported area to its mutable configuration collection.
-    def _item_collection(self, area: str) -> list[Any]:
-        if area in {"rooms", "labs", "courses", "faculty"}:
-            return getattr(self.config.config, area)
+    def _item_collection(self, area: str) -> ConfigurationItemCollection:
+        if area == "rooms":
+            return self.config.config.rooms
+        if area == "labs":
+            return self.config.config.labs
+        if area == "courses":
+            return self.config.config.courses
+        if area == "faculty":
+            return self.config.config.faculty
         if area == "class_patterns":
             return self.config.time_slot_config.classes
         raise ValueError(f"Unknown configuration area '{area}'.")
 
     # Validate an item dictionary with its scheduler configuration type.
     @staticmethod
-    def _parse_item(area: str, item: dict[str, Any]) -> Any:
-        model = {
-            "rooms": RoomConfig,
-            "labs": LabConfig,
-            "courses": CourseConfig,
-            "faculty": FacultyConfig,
-            "class_patterns": ClassPattern,
-        }.get(area)
-        if model is None:
-            raise ValueError(f"Unknown configuration area '{area}'.")
-        return model.model_validate(item)
+    def _parse_item(area: str, item: JsonObject) -> ConfigurationItem:
+        if area == "rooms":
+            return RoomConfig.model_validate(item)
+        if area == "labs":
+            return LabConfig.model_validate(item)
+        if area == "courses":
+            return CourseConfig.model_validate(item)
+        if area == "faculty":
+            return FacultyConfig.model_validate(item)
+        if area == "class_patterns":
+            return ClassPattern.model_validate(item)
+        raise ValueError(f"Unknown configuration area '{area}'.")
 
     @staticmethod
-    def _same_item_identity(area: str, first: Any, second: Any) -> bool:
+    def _require_item_type(
+        item: ConfigurationItem,
+        model: type[ConfigurationItemType],
+    ) -> ConfigurationItemType:
+        if not isinstance(item, model):
+            raise TypeError(f"Expected {model.__name__}, got {type(item).__name__}.")
+        return item
+
+    @classmethod
+    def _same_item_identity(
+        cls,
+        area: str,
+        first: ConfigurationItem,
+        second: ConfigurationItem,
+    ) -> bool:
         if area == "courses":
+            first = cls._require_item_type(first, CourseConfig)
+            second = cls._require_item_type(second, CourseConfig)
             return (
                 first.course_id.casefold() == second.course_id.casefold()
                 and first.section_id == second.section_id
             )
         if area == "class_patterns":
+            first = cls._require_item_type(first, ClassPattern)
+            second = cls._require_item_type(second, ClassPattern)
             return first.credits == second.credits
+        if area == "rooms":
+            first = cls._require_item_type(first, RoomConfig)
+            second = cls._require_item_type(second, RoomConfig)
+        elif area == "labs":
+            first = cls._require_item_type(first, LabConfig)
+            second = cls._require_item_type(second, LabConfig)
+        elif area == "faculty":
+            first = cls._require_item_type(first, FacultyConfig)
+            second = cls._require_item_type(second, FacultyConfig)
+        else:
+            raise ValueError(f"Unknown configuration area '{area}'.")
         return first.name.casefold() == second.name.casefold()
 
     @staticmethod
-    def _availability_values(times: Any) -> dict[str, list[str]] | None:
+    def _availability_values(
+        times: dict[Day, list[TimeRange]] | None,
+    ) -> dict[str, list[str]] | None:
         if times is None:
             return None
         return {
-            day: [
-                f"{item['start']}-{item['end']}"
-                if isinstance(item, dict)
-                else f"{item.start}-{item.end}"
-                for item in ranges
-            ]
-            for day, ranges in times.items()
+            day: [f"{item.start}-{item.end}" for item in ranges] for day, ranges in times.items()
         }
 
-    @classmethod
     def _apply_item_values(
-        cls,
+        self,
         area: str,
-        collection: list[Any],
-        item: Any,
+        item: ConfigurationItem,
         *,
-        existing: Any | None = None,
+        existing: ConfigurationItem | None = None,
     ) -> None:
         update = existing is not None
         if area == "rooms":
-            availability = cls._availability_values(item.times)
+            room = self._require_item_type(item, RoomConfig)
+            current_room = self._require_item_type(existing, RoomConfig) if existing else None
+            availability = self._availability_values(room.times)
             if update:
                 RoomController.update_room(
-                    collection, existing, item.name, item.capacity, item.features, availability
+                    self.config.config.rooms,
+                    current_room,
+                    room.name,
+                    room.capacity,
+                    room.features,
+                    availability,
                 )
             else:
                 RoomController.add_room(
-                    collection, item.name, item.capacity, item.features, availability
+                    self.config.config.rooms,
+                    room.name,
+                    room.capacity,
+                    room.features,
+                    availability,
                 )
             return
         if area == "labs":
+            lab = self._require_item_type(item, LabConfig)
+            current_lab = self._require_item_type(existing, LabConfig) if existing else None
             if update:
                 LabController.update_lab(
-                    collection, existing, item.name, item.capacity, item.features, item.times
+                    self.config.config.labs,
+                    current_lab,
+                    lab.name,
+                    lab.capacity,
+                    lab.features,
+                    lab.times,
                 )
             else:
                 LabController.add_lab(
-                    collection, item.name, item.capacity, item.features, item.times
+                    self.config.config.labs,
+                    lab.name,
+                    lab.capacity,
+                    lab.features,
+                    lab.times,
                 )
             return
         if area == "faculty":
+            faculty = self._require_item_type(item, FacultyConfig)
+            current_faculty = self._require_item_type(existing, FacultyConfig) if existing else None
             values = (
-                item.name,
-                item.maximum_credits,
-                item.minimum_credits,
-                item.unique_course_limit,
-                item.times,
-                item.maximum_days,
-                item.course_preferences,
-                item.room_preferences,
-                item.lab_preferences,
-                item.mandatory_days,
+                faculty.name,
+                faculty.maximum_credits,
+                faculty.minimum_credits,
+                faculty.unique_course_limit,
+                faculty.times,
+                faculty.maximum_days,
+                faculty.course_preferences,
+                faculty.room_preferences,
+                faculty.lab_preferences,
+                faculty.mandatory_days,
             )
             if update:
-                FacultyController.update_member(collection, existing, *values)
+                FacultyController.update_member(
+                    self.config.config.faculty, current_faculty, *values
+                )
             else:
-                FacultyController.add_member(collection, *values)
+                FacultyController.add_member(self.config.config.faculty, *values)
             return
         if area == "courses":
+            course = self._require_item_type(item, CourseConfig)
+            current_course = self._require_item_type(existing, CourseConfig) if existing else None
             values = (
-                item.course_id,
-                item.section_id,
-                item.credits,
-                item.capacity,
-                item.modality,
-                item.room,
-                item.lab,
-                item.required_room_features,
-                item.required_lab_features,
-                item.reserve_room_during_lab,
-                item.conflicts,
-                item.faculty,
+                course.course_id,
+                course.section_id,
+                course.credits,
+                course.capacity,
+                course.modality,
+                course.room,
+                course.lab,
+                course.required_room_features,
+                course.required_lab_features,
+                course.reserve_room_during_lab,
+                course.conflicts,
+                course.faculty,
             )
             if update:
-                CourseController.update_course(collection, existing, *values)
+                CourseController.update_course(self.config.config.courses, current_course, *values)
             else:
-                CourseController.add_course(collection, *values)
+                CourseController.add_course(self.config.config.courses, *values)
             return
         if area == "class_patterns":
-            values = (item.credits, item.meetings, item.disabled, item.start_time)
+            pattern = self._require_item_type(item, ClassPattern)
+            current_pattern = self._require_item_type(existing, ClassPattern) if existing else None
+            values = (pattern.credits, pattern.meetings, pattern.disabled, pattern.start_time)
             if update:
-                ClassPatternController.update_pattern(collection, existing, *values)
+                ClassPatternController.update_pattern(
+                    self.config.time_slot_config.classes,
+                    current_pattern,
+                    *values,
+                )
             else:
-                ClassPatternController.add_pattern(collection, *values)
+                ClassPatternController.add_pattern(
+                    self.config.time_slot_config.classes,
+                    *values,
+                )
             return
         raise ValueError(f"Unknown configuration area '{area}'.")
 
     # Return the stable key used to find or de-duplicate an item.
-    @staticmethod
-    def _item_identity(area: str, item: Any) -> str:
+    @classmethod
+    def _item_identity(cls, area: str, item: ConfigurationItem) -> str:
         if area == "courses":
+            item = cls._require_item_type(item, CourseConfig)
             return f"{item.course_id}::{item.section_id or 'default'}"
         if area == "class_patterns":
+            item = cls._require_item_type(item, ClassPattern)
             return str(item.credits)
+        if area == "rooms":
+            item = cls._require_item_type(item, RoomConfig)
+        elif area == "labs":
+            item = cls._require_item_type(item, LabConfig)
+        elif area == "faculty":
+            item = cls._require_item_type(item, FacultyConfig)
+        else:
+            raise ValueError(f"Unknown configuration area '{area}'.")
         return item.name
 
     # Find an item by key or return a message explaining why it is unresolved.
-    def _find_item_index(self, area: str, collection: list[Any], item_key: str) -> int | str:
+    def _find_item_index(
+        self,
+        area: str,
+        collection: ConfigurationItemCollection,
+        item_key: str,
+    ) -> int | str:
         if area == "class_patterns":
             try:
                 index = int(item_key)
@@ -653,14 +747,16 @@ class SchedulerAgentState:
                 matches = [
                     index
                     for index, course in enumerate(collection)
-                    if course.course_id.casefold() == course_id.casefold()
+                    if isinstance(course, CourseConfig)
+                    and course.course_id.casefold() == course_id.casefold()
                     and (course.section_id or "default") == section
                 ]
             else:
                 matches = [
                     index
                     for index, course in enumerate(collection)
-                    if course.course_id.casefold() == item_key.casefold()
+                    if isinstance(course, CourseConfig)
+                    and course.course_id.casefold() == item_key.casefold()
                 ]
             if len(matches) > 1:
                 keys = [self._item_identity(area, collection[index]) for index in matches]

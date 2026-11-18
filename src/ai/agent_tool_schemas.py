@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Literal
 
 from pydantic import BaseModel, Field
+
+from src.ai.agent_tool_types import JsonObject
 
 
 class InspectConfigurationArgs(BaseModel):
@@ -33,7 +35,7 @@ class ConfigurationItemArgs(BaseModel):
             "CLASS_PATTERN_INDEX::DAY; create meetings with the class-pattern index"
         ),
     )
-    item: dict[str, Any] = Field(
+    item: JsonObject = Field(
         description="Item fields as a JSON object; time_blocks uses {'blocks': [...]}."
     )
 

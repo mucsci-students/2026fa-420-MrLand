@@ -55,7 +55,16 @@ A floating **Scheduler AI Assistant** is available throughout the GUI. It can in
 - View meeting details and overlapping meetings in the calendar.
 - Expand the calendar to fullscreen and export from the fullscreen view.
 - Export a selected schedule or all generated schedules in CSV or JSON.
+- Create a room/lab- or faculty-grouped print layout for a selected schedule or group. Open the downloaded HTML in a browser, choose Print > Save as PDF, and select the PDF destination (Letter paper).
 - Clear generated results without deleting schedules loaded from files.
+
+### Schedule Analysis
+
+- View schedule quality as letter grades for the largest individual faculty gap total, geometric-mean room and lab utilization, faculty workload balance, and weekday teaching-hours balance.
+- Grades use per-configuration A-grade targets, with defaults of 300 weekly faculty gap minutes, 60% room utilization, 50% lab utilization, and 2 hours for each balance standard deviation.
+- Edit targets under Global Settings in the Configuration Editor. The composite grade averages the available component grades using A=4 through F=0; unavailable measures are excluded.
+- The composite averages available grades as points (A=4 through F=0) and rounds to the nearest letter grade. Custom targets are saved with the configuration and included in JSON exports when they differ from defaults.
+- Top 5 Schedules ranks generated schedules for the selected schedule's configuration by the average points of available component grades.
 
 ### What-If Analysis
 
@@ -207,6 +216,8 @@ definitions are in `src/ai/agent_tool_definitions.py`:
 | `list_combinations`               | List editor combinations after the user supplies the password. |
 
 The assistant must use these tools for configuration changes and application actions. It is instructed not to claim that it changed or saved something unless the corresponding tool/application workflow confirms the result.
+
+Tool results use a `success` and `message` envelope, with optional details for the action. LangChain returns invalid-argument failures as JSON text; decoding that text yields the same envelope. Save results use a consistent completion message and include `save_destination` (`download` in the editor or `file` for a direct save). Schedule-generation results report the generator's actual counts in both the message and the `generated`/`valid` details.
 
 ### Example requests
 
@@ -488,7 +499,7 @@ The Codecov configuration is in [`codecov.yaml`](codecov.yaml). The CI job uploa
 
 ## Design Patterns
 
-The application uses an MVC organization and includes Strategy, Memento, Composite, and Observer implementations.
+The application uses an MVC organization and includes Strategy, Memento, Composite, Observer, and Template Method implementations.
 
 ### 1. Model–View–Controller (MVC)
 
@@ -519,6 +530,12 @@ The application uses an MVC organization and includes Strategy, Memento, Composi
 - **Locations:** `src/models/configuration_observer.py` and `src/controllers/configuration_controller.py`.
 - **How it is used:** Every controller edit snapshots the configuration, runs the mutation, detects entity additions, renames, and deletions independent of collection ordering, and publishes events through a `ConfigurationSubject` to a `ConfigurationRelationshipObserver`. GUI and AI edits share this transactional path. The observer keeps course assignments, course conflicts, and faculty preferences synchronized with faculty, room, lab, and course identifiers.
 - **Why it fits:** Relationships are stored as names in separate configuration objects. The observer centralizes their updates, and whole-configuration validation rolls back both the edit and cascaded relationship changes if the result is invalid.
+
+### 6. Template Method
+
+- **Location:** `src/controllers/schedule_print_export_controller.py`.
+- **How it is used:** `PrintLayoutTemplate.build` defines the common print-layout algorithm. `ResourcePrintLayoutTemplate` and `FacultyPrintLayoutTemplate` customize grouping, headings, and row values while sharing schedule validation, ordering, and HTML/page rendering.
+- **Why it fits:** Faculty and resource exports have different grouping details but the same document structure and print requirements. The template keeps those common steps consistent.
 
 ---
 

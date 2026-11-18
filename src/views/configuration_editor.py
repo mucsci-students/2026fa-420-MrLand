@@ -22,6 +22,7 @@ from src.models.configuration_model import (
     validate_config_name,
 )
 from src.models.configuration_repository import ConfigLoadError
+from src.models.quality_grading import QualityGradeSettings
 from src.views.class_patterns_gui import class_patterns_gui
 from src.views.common import coming_soon, section_header
 from src.views.configuration_history import ConfigurationHistory
@@ -117,6 +118,7 @@ def configuration_editor(
     completed_combinations: set[str] = set()
     load_generation = 0
     history = ConfigurationHistory()
+    download_target = ui.row().style("display: none")
 
     # Update the saved indicator after a draft change or successful save.
     def set_saved_status(saved: bool) -> None:
@@ -376,10 +378,19 @@ def configuration_editor(
             )
         with ui.column().classes(panel_classes) as global_settings_panel:
             if hasattr(config, "limit") and hasattr(config, "optimizer_flags"):
+
+                def save_quality_grade_settings(settings: QualityGradeSettings) -> None:
+                    config_name = state["name"]
+                    if not config_name:
+                        raise ValueError("Save the configuration name before its grade settings.")
+                    controller.set_quality_grade_settings(config_name, settings)
+
                 state["flush_pending_settings"] = global_settings_gui(
                     config,
                     on_change=apply_config_change,
                     on_pending_change=lambda: set_saved_status(False),
+                    quality_grade_settings=controller.quality_grade_settings,
+                    on_quality_settings_change=save_quality_grade_settings,
                 )
             else:
                 ui.label("Global settings are unavailable for this draft.").classes(
@@ -427,7 +438,8 @@ def configuration_editor(
     # Download the active draft and report validation or browser errors.
     def download_configuration(file_name: str) -> str:
         content, file_name, media_type = controller.export_configuration(file_name)
-        ui.download(content, filename=file_name, media_type=media_type)
+        with download_target:
+            ui.download(content, filename=file_name, media_type=media_type)
         set_saved_status(True)
         return file_name
 
@@ -518,10 +530,14 @@ def configuration_editor(
                     ui.notify("Please select a .json file.", type="negative")
                     return
 
-                loaded_config = controller.load_uploaded_configuration(content)
+                config_name = file_name[:-5]
+                loaded_config = controller.load_uploaded_configuration(
+                    content,
+                    config_name=config_name,
+                )
 
                 state["config"] = loaded_config
-                state["name"] = file_name[:-5]
+                state["name"] = config_name
                 state["pending_forms"].clear()
                 clear_history()
                 set_saved_status(True)

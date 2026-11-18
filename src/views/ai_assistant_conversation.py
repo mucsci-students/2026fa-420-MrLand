@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import os
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from concurrent.futures import Future, TimeoutError
 from dataclasses import dataclass
 from typing import Any
@@ -112,7 +112,7 @@ class AssistantConversation:
             if config is not None and self.create_history_snapshot is not None
             else None
         )
-        tool_results: list[dict[str, Any]] = []
+        tool_results: list[Mapping[str, object]] = []
         saved_during_request = False
         pending_save_names: list[str] = []
         if config is not None:
@@ -164,7 +164,7 @@ class AssistantConversation:
                 asyncio.run_coroutine_threadsafe(close_confirmation(), loop).result(timeout=10)
                 return False
 
-        def record_tool_result(result: dict[str, Any]) -> None:
+        def record_tool_result(result: Mapping[str, object]) -> None:
             tool_results.append(result)
 
         def save_ai_configuration(config_name: str) -> None:

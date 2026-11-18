@@ -3,19 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any
 
 from scheduler.config import CombinedConfig
-
-from src.ai.agent_tool_definitions import (
-    configuration_tools,
-    history_tools,
-    informational_tools,
-    mutation_tools,
-)
-from src.ai.agent_tool_guards import AgentToolGuards
-from src.ai.scheduler_agent_state import SchedulerAgentState, empty_scheduler_config
-from src.controllers.configuration_controller import ConfigurationController
 
 try:
     from langchain_core.tools import StructuredTool
@@ -25,12 +14,25 @@ except ImportError as exc:  # pragma: no cover - dependency resolution is handle
         "the AI packages to pyproject.toml."
     ) from exc
 
+from src.ai.agent_tool_definitions import (
+    configuration_tools,
+    history_tools,
+    informational_tools,
+    mutation_tools,
+)
+from src.ai.agent_tool_guards import AgentToolGuards
+from src.ai.agent_tool_types import ToolResult
+from src.ai.scheduler_agent_state import SchedulerAgentState, empty_scheduler_config
+from src.controllers.configuration_controller import ConfigurationController
+from src.models.configuration_model import ValidationProblem
+
 
 def get_tool_list(
     state: SchedulerAgentState,
-    apply_change: Callable[[Callable[[], Any]], tuple[bool, list[Any]]] | None = None,
+    apply_change: Callable[[Callable[[], None]], tuple[bool, list[ValidationProblem]]]
+    | None = None,
     save_configuration: Callable[[str], None] | None = None,
-    on_tool_result: Callable[[dict[str, Any]], None] | None = None,
+    on_tool_result: Callable[[ToolResult], None] | None = None,
     undo_configuration: Callable[[], CombinedConfig | None] | None = None,
     redo_configuration: Callable[[], CombinedConfig | None] | None = None,
 ) -> list[StructuredTool]:

@@ -126,12 +126,7 @@ def schedule_analysis() -> ScheduleAnalysisRefresh:
 
         refresh_statistics()
         refresh_comparison()
-        what_if_tab.refresh_sources()
         what_if_tab.refresh_original_schedule()
-
-        current = schedule_controller.current
-
-        unscheduled_card.set_visibility(bool(current and current.source == "generated"))
 
     def open_load_dialog(target_select=None) -> None:
         """Open the shared upload dialog for the requested selector."""
@@ -156,21 +151,42 @@ def schedule_analysis() -> ScheduleAnalysisRefresh:
 
     def on_schedule_loaded(entry, error) -> None:
         """Handle the result of an uploaded schedule."""
+        nonlocal load_target
+
         if error:
             load_status.text = error
             return
 
-        refresh()
+        # Synchronize generated schedules before looking up the uploaded
+        # schedule's index, since this can change the indexes.
+        schedule_controller.sync_generated()
 
-        # If the upload came from a Comparison selector, select the
-        # newly loaded schedule in that selector.
-        if load_target is not None:
+        target_select = load_target
+
+        if target_select is not None:
             options = schedule_controller.schedule_options()
-            if options:
-                load_target.options = options
-                load_target.value = max(options)
-                load_target.update()
 
+            loaded_index = next(
+                (index for index in options if schedule_controller.entry_at(index) is entry),
+                None,
+            )
+
+            if loaded_index is not None:
+                refresh_comparison(target_select, loaded_index)
+            else:
+                load_status.text = (
+                    f"Could not find the uploaded schedule '{entry.file_name}' "
+                    "in the schedule list."
+                )
+                return
+
+        # Refresh the remaining analysis views.
+        schedule_controller.sync_generated()
+
+        refresh_statistics()
+        what_if_tab.refresh_original_schedule()
+
+        load_target = None
         load_dialog.close()
 
         ui.notify(
@@ -281,9 +297,7 @@ def schedule_analysis() -> ScheduleAnalysisRefresh:
             value="statistics",
         ).classes("w-full"):
             with ui.tab_panel("statistics"):
-                unscheduled_card, refresh_statistics = build_statistics_tab(
-                    on_load_schedule=open_load_dialog
-                )
+                refresh_statistics = build_statistics_tab(on_load_schedule=open_load_dialog)
 
             with ui.tab_panel("comparison"):
                 refresh_comparison = build_comparison_tab(on_load_schedule=open_load_dialog)

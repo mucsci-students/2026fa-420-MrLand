@@ -44,6 +44,10 @@ class ScheduleController:
         return self.model.current
 
     @property
+    def generated_entries(self) -> list[ScheduleEntry]:
+        return [entry for entry in self.model.entries if entry.source == "generated"]
+
+    @property
     def selected_index(self) -> int:
         return self.model.selected_index
 
@@ -60,15 +64,27 @@ class ScheduleController:
         target = self.model.selected_index + offset
         return 0 <= target < len(self.model.entries)
 
-    def current_rows(self) -> list[dict]:
-        """The selected schedule as one row per meeting, in the viewer's table format."""
-        entry = self.model.current
+    def entry_at(self, index: int) -> ScheduleEntry | None:
+        """Return a schedule entry by index without changing the selected schedule."""
+        entries = self.model.entries
+        if not 0 <= index < len(entries):
+            return None
+        return entries[index]
+
+    def rows_for(self, index: int) -> list[dict]:
+        """Return meeting rows for a schedule without changing the selected schedule."""
+        entry = self.entry_at(index)
         if entry is None:
             return []
+
         rows = create_resource_schedule(entry.records)
         for row_id, row in enumerate(rows, start=1):
             row["id"] = row_id
         return rows
+
+    def current_rows(self) -> list[dict]:
+        """The selected schedule as one row per meeting, in the viewer's table format."""
+        return self.rows_for(self.model.selected_index)
 
     # ------------------------------------------------------------------
     # Loading

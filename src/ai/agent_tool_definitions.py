@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from langchain_core.tools import StructuredTool
+from scheduler.config import CombinedConfig
 
 from src.ai.agent_tool_guards import AgentToolGuards
 from src.ai.agent_tool_schemas import (
@@ -87,8 +90,8 @@ def mutation_tools(state: SchedulerAgentState, guards: AgentToolGuards) -> list[
 
 
 def history_tools(
-    undo_configuration,
-    redo_configuration,
+    undo_configuration: Callable[[], CombinedConfig | None] | None,
+    redo_configuration: Callable[[], CombinedConfig | None] | None,
     guards: AgentToolGuards,
 ) -> list[StructuredTool]:
     return [
