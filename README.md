@@ -54,6 +54,7 @@ A floating **Scheduler AI Assistant** is available throughout the GUI. It can in
 - View meeting details and overlapping meetings in the calendar.
 - Expand the calendar to fullscreen and export from the fullscreen view.
 - Export a selected schedule or all generated schedules in CSV or JSON.
+- Create a room/lab- or faculty-grouped print layout for a selected schedule or group. Open the downloaded HTML in a browser, choose Print > Save as PDF, and select the PDF destination (Letter paper).
 - Clear generated results without deleting schedules loaded from files.
 
 ### Schedule Analysis
@@ -494,7 +495,7 @@ The Codecov configuration is in [`codecov.yaml`](codecov.yaml). The CI job uploa
 
 ## Design Patterns
 
-The application uses an MVC organization and includes Strategy, Memento, Composite, and Observer implementations.
+The application uses an MVC organization and includes Strategy, Memento, Composite, Observer, and Template Method implementations.
 
 ### 1. Model–View–Controller (MVC)
 
@@ -525,6 +526,12 @@ The application uses an MVC organization and includes Strategy, Memento, Composi
 - **Locations:** `src/models/configuration_observer.py` and `src/controllers/configuration_controller.py`.
 - **How it is used:** Every controller edit snapshots the configuration, runs the mutation, detects entity additions, renames, and deletions independent of collection ordering, and publishes events through a `ConfigurationSubject` to a `ConfigurationRelationshipObserver`. GUI and AI edits share this transactional path. The observer keeps course assignments, course conflicts, and faculty preferences synchronized with faculty, room, lab, and course identifiers.
 - **Why it fits:** Relationships are stored as names in separate configuration objects. The observer centralizes their updates, and whole-configuration validation rolls back both the edit and cascaded relationship changes if the result is invalid.
+
+### 6. Template Method
+
+- **Location:** `src/controllers/schedule_print_export_controller.py`.
+- **How it is used:** `PrintLayoutTemplate.build` defines the common print-layout algorithm. `ResourcePrintLayoutTemplate` and `FacultyPrintLayoutTemplate` customize grouping, headings, and row values while sharing schedule validation, ordering, and HTML/page rendering.
+- **Why it fits:** Faculty and resource exports have different grouping details but the same document structure and print requirements. The template keeps those common steps consistent.
 
 ---
 
