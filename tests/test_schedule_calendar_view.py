@@ -86,3 +86,39 @@ class TestCalendarEventLayout:
 
     def test_empty_meeting_list_returns_empty_result(self):
         assert ScheduleCalendarView._layout_day_events([]) == []
+
+    def test_compact_mode_limits_events_to_two_lanes(self):
+        meetings = [
+            ({"course": "CS101"}, 540, 660),
+            ({"course": "CS102"}, 540, 660),
+            ({"course": "CS103"}, 540, 660),
+        ]
+
+        result = ScheduleCalendarView._layout_day_events(
+            meetings,
+            max_lanes=2,
+        )
+
+        assert len(result) == 3
+        assert all(event[3] in (0, 1) for event in result)
+        assert all(event[4] == 2 for event in result)
+
+    def test_compact_mode_keeps_all_meetings_when_lane_limit_is_reached(self):
+        meetings = [
+            ({"course": "CS101"}, 540, 660),
+            ({"course": "CS102"}, 570, 630),
+            ({"course": "CS103"}, 600, 720),
+        ]
+
+        result = ScheduleCalendarView._layout_day_events(
+            meetings,
+            max_lanes=2,
+        )
+
+        assert len(result) == len(meetings)
+        assert {event[0]["course"] for event in result} == {
+            "CS101",
+            "CS102",
+            "CS103",
+        }
+        assert all(event[3] < 2 for event in result)
