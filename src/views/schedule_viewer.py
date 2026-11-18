@@ -30,6 +30,7 @@ from src.controllers.schedule_print_export_controller import (
     export_print_schedule,
     print_group_options,
 )
+from src.models.schedule_viewer_model import ScheduleEntry
 from src.views.schedule_calendar_view import schedule_calendar_view
 from src.views.schedule_table_view import schedule_table_view
 
@@ -46,6 +47,8 @@ async def read_upload(event) -> tuple[str, bytes]:
 
 
 def schedule_viewer() -> Callable[[], None]:
+    print_entry: ScheduleEntry | None = None
+
     # adds custom CSS to the web elements to style the schedule viewer
     ui.add_head_html(
         f"""
@@ -647,7 +650,7 @@ def schedule_viewer() -> Callable[[], None]:
 
         def update_print_group_options():
             try:
-                options = print_group_options(controller.current, print_orientation.value)
+                options = print_group_options(print_entry, print_orientation.value)
             except ValueError as error:
                 print_export_status.text = str(error)
                 return
@@ -658,18 +661,20 @@ def schedule_viewer() -> Callable[[], None]:
             )
 
         def open_print_export_dialog():
+            nonlocal print_entry
             entry = controller.current
             if entry is None:
                 return
+            print_entry = entry
             print_export_status.text = ""
-            print_schedule_description.text = f"Selected schedule: {entry.label}"
+            print_schedule_description.text = f"Selected schedule: {print_entry.label}"
             print_orientation.value = "resource"
             update_print_group_options()
             print_export_dialog.open()
 
         def on_print_export():
             export, error = export_print_schedule(
-                controller.current,
+                print_entry,
                 print_orientation.value,
                 print_group.value,
             )
