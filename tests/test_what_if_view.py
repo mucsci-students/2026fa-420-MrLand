@@ -74,6 +74,7 @@ def test_what_if_edits_are_temporary_and_can_be_reset():
 
             await user.should_see("Reset temporary edits")
             user.find("Global settings").click()
+            await user.should_not_see("Quality grade targets")
             with active_client(user):
                 generation_limit = next(
                     iter(
