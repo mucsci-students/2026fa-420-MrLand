@@ -13,9 +13,7 @@ from src.models.schedule_viewer_model import ScheduleEntry
 ALL_GROUPS = "__all__"
 PRINT_MEDIA_TYPE = "text/html"
 DAY_ORDER = {"MON": 0, "TUE": 1, "WED": 2, "THU": 3, "FRI": 4}
-MEETING_PATTERN = re.compile(
-    r"^(MON|TUE|WED|THU|FRI) (\d{2}:\d{2})-(\d{2}:\d{2})(@online)?(\^)?$"
-)
+MEETING_PATTERN = re.compile(r"^(MON|TUE|WED|THU|FRI) (\d{2}:\d{2})-(\d{2}:\d{2})(@online)?(\^)?$")
 
 
 @dataclass(frozen=True)
@@ -209,9 +207,7 @@ PRINT_LAYOUT_TEMPLATES: dict[str, type[PrintLayoutTemplate]] = {
 }
 
 
-def print_group_options(
-    entry: ScheduleEntry | None, orientation: str
-) -> dict[str, str]:
+def print_group_options(entry: ScheduleEntry | None, orientation: str) -> dict[str, str]:
     """Return selectable groups for a schedule and print orientation."""
     template = _layout_template(orientation)
     if entry is None:
