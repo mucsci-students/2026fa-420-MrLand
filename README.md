@@ -54,7 +54,7 @@ A floating **Scheduler AI Assistant** is available throughout the GUI. It can in
 - View meeting details and overlapping meetings in the calendar.
 - Expand the calendar to fullscreen and export from the fullscreen view.
 - Export a selected schedule or all generated schedules in CSV or JSON.
-- Create a room/lab- or faculty-grouped print layout for a selected schedule or group. Open the downloaded HTML in a browser, choose Print > Save as PDF, and select the PDF destination (Letter paper).
+- Download a Letter-size PDF of a selected schedule, grouped by room/lab or faculty.
 - Clear generated results without deleting schedules loaded from files.
 
 ### Schedule Analysis

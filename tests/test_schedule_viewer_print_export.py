@@ -1,10 +1,12 @@
 import asyncio
+import io
 from types import SimpleNamespace
 from typing import cast
 
 import pytest
 from nicegui import ElementFilter, ui
 from nicegui.testing import user_simulation
+from pypdf import PdfReader
 from scheduler.models.course import CourseInstance
 
 import src.views.schedule_viewer as viewer
@@ -69,11 +71,14 @@ def test_print_dialog_keeps_schedule_until_reopened(monkeypatch, tmp_path, updat
                 assert "Dr. Original" in group.options.values()
                 assert "Dr. Replacement" not in group.options.values()
                 group.value = next(k for k, v in group.options.items() if v == "Dr. Original")
-            user.find(kind=ui.button, content="Prepare print layout").click()
+            user.find(kind=ui.button, content="Download PDF").click()
             await user.should_see("Downloaded")
             download = await user.download.next()
             assert download.status_code == 200
-            content = download.content.decode()
+            assert download.content.startswith(b"%PDF-")
+            content = "\n".join(
+                page.extract_text() for page in PdfReader(io.BytesIO(download.content)).pages
+            )
             assert "Original101" in content
             assert "Replacement101" not in content
 

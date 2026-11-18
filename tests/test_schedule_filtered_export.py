@@ -13,7 +13,10 @@ Run with:  uv run pytest tests/test_schedule_filtered_export.py -v
 # File name: test_schedule_filtered_export.py
 # Primary author: Renee
 
+import io
+
 import pytest
+from pypdf import PdfReader
 
 from src.controllers.schedule_filtered_export_controller import (
     DEFAULT_PRINT_CHOICES,
@@ -183,7 +186,7 @@ def test_faculty_default_prints_only_that_faculty_member(entry):
 
     assert error is None
     assert export is not None
-    text = export[0].decode("utf-8")
+    text = "\n".join(page.extract_text() for page in PdfReader(io.BytesIO(export[0])).pages)
     assert "CMSC 140-01" in text
     assert "CMSC 161-01" in text
     assert "CMSC 330-01" not in text  # Dr. Jones's class
@@ -196,7 +199,7 @@ def test_room_default_prints_only_that_room(entry):
 
     assert error is None
     assert export is not None
-    text = export[0].decode("utf-8")
+    text = "\n".join(page.extract_text() for page in PdfReader(io.BytesIO(export[0])).pages)
     assert "CMSC 140-01" in text
     assert "CMSC 330-01" in text
     assert "CMSC 161-01" not in text  # meets in Roddy 140

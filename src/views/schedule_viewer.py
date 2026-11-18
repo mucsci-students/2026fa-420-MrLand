@@ -266,13 +266,12 @@ def schedule_viewer() -> Callable[[], None]:
                 .classes("schedule-dropdown w-full")
             )
             ui.label(
-                "Downloads a Letter-size print layout. Open it in your browser, "
-                "choose Print, then Save as PDF to select the destination."
+                "Downloads a Letter-size PDF."
             ).classes("text-sm text-gray-400")
             print_export_status = ui.label("").classes("text-sm text-red-400")
             with ui.row().classes("w-full justify-end gap-2"):
                 ui.button("Cancel", on_click=print_export_dialog.close).props("flat")
-                print_export_button = ui.button("Prepare print layout", icon="picture_as_pdf")
+                print_export_button = ui.button("Download PDF", icon="picture_as_pdf")
 
         # ---------------------------------------------------------
         # Schedule controls
@@ -664,15 +663,12 @@ def schedule_viewer() -> Callable[[], None]:
                 print_group.value,
             )
             if error or export is None:
-                print_export_status.text = error or "Could not prepare the print layout."
+                print_export_status.text = error or "Could not prepare the PDF."
                 return
             content, file_name, media_type = export
             ui.download(content, filename=file_name, media_type=media_type)
             print_export_dialog.close()
-            ui.notify(
-                f"Downloaded {file_name}. Open it in a browser and choose Print > Save as PDF.",
-                type="positive",
-            )
+            ui.notify(f"Downloaded {file_name}.", type="positive")
 
         # Give the calendar fullscreen toolbar access to the existing export dialog.
         calendar_view.set_export_callback(open_export_dialog)

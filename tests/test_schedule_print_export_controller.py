@@ -1,4 +1,7 @@
+import io
+
 import pytest
+from pypdf import PdfReader
 
 from src.controllers.schedule_print_export_controller import (
     ALL_GROUPS,
@@ -51,17 +54,19 @@ def test_resource_layout_sorts_meetings_and_identifies_sections(schedule_entry):
     assert error is None
     assert export is not None
     content, file_name, media_type = export
-    layout = content.decode("utf-8")
-    assert file_name == "Fall_schedule_rooms_labs_Room__Room_101_print.html"
-    assert media_type == "text/html"
-    assert "Schedule — Room and lab grouping" in layout
-    assert "Room and lab — Room: Room 101" in layout
+    assert file_name == "Fall_schedule_rooms_labs_Room__Room_101.pdf"
+    assert media_type == "application/pdf"
+    assert content.startswith(b"%PDF-")
+    reader = PdfReader(io.BytesIO(content))
+    layout = "\n".join(page.extract_text() for page in reader.pages)
+    assert "Schedule - Room and lab grouping" in layout
+    assert "Room and lab - Room: Room 101" in layout
     assert "CMSC 420-01" in layout
     assert "Dr. Smith" in layout
     assert layout.index("MON") < layout.index("TUE")
-    assert "&lt;schedule&gt;" in layout
-    assert "thead { display: table-header-group; }" in layout
-    assert "@page { size: Letter portrait; margin: 0.55in; }" in layout
+    assert "<schedule>" in layout
+    assert float(reader.pages[0].mediabox.width) == 612
+    assert float(reader.pages[0].mediabox.height) == 792
 
 
 def test_faculty_layout_identifies_resources_and_nonphysical_meetings(schedule_entry):
@@ -70,8 +75,8 @@ def test_faculty_layout_identifies_resources_and_nonphysical_meetings(schedule_e
 
     assert error is None
     assert export is not None
-    layout = export[0].decode("utf-8")
-    assert "Faculty — Dr. Smith" in layout
+    layout = "\n".join(page.extract_text() for page in PdfReader(io.BytesIO(export[0])).pages)
+    assert "Faculty - Dr. Smith" in layout
     assert "Room: Room 101" in layout
     assert "Lab: Lab A" in layout
     assert "CMSC 430-02" not in layout
@@ -81,7 +86,10 @@ def test_faculty_layout_identifies_resources_and_nonphysical_meetings(schedule_e
     )
     assert online_error is None
     assert online_export is not None
-    assert "<td>Online</td>" in online_export[0].decode("utf-8")
+    online_layout = "\n".join(
+        page.extract_text() for page in PdfReader(io.BytesIO(online_export[0])).pages
+    )
+    assert "Online" in online_layout
 
 
 def test_empty_schedule_returns_labeled_print_layout():
@@ -96,18 +104,19 @@ def test_empty_schedule_returns_labeled_print_layout():
 
     assert error is None
     assert export is not None
-    assert "No meetings are available in this schedule." in export[0].decode("utf-8")
+    layout = "\n".join(page.extract_text() for page in PdfReader(io.BytesIO(export[0])).pages)
+    assert "No meetings are available in this schedule." in layout
 
 
 def test_export_rejects_missing_group_and_malformed_meeting(schedule_entry):
     missing, missing_error = export_print_schedule(schedule_entry, "resource", "Room:missing")
     assert missing is None
     assert missing_error == (
-        "Could not prepare the print layout: "
+        "Could not prepare the PDF: "
         "Please choose a group available in the selected schedule."
     )
 
     schedule_entry.records[0]["times"] = "not-a-meeting"
     export, error = export_print_schedule(schedule_entry, "faculty", ALL_GROUPS)
     assert export is None
-    assert error == "Could not prepare the print layout: Unrecognized meeting time 'not-a-meeting'."
+    assert error == "Could not prepare the PDF: Unrecognized meeting time 'not-a-meeting'."
