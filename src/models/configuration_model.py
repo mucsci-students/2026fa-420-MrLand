@@ -19,6 +19,11 @@ from src.models.configuration_repository import (
     load_config,
     save_config,
 )
+from src.models.quality_grading import (
+    QUALITY_GRADE_SETTINGS_KEY,
+    QualityGradeSettings,
+    settings_from_document,
+)
 
 _CONFIG_SCHEMA_PATH = (
     Path(__file__).resolve().parents[1] / "schemas" / "combined-config.schema.json"
@@ -115,20 +120,6 @@ def _describe(config: CombinedConfig, loc: tuple) -> tuple[str, str | None, str]
     return "Whole configuration", None, ""
 
 
-def load_uploaded(self, content: bytes) -> CombinedConfig:
-    """Parse an uploaded JSON configuration."""
-    try:
-        config = CombinedConfig.model_validate_json(content)
-    except Exception as exc:
-        raise ValueError(f"Unable to load configuration: {exc}") from exc
-
-    problems = validate_config(config)
-    if problems:
-        raise ConfigValidationError(problems)
-
-    return config
-
-
 def validate_config(config: CombinedConfig) -> list[ValidationProblem]:
     """Check the whole configuration. Returns an empty list if it's valid.
 
@@ -205,8 +196,17 @@ def _restore_config(config: CombinedConfig, snapshot: CombinedConfig) -> None:
 
 
 class ConfigService:
-    def save(self, config: CombinedConfig, config_name: str) -> None:
-        save_config(config, clean_config_name(config_name))
+    def save(
+        self,
+        config: CombinedConfig,
+        config_name: str,
+        quality_grade_settings: QualityGradeSettings | None = None,
+    ) -> None:
+        save_config(
+            config,
+            clean_config_name(config_name),
+            quality_grade_settings,
+        )
 
     def load(self, config_name: str) -> CombinedConfig:
         return load_config(config_name)
@@ -217,10 +217,14 @@ class ConfigService:
     def list_names(self) -> list[str]:
         return list_configs()
 
-    # Parse and validate an uploaded JSON configuration
     def load_uploaded(self, content: bytes) -> CombinedConfig:
+        """Parse and validate an uploaded JSON configuration."""
         try:
-            config = CombinedConfig.model_validate_json(content)
+            document = json.loads(content)
+            settings_from_document(document)
+            if isinstance(document, dict):
+                document.pop(QUALITY_GRADE_SETTINGS_KEY, None)
+            config = CombinedConfig.model_validate(document)
         except Exception as exc:
             raise ValueError(f"Unable to parse configuration JSON: {exc}") from exc
 

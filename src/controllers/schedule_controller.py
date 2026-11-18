@@ -44,6 +44,10 @@ class ScheduleController:
         return self.model.current
 
     @property
+    def generated_entries(self) -> list[ScheduleEntry]:
+        return [entry for entry in self.model.entries if entry.source == "generated"]
+
+    @property
     def selected_index(self) -> int:
         return self.model.selected_index
 
@@ -122,7 +126,7 @@ class ScheduleController:
             return None, "There is no schedule to export."
         try:
             return self.model.export(entry, file_format, file_name), None
-        except ValueError as error:
+        except (OSError, ValueError) as error:
             return None, str(error)
 
     def export_all_generated(
@@ -131,7 +135,7 @@ class ScheduleController:
         """(archive, file name, media type) for all generated schedules."""
         try:
             return self.model.export_all_generated(file_format), None
-        except ValueError as error:
+        except (OSError, ValueError) as error:
             return None, str(error)
 
 

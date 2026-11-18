@@ -109,6 +109,30 @@ class TestScheduleNavigation:
             1: "Schedule 2",
         }
 
+    def test_generated_entries_excludes_schedules_loaded_from_files(self, sample_records):
+        generated = ScheduleEntry(
+            label="Generated",
+            config_name="demo",
+            source="generated",
+            records=sample_records,
+        )
+        loaded = ScheduleEntry(
+            label="Loaded",
+            config_name="demo",
+            source="file",
+            records=sample_records,
+        )
+        schedule_model = cast(
+            ScheduleViewerModel,
+            FakeModel([generated, loaded]),
+        )
+        schedule_controller = ScheduleController(
+            model=schedule_model,
+            generator=cast(ScheduleGeneratorController, FakeGenerator()),
+        )
+
+        assert schedule_controller.generated_entries == [generated]
+
     def test_select_schedule(self, controller):
         controller.select(1)
 

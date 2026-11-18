@@ -1,5 +1,6 @@
-"""Temporary configuration editing and alternative schedule comparison."""
+"""Temporary configuration experiments and alternative schedule comparison."""
 
+from collections.abc import Callable
 from pathlib import Path
 
 from nicegui import ui
@@ -10,14 +11,12 @@ from src.controllers.schedule_controller import schedule_controller
 from src.controllers.schedule_generator_controller import ScheduleGeneratorController
 from src.models.configuration_model import (
     ConfigValidationError,
-    create_draft_config,
     validate_config,
 )
 from src.models.configuration_repository import ConfigLoadError
 from src.models.schedule_files import records_from_result
 from src.models.what_if_session import WhatIfSession
 from src.views.class_patterns_gui import class_patterns_gui
-from src.views.configuration_editor import controller as editor_controller
 from src.views.courses_gui import courses_gui
 from src.views.faculty_gui import faculty_gui
 from src.views.global_settings_gui import global_settings_gui
@@ -34,11 +33,11 @@ async def _read_upload(event) -> tuple[str, bytes]:
 
 
 class WhatIfTab:
-    """Build a What-If workspace and expose its leave/discard state."""
+    """Build an isolated configuration editor and alternative schedule comparison."""
 
     def __init__(self) -> None:
         self._session: WhatIfSession | None = None
-        self._active_source: str | None = None
+        self._what_if_controller: ConfigurationController | None = None
         self._pending_forms: set[str] = set()
         self._generator = ScheduleGeneratorController()
         self._discard_running_result = False
@@ -57,7 +56,14 @@ class WhatIfTab:
 
     def discard_changes(self) -> None:
         self._discard_running_result = self._generator.state_snapshot().running
-        self._reset_session()
+        if self._session is not None:
+            self._session.discard()
+            self._what_if_controller = ConfigurationController(self._session.configuration)
+            self._pending_forms.clear()
+            self._invalidate_results()
+            if hasattr(self, "_configuration_editor"):
+                self._configuration_editor.refresh()
+            self._refresh_status()
 
     def refresh_original_schedule(self) -> None:
         if self.has_unsaved_changes():
@@ -75,125 +81,41 @@ class WhatIfTab:
             )
         self._render_comparison()
 
-    def refresh_sources(self) -> None:
-        if self.has_unsaved_changes() or not hasattr(self, "_source_select"):
-            return
-        self._current_editor_config = editor_controller.configuration
-        self._current_schedule = schedule_controller.current
-        options = {}
-        if self._current_editor_config is not None:
-            options["editor"] = "Current configuration editor draft"
-        if self._current_schedule is not None and self._current_schedule.config is not None:
-            options["schedule"] = (
-                f"Current schedule configuration ({self._current_schedule.config_name})"
-            )
-        options.update(
-            {
-                f"saved:{name}": f"Saved configuration: {name}"
-                for name in self._config_loader.list_names()
-            }
-        )
-        self._source_options = options
-        selected = self._source_select.value
-        if selected not in options:
-            selected = (
-                "editor" if "editor" in options else "schedule" if "schedule" in options else None
-            )
-        self._source_select.options = options
-        self._source_select.value = selected
-        self._source_select.update()
-        if self._session is None and selected:
-            self._load_source(selected)
-
     def build(self) -> None:
-        """Render the configuration source, editor, and comparison results."""
+        """Render configuration upload and alternative schedule comparison."""
         self._config_loader = ConfigurationController()
-        current_schedule = schedule_controller.current
-        self._current_schedule = current_schedule
-        self._source_options: dict[str, str] = {}
-        editor_config = editor_controller.configuration
-        self._current_editor_config = editor_config
-        if editor_config is not None:
-            self._source_options["editor"] = "Current configuration editor draft"
-        if current_schedule is not None and current_schedule.config is not None:
-            self._source_options["schedule"] = (
-                f"Current schedule configuration ({current_schedule.config_name})"
-            )
-        self._source_options.update(
-            {
-                f"saved:{name}": f"Saved configuration: {name}"
-                for name in self._config_loader.list_names()
-            }
-        )
-        self._initial_source = (
-            "editor"
-            if "editor" in self._source_options
-            else "schedule"
-            if "schedule" in self._source_options
-            else None
-        )
-        if self._initial_source is not None:
-            if self._initial_source == "editor" and editor_config is not None:
-                self._set_session(
-                    editor_config,
-                    "Current editor configuration",
-                    self._initial_source,
-                )
-            elif (
-                self._initial_source == "schedule"
-                and current_schedule is not None
-                and current_schedule.config is not None
-            ):
-                self._set_session(
-                    current_schedule.config,
-                    f"Current schedule: {current_schedule.config_name}",
-                    self._initial_source,
-                )
-
         with surface_card(
             "What-If Configuration",
-            "Edit a temporary copy. Your saved configurations and existing schedules are not changed.",
+            "Load a configuration and experiment with temporary changes. Your saved configuration is never modified.",
         ):
-            self._source_select = (
-                ui.select(
-                    self._source_options,
-                    value=self._initial_source,
-                    label="Start from a configuration",
-                )
-                .classes("w-full max-w-2xl")
-                .props("outlined clearable")
-            )
-            self._source_select.on_value_change(self._load_selected_source)
-
-            with ui.row().classes("w-full flex-wrap items-center gap-3"):
-                ui.button(
-                    "Create blank draft",
-                    icon="note_add",
-                    on_click=self._create_blank_draft,
-                ).props("outline")
-                ui.button(
-                    "Load configuration JSON",
-                    icon="upload_file",
-                    on_click=self._open_upload_dialog,
-                ).props("outline")
-
-            self._source_status = ui.label("").classes("text-sm")
+            self._source_status = ui.label("No configuration loaded.").classes("text-sm")
             self._source_status.style("color: var(--text-muted)")
-            self._draft_status = (
-                ui.label("No What-If changes").props("id=what-if-draft-status").classes("text-xs")
-            )
+            ui.button(
+                "Load configuration",
+                icon="folder_open",
+                on_click=self._open_upload_dialog,
+            ).props("outline")
+            self._draft_status = ui.label("No What-If changes").classes("text-xs")
             self._draft_status.style("color: var(--text-muted)")
+            self._configuration_editor()
 
         with (
             ui.dialog() as self._upload_dialog,
             ui.card().classes("w-[480px] max-w-full gap-3"),
         ):
-            ui.label("Load an unsaved configuration").classes("text-lg font-semibold")
-            ui.label("This JSON is used only for this What-If session.").classes("text-sm")
-            self._upload_container = ui.column().classes("w-full")
+            ui.label("Load Configuration").classes("text-lg font-semibold")
+            ui.label("Select a JSON configuration file from your computer.").classes("text-sm")
+            self._config_upload = (
+                ui.upload(
+                    label="Choose configuration file",
+                    auto_upload=True,
+                    on_upload=self._load_uploaded_config,
+                    max_files=1,
+                )
+                .props("accept=.json flat bordered")
+                .classes("w-full")
+            )
             ui.button("Cancel", on_click=self._upload_dialog.close).props("flat")
-
-        self._configuration_editor()
 
         with surface_card(
             "Generate and Compare",
@@ -218,15 +140,12 @@ class WhatIfTab:
             self._alternative_select.on_value_change(lambda _: self._render_comparison())
             self._result_container = ui.column().classes("w-full")
 
-        self._refresh_status()
         self._progress_timer = ui.timer(0.25, self._update_generation)
-        self._status_timer = ui.timer(0.3, self._refresh_status)
 
     def _set_session(
         self,
         config: CombinedConfig,
         name: str,
-        source: str | None = None,
     ) -> bool:
         if self._generator.state_snapshot().running:
             ui.notify(
@@ -235,7 +154,7 @@ class WhatIfTab:
             )
             return False
         self._session = WhatIfSession(config, name)
-        self._active_source = source
+        self._what_if_controller = ConfigurationController(self._session.configuration)
         self._pending_forms.clear()
         self._generator.clear_generated_schedules()
         if hasattr(self, "_result_container"):
@@ -244,202 +163,158 @@ class WhatIfTab:
             self._alternative_select.value = None
             self._alternative_select.disable()
             self._alternative_select.update()
-        if hasattr(self, "_configuration_editor"):
-            self._configuration_editor.refresh()
         if hasattr(self, "_source_status"):
-            self._source_status.set_text(f"Editing temporary copy of {name}.")
+            self._source_status.set_text(f"Loaded {name}.")
         if hasattr(self, "_generation_status"):
             self._generation_status.set_text("")
+        if hasattr(self, "_configuration_editor"):
+            self._configuration_editor.refresh()
         self._refresh_status()
         return True
 
-    def _load_selected_source(self, event) -> None:
-        self._load_source(event.value)
-
-    def _load_source(self, source: str | None) -> None:
-        if not source:
-            return
-        if self._prevent_source_replacement(source, allow_same_source=True):
-            return
-        try:
-            if source == "editor":
-                editor_config = editor_controller.configuration
-                if editor_config is None:
-                    raise ValueError("There is no configuration open in the editor.")
-                config = editor_config
-                name = "Current editor configuration"
-            elif source == "schedule":
-                schedule = self._current_schedule
-                if schedule is None or schedule.config is None:
-                    raise ValueError("The selected schedule has no configuration attached.")
-                config = schedule.config
-                name = f"Current schedule: {schedule.config_name}"
-            else:
-                name = source.removeprefix("saved:")
-                config = self._config_loader.load_configuration(name)
-                name = f"Saved configuration: {name}"
-        except (ConfigLoadError, OSError, ValueError, ConfigValidationError) as error:
-            self._source_status.set_text(f"Unable to load configuration: {error}")
-            self._source_select.value = None
-            self._source_select.update()
-            return
-        self._set_session(config, name, source)
-
     def _open_upload_dialog(self) -> None:
-        self._upload_container.clear()
-        with self._upload_container:
-            self._config_upload = (
-                ui.upload(
-                    label="Choose configuration JSON",
-                    auto_upload=True,
-                    max_files=1,
-                    on_upload=self._load_uploaded_config,
-                )
-                .props("accept=.json flat bordered")
-                .classes("w-full")
+        if self.has_unsaved_changes():
+            ui.notify(
+                "Reset temporary edits before loading another configuration.",
+                type="warning",
             )
+            return
+        self._config_upload.reset()
         self._upload_dialog.open()
 
     async def _load_uploaded_config(self, event) -> None:
         try:
-            if self._prevent_source_replacement("upload"):
+            if self.has_unsaved_changes():
+                ui.notify(
+                    "Reset temporary edits before loading another configuration.",
+                    type="warning",
+                )
                 return
             file_name, content = await _read_upload(event)
             if Path(file_name).suffix.lower() != ".json":
                 raise ValueError("Please select a .json configuration file.")
             config = self._config_loader.load_uploaded_configuration(content)
-            if not self._set_session(config, f"uploaded file {file_name}", "upload"):
+            if not self._set_session(config, f"uploaded file {file_name}"):
                 return
-            self._source_select.value = None
-            self._source_select.update()
             self._upload_dialog.close()
             ui.notify(f"Loaded {file_name} as a temporary configuration.", type="positive")
-        except (OSError, ValueError, ConfigValidationError) as error:
+        except (OSError, ValueError, ConfigValidationError, ConfigLoadError) as error:
             self._source_status.set_text(f"Unable to load configuration: {error}")
             ui.notify(str(error), type="negative")
         finally:
             self._config_upload.reset()
 
-    def _create_blank_draft(self) -> None:
-        if self._prevent_source_replacement("blank"):
-            return
-        self._set_session(create_draft_config(), "a new blank draft", "blank")
-        self._source_select.value = None
-        self._source_select.update()
-
-    def _prevent_source_replacement(
-        self,
-        source: str,
-        *,
-        allow_same_source: bool = False,
-    ) -> bool:
-        if not self.has_unsaved_changes() or (allow_same_source and source == self._active_source):
-            return False
-        selected_source = (
-            self._active_source if self._active_source in self._source_options else None
-        )
-        self._source_select.value = selected_source
-        self._source_select.update()
-        ui.notify(
-            "Reset the current What-If edits before loading another configuration.",
-            type="warning",
-        )
-        return True
-
     @ui.refreshable_method
     def _configuration_editor(self) -> None:
         if self._session is None:
-            with surface_card(
-                "Temporary Configuration Editor",
-                "Choose a saved configuration, load an unsaved JSON file, or create a blank draft.",
-            ):
-                ui.label("No temporary configuration is loaded.").classes("text-sm")
+            ui.label("Load a configuration to make temporary changes.").classes(
+                "text-sm text-[#9fb2b8]"
+            )
             return
 
         config = self._session.configuration
-        with surface_card(
-            "Temporary Configuration Editor",
-            f"Changes to {self._session.name} remain temporary and are discarded when you leave.",
-        ):
-            with ui.row().classes("w-full flex-wrap items-center gap-2"):
-                ui.button(
-                    "Reset temporary edits",
-                    icon="restart_alt",
-                    on_click=self._reset_temporary_edits,
-                ).props("outline")
-                panel_names = (
-                    "Courses",
-                    "Faculty",
-                    "Rooms",
-                    "Labs",
-                    "Time blocks",
-                    "Class patterns",
-                    "Global settings",
-                )
-                panels = {}
-                for panel_name in panel_names:
-                    ui.button(
-                        panel_name,
-                        on_click=lambda name=panel_name: self._show_panel(panels, name),
-                    ).props("outline")
-
-            content = config.config
-            time_slots = config.time_slot_config
-            panel_style = "configuration-panel w-full gap-4 border-t border-[#29404b] pt-6 mt-4"
-            with ui.column().classes(panel_style) as courses_panel:
-                courses_gui(
-                    content.courses,
-                    on_pending_change=self._pending_callback("Courses"),
-                )
-            with ui.column().classes(panel_style) as faculty_panel:
-                faculty_gui(
-                    content.faculty,
-                    on_pending_change=self._pending_callback("Faculty"),
-                )
-            with ui.column().classes(panel_style) as rooms_panel:
-                rooms_gui(
-                    content.rooms,
-                    on_pending_change=self._pending_callback("Rooms"),
-                )
-            with ui.column().classes(panel_style) as labs_panel:
-                labs_gui(
-                    content.labs,
-                    on_pending_change=self._pending_callback("Labs"),
-                )
-            with ui.column().classes(panel_style) as time_blocks_panel:
-                time_blocks_gui(
-                    time_slots.times,
-                    on_pending_change=self._pending_callback("Time blocks"),
-                )
-            with ui.column().classes(panel_style) as patterns_panel:
-                class_patterns_gui(
-                    time_slots.classes,
-                    on_pending_change=self._pending_callback("Class patterns"),
-                )
-            with ui.column().classes(panel_style) as settings_panel:
-                self._flush_settings = global_settings_gui(
-                    config,
-                    on_pending_change=self._mark_global_settings_pending,
-                    on_applied=self._clear_global_settings_pending,
-                )
-
-            panels.update(
-                {
-                    "Courses": courses_panel,
-                    "Faculty": faculty_panel,
-                    "Rooms": rooms_panel,
-                    "Labs": labs_panel,
-                    "Time blocks": time_blocks_panel,
-                    "Class patterns": patterns_panel,
-                    "Global settings": settings_panel,
-                }
+        with ui.row().classes("w-full flex-wrap items-center gap-2"):
+            ui.button(
+                "Reset temporary edits",
+                icon="restart_alt",
+                on_click=self._reset_temporary_edits,
+            ).props("outline")
+            panel_names = (
+                "Courses",
+                "Faculty",
+                "Rooms",
+                "Labs",
+                "Time blocks",
+                "Class patterns",
+                "Global settings",
             )
-            self._show_panel(panels, "Courses")
+            panels = {}
+            for panel_name in panel_names:
+                ui.button(
+                    panel_name,
+                    on_click=lambda name=panel_name: self._show_panel(panels, name),
+                ).props("outline")
+
+        content = config.config
+        time_slots = config.time_slot_config
+        panel_style = "configuration-panel w-full gap-4 border-t border-[#29404b] pt-6 mt-4"
+        with ui.column().classes(panel_style) as courses_panel:
+            courses_gui(
+                content.courses,
+                on_change=self._apply_temporary_change,
+                on_pending_change=self._pending_callback("Courses"),
+            )
+        with ui.column().classes(panel_style) as faculty_panel:
+            faculty_gui(
+                content.faculty,
+                on_change=self._apply_temporary_change,
+                on_pending_change=self._pending_callback("Faculty"),
+            )
+        with ui.column().classes(panel_style) as rooms_panel:
+            rooms_gui(
+                content.rooms,
+                on_change=self._apply_temporary_change,
+                on_pending_change=self._pending_callback("Rooms"),
+            )
+        with ui.column().classes(panel_style) as labs_panel:
+            labs_gui(
+                content.labs,
+                on_change=self._apply_temporary_change,
+                on_pending_change=self._pending_callback("Labs"),
+            )
+        with ui.column().classes(panel_style) as time_blocks_panel:
+            time_blocks_gui(
+                time_slots.times,
+                on_change=self._apply_temporary_change,
+                on_pending_change=self._pending_callback("Time blocks"),
+            )
+        with ui.column().classes(panel_style) as patterns_panel:
+            class_patterns_gui(
+                time_slots.classes,
+                on_change=self._apply_temporary_change,
+                on_pending_change=self._pending_callback("Class patterns"),
+            )
+        with ui.column().classes(panel_style) as settings_panel:
+            self._flush_settings = global_settings_gui(
+                config,
+                on_change=self._apply_temporary_change,
+                on_pending_change=self._mark_global_settings_pending,
+                on_applied=self._clear_global_settings_pending,
+            )
+
+        panels.update(
+            {
+                "Courses": courses_panel,
+                "Faculty": faculty_panel,
+                "Rooms": rooms_panel,
+                "Labs": labs_panel,
+                "Time blocks": time_blocks_panel,
+                "Class patterns": patterns_panel,
+                "Global settings": settings_panel,
+            }
+        )
+        self._show_panel(panels, "Courses")
 
     @staticmethod
     def _show_panel(panels, selected: str) -> None:
         for name, panel in panels.items():
             panel.set_visibility(name == selected)
+
+    def _apply_temporary_change(self, mutation: Callable[[], object]) -> bool:
+        if self._what_if_controller is None:
+            ui.notify("Load a configuration before editing.", type="negative")
+            return False
+        accepted, problems = self._what_if_controller.apply_change(mutation)
+        if not accepted:
+            details = "; ".join(
+                f"{problem.area}: {problem.item + ': ' if problem.item else ''}{problem.message}"
+                for problem in problems
+            )
+            ui.notify(f"Change rejected: {details}", type="negative")
+            return False
+        self._invalidate_results()
+        self._refresh_status()
+        return True
 
     def _pending_callback(self, name: str):
         def update_pending(pending: bool) -> None:
@@ -467,20 +342,12 @@ class WhatIfTab:
                 "Wait for schedule generation to finish before resetting edits.", type="warning"
             )
             return
-        self._reset_session()
-
-    def _reset_session(self) -> None:
         if self._session is None:
             return
         self._session.discard()
+        self._what_if_controller = ConfigurationController(self._session.configuration)
         self._pending_forms.clear()
-        self._generator.clear_generated_schedules()
-        self._result_container.clear()
-        self._alternative_select.options = {}
-        self._alternative_select.value = None
-        self._alternative_select.disable()
-        self._alternative_select.update()
-        self._generation_status.set_text("")
+        self._invalidate_results()
         self._configuration_editor.refresh()
         self._refresh_status()
 
@@ -500,14 +367,13 @@ class WhatIfTab:
     def _refresh_status(self) -> None:
         if not hasattr(self, "_draft_status"):
             return
-        dirty = self.has_unsaved_changes()
         self._draft_status.set_text(
-            "What-If changes will be lost" if dirty else "No What-If changes"
+            "What-If changes will be lost" if self.has_unsaved_changes() else "No What-If changes"
         )
 
     def _generate(self) -> None:
         if self._session is None:
-            ui.notify("Load or create a temporary configuration first.", type="negative")
+            ui.notify("Load a configuration first.", type="negative")
             return
         if self._generator.state_snapshot().running:
             ui.notify("Schedule generation is already in progress.", type="warning")
@@ -521,7 +387,6 @@ class WhatIfTab:
                 type="warning",
             )
             return
-
         config = self._session.generation_snapshot()
         problems = validate_config(config)
         if problems:

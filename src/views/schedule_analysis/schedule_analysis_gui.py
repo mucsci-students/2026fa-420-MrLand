@@ -126,12 +126,7 @@ def schedule_analysis() -> ScheduleAnalysisRefresh:
 
         refresh_statistics()
         refresh_comparison()
-        what_if_tab.refresh_sources()
         what_if_tab.refresh_original_schedule()
-
-        current = schedule_controller.current
-
-        unscheduled_card.set_visibility(bool(current and current.source == "generated"))
 
     def open_load_dialog(target_select=None) -> None:
         """Open the shared upload dialog for the requested selector."""
@@ -289,9 +284,7 @@ def schedule_analysis() -> ScheduleAnalysisRefresh:
             value="statistics",
         ).classes("w-full"):
             with ui.tab_panel("statistics"):
-                unscheduled_card, refresh_statistics = build_statistics_tab(
-                    on_load_schedule=open_load_dialog
-                )
+                refresh_statistics = build_statistics_tab(on_load_schedule=open_load_dialog)
 
             with ui.tab_panel("comparison"):
                 refresh_comparison = build_comparison_tab(on_load_schedule=open_load_dialog)

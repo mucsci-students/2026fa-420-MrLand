@@ -9,6 +9,7 @@ from scheduler.config import CombinedConfig
 from src.controllers.configuration_controller import ConfigurationController
 from src.models import configuration_model as config_model
 from src.models import configuration_repository as config_repo
+from src.models.quality_grading import QualityGradeSettings
 
 
 def make_valid_config() -> CombinedConfig:
@@ -225,7 +226,7 @@ def test_save_config_serialization_failure_keeps_original_and_cleans_temp(
     def fail_serialization(self, **kwargs):
         raise RuntimeError("serialization failed")
 
-    monkeypatch.setattr(CombinedConfig, "model_dump_json", fail_serialization)
+    monkeypatch.setattr(CombinedConfig, "model_dump", fail_serialization)
 
     with pytest.raises(RuntimeError, match="serialization failed"):
         config_repo.save_config(valid_config, "demo")
@@ -570,6 +571,47 @@ def test_controller_export_configuration_returns_browser_download_data(
     assert media_type == "application/json"
     assert json.loads(content) == valid_config.model_dump(mode="json")
     assert list(temp_config_dir.iterdir()) == []
+
+
+def test_controller_persists_custom_quality_targets_per_configuration(
+    controller, temp_config_dir, valid_config
+):
+    settings = QualityGradeSettings(max_faculty_gap_minutes=420)
+    controller.configuration = valid_config
+    controller.set_quality_grade_settings("demo", settings)
+    controller.save_configuration("demo")
+
+    loaded = ConfigurationController()
+    loaded.load_configuration("demo")
+    assert loaded.quality_grade_settings == settings
+    assert json.loads(loaded.export_configuration("demo")[0])[
+        "quality_grade_settings"
+    ] == settings.model_dump(mode="json")
+
+    config_repo.save_config(valid_config, "other")
+    other = ConfigurationController()
+    other.load_configuration("other")
+    assert other.quality_grade_settings == QualityGradeSettings()
+    assert {path.name for path in temp_config_dir.iterdir()} == {
+        "demo.json",
+        "other.json",
+        ".quality_grade_settings",
+    }
+
+
+def test_controller_upload_preserves_custom_quality_targets_for_dotted_name(
+    controller, valid_config
+):
+    document = valid_config.model_dump(mode="json")
+    document["quality_grade_settings"] = {"max_faculty_gap_minutes": 420}
+
+    loaded = controller.load_uploaded_configuration(
+        json.dumps(document).encode(),
+        config_name="plan.final",
+    )
+
+    assert loaded == valid_config
+    assert controller.quality_grade_settings.max_faculty_gap_minutes == 420
 
 
 def test_controller_export_configuration_requires_open_valid_config(controller):

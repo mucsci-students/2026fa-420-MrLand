@@ -5,6 +5,7 @@ import zipfile
 from types import SimpleNamespace
 from typing import cast
 
+import pytest
 from scheduler.models.course import CourseInstance
 
 from src.controllers.schedule_controller import ScheduleController
@@ -36,6 +37,42 @@ def test_export_current_returns_download_data_without_writing_to_disk(tmp_path):
     assert media_type == "application/json"
     assert json.loads(content) == records
     assert list(tmp_path.iterdir()) == []
+
+
+def test_list_saved_files_returns_naturally_sorted_schedule_names(tmp_path):
+    (tmp_path / "fall_schedule10.csv").write_text("", encoding="utf-8")
+    (tmp_path / "fall_schedule2.json").write_text("", encoding="utf-8")
+    (tmp_path / "notes.txt").write_text("", encoding="utf-8")
+    model = ScheduleViewerModel(directory=tmp_path)
+
+    assert model.list_saved_files() == ["fall_schedule2.json", "fall_schedule10.csv"]
+
+
+def test_list_saved_files_surfaces_directory_errors(tmp_path):
+    not_a_directory = tmp_path / "not-a-directory"
+    not_a_directory.write_text("file", encoding="utf-8")
+    model = ScheduleViewerModel(directory=not_a_directory)
+
+    with pytest.raises(OSError, match="Could not list schedule files"):
+        model.list_saved_files()
+
+
+def test_export_reports_schedule_directory_errors(tmp_path):
+    not_a_directory = tmp_path / "not-a-directory"
+    not_a_directory.write_text("file", encoding="utf-8")
+    model = ScheduleViewerModel(directory=not_a_directory)
+    model.set_generated([ScheduleResult(config_name="fall", schedule=[])])
+    controller = ScheduleController(model=model)
+
+    current_export, current_error = controller.export_current("csv", "")
+    all_export, all_error = controller.export_all_generated("csv")
+
+    assert current_export is None
+    assert current_error is not None
+    assert "Could not list schedule files" in current_error
+    assert all_export is None
+    assert all_error is not None
+    assert "Could not list schedule files" in all_error
 
 
 def test_export_current_uses_selected_serialization_strategy(tmp_path):
