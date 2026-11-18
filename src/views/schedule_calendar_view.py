@@ -19,6 +19,7 @@ from nicegui import ui
 from src.controllers.schedule_controller import (
     schedule_controller as controller,
 )
+from src.models.schedule_viewer_model import ScheduleEntry
 from src.views.schedule_calendar_details import show_meeting_details
 from src.views.schedule_calendar_types import (
     OverlapCluster,
@@ -27,7 +28,6 @@ from src.views.schedule_calendar_types import (
 from src.views.schedule_calendar_types import (
     SelectedMeeting as SelectedMeeting,  # noqa: PLC0414
 )
-from src.models.schedule_viewer_model import ScheduleEntry
 
 DAYS = [
     ("MON", "Monday"),

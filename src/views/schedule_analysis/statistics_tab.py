@@ -396,11 +396,8 @@ def build_statistics_comparison_panel(title: str):
 
     # The schedule name is the heading for the entire statistics column.
     with ui.column().classes("w-full min-w-0 gap-4"):
-        with surface_card("Schedule"):
-            with ui.column().classes("w-full gap-1"):
-                schedule_title = ui.label(title).classes(
-                    "text-lg font-semibold"
-                )
+        with surface_card("Schedule"), ui.column().classes("w-full gap-1"):
+            schedule_title = ui.label(title).classes("text-lg font-semibold")
 
         # Schedule overview
         with surface_card("Schedule Overview"):
@@ -419,8 +416,18 @@ def build_statistics_comparison_panel(title: str):
                 [
                     {"name": "faculty", "label": "Faculty", "field": "faculty", "align": "left"},
                     {"name": "courses", "label": "Courses", "field": "courses", "align": "right"},
-                    {"name": "hours", "label": "Teaching Hours", "field": "hours", "align": "right"},
-                    {"name": "daily", "label": "Daily Hours (M-F)", "field": "daily", "align": "left"},
+                    {
+                        "name": "hours",
+                        "label": "Teaching Hours",
+                        "field": "hours",
+                        "align": "right",
+                    },
+                    {
+                        "name": "daily",
+                        "label": "Daily Hours (M-F)",
+                        "field": "daily",
+                        "align": "left",
+                    },
                     {
                         "name": "longest",
                         "label": "Longest Daily Span",
@@ -450,9 +457,9 @@ def build_statistics_comparison_panel(title: str):
                 ui.separator().style("background: var(--border-color)")
 
                 faculty_summary = ui.label("Empty Weekdays: —").classes("text-sm")
-                empty_blocks_summary = ui.label(
-                    "Available Empty Blocks (30+ min): —"
-                ).classes("text-sm")
+                empty_blocks_summary = ui.label("Available Empty Blocks (30+ min): —").classes(
+                    "text-sm"
+                )
 
         # Room and lab utilization
         with surface_card("Room & Lab Utilization"):
@@ -463,9 +470,7 @@ def build_statistics_comparison_panel(title: str):
     def refresh(entry: ScheduleEntry | None) -> None:
         """Update this panel using its own selected schedule."""
         analysis = (
-            schedule_analysis_controller.analyze_schedule(entry)
-            if entry is not None
-            else None
+            schedule_analysis_controller.analyze_schedule(entry) if entry is not None else None
         )
 
         quality_settings = load_quality_grade_settings(

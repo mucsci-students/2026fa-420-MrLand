@@ -1,15 +1,16 @@
 """Schedule Comparison tab."""
 
 from collections.abc import Callable
+from typing import Protocol
 
 from nicegui import ui
 
 from src.controllers.schedule_controller import schedule_controller
 from src.views.schedule_analysis.analysis_components import surface_card
-from src.views.schedule_calendar_view import schedule_calendar_view
 from src.views.schedule_analysis.statistics_tab import (
     build_statistics_comparison_panel,
 )
+from src.views.schedule_calendar_view import schedule_calendar_view
 
 DAYS = {
     None: "All Days",
@@ -27,9 +28,19 @@ FILTER_FIELDS = {
 }
 
 
+class ComparisonRefresh(Protocol):
+    """Callable used to refresh the comparison tab."""
+
+    def __call__(
+        self,
+        changed_select: object | None = None,
+        selected_index_override: int | None = None,
+    ) -> None: ...
+
+
 def build_comparison_tab(
     on_load_schedule: Callable[[object], None],
-) -> Callable[[], None]:
+) -> ComparisonRefresh:
     """Build the schedule comparison workspace and return its refresh callback."""
 
     options = schedule_controller.schedule_options()
@@ -88,7 +99,6 @@ def build_comparison_tab(
 
     with ui.tab_panels(comparison_tabs, value=view_tab).classes("w-full"):
         with ui.tab_panel(view_tab):
-            
             # ---------------------------------------------------------
             # Shared comparison filters
             # ---------------------------------------------------------
@@ -141,9 +151,9 @@ def build_comparison_tab(
 
             with ui.element("div").classes("grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0"):
                 with surface_card("First Schedule Calendar"):
-                    first_view_title = ui.label(
-                        "No Schedule Selected"
-                    ).classes("text-lg font-semibold")
+                    first_view_title = ui.label("No Schedule Selected").classes(
+                        "text-lg font-semibold"
+                    )
 
                     first_calendar = schedule_calendar_view(
                         entry_provider=lambda: selected_entry(first_schedule_select),
@@ -151,28 +161,26 @@ def build_comparison_tab(
                     )
 
                 with surface_card("Second Schedule Calendar"):
-                    second_view_title = ui.label(
-                        "No Schedule Selected"
-                    ).classes("text-lg font-semibold")
-                    
+                    second_view_title = ui.label("No Schedule Selected").classes(
+                        "text-lg font-semibold"
+                    )
+
                     second_calendar = schedule_calendar_view(
                         entry_provider=lambda: selected_entry(second_schedule_select),
                         compact=True,
                     )
 
-        
-        with ui.tab_panel(statistics_tab):
-            with ui.element("div").classes(
-                "grid grid-cols-1 lg:grid-cols-2 gap-4 w-full min-w-0"
-            ):
-                first_statistics_refresh, first_statistics_title = (
-                    build_statistics_comparison_panel("No Schedule Selected")
-                )
+        with (
+            ui.tab_panel(statistics_tab),
+            ui.element("div").classes("grid grid-cols-1 lg:grid-cols-2 gap-4 w-full min-w-0"),
+        ):
+            first_statistics_refresh, first_statistics_title = build_statistics_comparison_panel(
+                "No Schedule Selected"
+            )
 
-                second_statistics_refresh, second_statistics_title = (
-                    build_statistics_comparison_panel("No Schedule Selected")
-                )
-
+            second_statistics_refresh, second_statistics_title = build_statistics_comparison_panel(
+                "No Schedule Selected"
+            )
 
     # ---------------------------------------------------------
     # Schedule helpers
@@ -184,22 +192,18 @@ def build_comparison_tab(
             return int(select.value) if select.value is not None else None
         except (TypeError, ValueError):
             return None
-        
+
     def update_selector_options() -> None:
         """Hide the schedule selected in one dropdown from the other dropdown."""
         first = selected_index(first_schedule_select)
         second = selected_index(second_schedule_select)
 
         first_schedule_select.options = {
-            index: label
-            for index, label in options.items()
-            if index != second
+            index: label for index, label in options.items() if index != second
         }
 
         second_schedule_select.options = {
-            index: label
-            for index, label in options.items()
-            if index != first
+            index: label for index, label in options.items() if index != first
         }
 
         first_schedule_select.update()
@@ -249,13 +253,12 @@ def build_comparison_tab(
         previous_selections["first"] = first
         previous_selections["second"] = second
         return True
-    
+
     def update_statistics() -> None:
         """Refresh statistics for both selected schedules."""
         first_statistics_refresh(selected_entry(first_schedule_select))
         second_statistics_refresh(selected_entry(second_schedule_select))
 
-    
     def update_schedule_names() -> None:
         """Update statistics and calendar headings using selected schedule names."""
         first_entry = selected_entry(first_schedule_select)
@@ -272,7 +275,6 @@ def build_comparison_tab(
 
         first_statistics_title(first_name)
         second_statistics_title(second_name)
-
 
     # ---------------------------------------------------------
     # Filter handling
@@ -365,7 +367,7 @@ def build_comparison_tab(
             second_name = second_view_title.text
             second_statistics_title(second_name)
             second_statistics_refresh(selected_entry(second_schedule_select))
-        
+
     def clear_filters() -> None:
         """Reset all shared comparison filters."""
         filter_type_select.value = None
@@ -405,12 +407,8 @@ def build_comparison_tab(
         update_selector_options()
         refresh_comparison()
 
-    first_schedule_select.on_value_change(
-        lambda _: handle_schedule_change("first")
-    )
-    second_schedule_select.on_value_change(
-        lambda _: handle_schedule_change("second")
-    )
+    first_schedule_select.on_value_change(lambda _: handle_schedule_change("first"))
+    second_schedule_select.on_value_change(lambda _: handle_schedule_change("second"))
 
     filter_type_select.on_value_change(lambda _: refresh_comparison())
     filter_value_select.on_value_change(lambda _: update_calendars())

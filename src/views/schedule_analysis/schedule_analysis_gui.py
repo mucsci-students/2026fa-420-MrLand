@@ -149,7 +149,6 @@ def schedule_analysis() -> ScheduleAnalysisRefresh:
         upload.reset()
         load_dialog.close()
 
-    
     def on_schedule_loaded(entry, error) -> None:
         """Handle the result of an uploaded schedule."""
         nonlocal load_target
@@ -168,11 +167,7 @@ def schedule_analysis() -> ScheduleAnalysisRefresh:
             options = schedule_controller.schedule_options()
 
             loaded_index = next(
-                (
-                    index
-                    for index in options
-                    if schedule_controller.entry_at(index) is entry
-                ),
+                (index for index in options if schedule_controller.entry_at(index) is entry),
                 None,
             )
 
@@ -198,9 +193,6 @@ def schedule_analysis() -> ScheduleAnalysisRefresh:
             f"Loaded {entry.file_name} ({len(entry.records)} sections)",
             type="positive",
         )
-
-
-
 
     async def on_upload(event) -> None:
         generation = load_generation
