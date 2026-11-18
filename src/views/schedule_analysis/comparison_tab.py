@@ -7,6 +7,9 @@ from nicegui import ui
 from src.controllers.schedule_controller import schedule_controller
 from src.views.schedule_analysis.analysis_components import surface_card
 from src.views.schedule_calendar_view import schedule_calendar_view
+from src.views.schedule_analysis.statistics_tab import (
+    build_statistics_comparison_panel,
+)
 
 DAYS = {
     None: "All Days",
@@ -76,51 +79,100 @@ def build_comparison_tab(
             ).props("outline")
 
     # ---------------------------------------------------------
-    # Shared comparison filters
+    # View and Stat tab creation
     # ---------------------------------------------------------
 
-    with (
-        surface_card(
-            "Comparison Filters",
-            "Apply the same filters to both schedules.",
-        ),
-        ui.row().classes("w-full items-end gap-3 flex-wrap"),
-    ):
-        filter_type_select = (
-            ui.select(
-                list(FILTER_FIELDS),
-                value=None,
-                label="Filter By",
-            )
-            .props("outlined")
-            .classes("min-w-[160px] flex-1")
-        )
+    with ui.tabs().classes("w-full") as comparison_tabs:
+        view_tab = ui.tab("View", icon="calendar_month")
+        statistics_tab = ui.tab("Statistics", icon="analytics")
 
-        filter_value_select = (
-            ui.select(
-                [],
-                value=None,
-                label="Filter Value",
-            )
-            .props("outlined")
-            .classes("min-w-[180px] flex-1")
-        )
+    with ui.tab_panels(comparison_tabs, value=view_tab).classes("w-full"):
+        with ui.tab_panel(view_tab):
+            
+            # ---------------------------------------------------------
+            # Shared comparison filters
+            # ---------------------------------------------------------
+            with (
+                surface_card(
+                    "Comparison Filters",
+                    "Apply the same filters to both schedules.",
+                ),
+                ui.row().classes("w-full items-end gap-3 flex-wrap"),
+            ):
+                filter_type_select = (
+                    ui.select(
+                        list(FILTER_FIELDS),
+                        value=None,
+                        label="Filter By",
+                    )
+                    .props("outlined")
+                    .classes("min-w-[160px] flex-1")
+                )
 
-        day_filter_select = (
-            ui.select(
-                DAYS,
-                value=None,
-                label="Day",
-            )
-            .props("outlined")
-            .classes("min-w-[150px] flex-1")
-        )
+                filter_value_select = (
+                    ui.select(
+                        [],
+                        value=None,
+                        label="Filter Value",
+                    )
+                    .props("outlined")
+                    .classes("min-w-[180px] flex-1")
+                )
 
-        ui.button(
-            "Clear Filters",
-            icon="filter_alt_off",
-            on_click=lambda: clear_filters(),
-        ).props("outline")
+                day_filter_select = (
+                    ui.select(
+                        DAYS,
+                        value=None,
+                        label="Day",
+                    )
+                    .props("outlined")
+                    .classes("min-w-[150px] flex-1")
+                )
+
+                ui.button(
+                    "Clear Filters",
+                    icon="filter_alt_off",
+                    on_click=lambda: clear_filters(),
+                ).props("outline")
+
+            # ---------------------------------------------------------
+            # Calendar display
+            # ---------------------------------------------------------
+
+            with ui.element("div").classes("grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0"):
+                with surface_card("First Schedule Calendar"):
+                    first_view_title = ui.label(
+                        "No Schedule Selected"
+                    ).classes("text-lg font-semibold")
+
+                    first_calendar = schedule_calendar_view(
+                        entry_provider=lambda: selected_entry(first_schedule_select),
+                        compact=True,
+                    )
+
+                with surface_card("Second Schedule Calendar"):
+                    second_view_title = ui.label(
+                        "No Schedule Selected"
+                    ).classes("text-lg font-semibold")
+                    
+                    second_calendar = schedule_calendar_view(
+                        entry_provider=lambda: selected_entry(second_schedule_select),
+                        compact=True,
+                    )
+
+        
+        with ui.tab_panel(statistics_tab):
+            with ui.element("div").classes(
+                "grid grid-cols-1 lg:grid-cols-2 gap-4 w-full min-w-0"
+            ):
+                first_statistics_refresh, first_statistics_title = (
+                    build_statistics_comparison_panel("No Schedule Selected")
+                )
+
+                second_statistics_refresh, second_statistics_title = (
+                    build_statistics_comparison_panel("No Schedule Selected")
+                )
+
 
     # ---------------------------------------------------------
     # Schedule helpers
@@ -132,6 +184,26 @@ def build_comparison_tab(
             return int(select.value) if select.value is not None else None
         except (TypeError, ValueError):
             return None
+        
+    def update_selector_options() -> None:
+        """Hide the schedule selected in one dropdown from the other dropdown."""
+        first = selected_index(first_schedule_select)
+        second = selected_index(second_schedule_select)
+
+        first_schedule_select.options = {
+            index: label
+            for index, label in options.items()
+            if index != second
+        }
+
+        second_schedule_select.options = {
+            index: label
+            for index, label in options.items()
+            if index != first
+        }
+
+        first_schedule_select.update()
+        second_schedule_select.update()
 
     def selected_entry(select):
         """Get the entry associated with one comparison selector."""
@@ -177,6 +249,30 @@ def build_comparison_tab(
         previous_selections["first"] = first
         previous_selections["second"] = second
         return True
+    
+    def update_statistics() -> None:
+        """Refresh statistics for both selected schedules."""
+        first_statistics_refresh(selected_entry(first_schedule_select))
+        second_statistics_refresh(selected_entry(second_schedule_select))
+
+    
+    def update_schedule_names() -> None:
+        """Update statistics and calendar headings using selected schedule names."""
+        first_entry = selected_entry(first_schedule_select)
+        second_entry = selected_entry(second_schedule_select)
+
+        first_name = first_entry.label if first_entry else "No Schedule Selected"
+        second_name = second_entry.label if second_entry else "No Schedule Selected"
+
+        first_view_title.text = first_name
+        second_view_title.text = second_name
+
+        first_view_title.update()
+        second_view_title.update()
+
+        first_statistics_title(first_name)
+        second_statistics_title(second_name)
+
 
     # ---------------------------------------------------------
     # Filter handling
@@ -228,12 +324,48 @@ def build_comparison_tab(
         first_calendar.update(first_rows, selected_day)
         second_calendar.update(second_rows, selected_day)
 
-    def refresh_comparison() -> None:
-        """Update selections, filter choices, and both calendars."""
+    def refresh_comparison(changed_select=None) -> None:
+        """Refresh the affected comparison column and shared filters."""
         validate_selections()
         update_filter_values()
-        update_calendars()
 
+        # A full refresh updates both columns.
+        if changed_select is None:
+            update_calendars()
+            update_schedule_names()
+            update_statistics()
+            return
+
+        # A targeted refresh updates only the selected column.
+        rows = apply_filters(selected_rows(changed_select))
+        selected_day = day_filter_select.value
+
+        if changed_select is first_schedule_select:
+            first_calendar.update(rows, selected_day)
+            first_view_title.text = (
+                selected_entry(first_schedule_select).label
+                if selected_entry(first_schedule_select)
+                else "No Schedule Selected"
+            )
+            first_view_title.update()
+
+            first_name = first_view_title.text
+            first_statistics_title(first_name)
+            first_statistics_refresh(selected_entry(first_schedule_select))
+
+        elif changed_select is second_schedule_select:
+            second_calendar.update(rows, selected_day)
+            second_view_title.text = (
+                selected_entry(second_schedule_select).label
+                if selected_entry(second_schedule_select)
+                else "No Schedule Selected"
+            )
+            second_view_title.update()
+
+            second_name = second_view_title.text
+            second_statistics_title(second_name)
+            second_statistics_refresh(selected_entry(second_schedule_select))
+        
     def clear_filters() -> None:
         """Reset all shared comparison filters."""
         filter_type_select.value = None
@@ -242,23 +374,6 @@ def build_comparison_tab(
 
         update_filter_values()
         update_calendars()
-
-    # ---------------------------------------------------------
-    # Calendar display
-    # ---------------------------------------------------------
-
-    with ui.element("div").classes("grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0"):
-        with surface_card("First Schedule Calendar"):
-            first_calendar = schedule_calendar_view(
-                entry_provider=lambda: selected_entry(first_schedule_select),
-                compact=True,
-            )
-
-        with surface_card("Second Schedule Calendar"):
-            second_calendar = schedule_calendar_view(
-                entry_provider=lambda: selected_entry(second_schedule_select),
-                compact=True,
-            )
 
     # ---------------------------------------------------------
     # Selector events
@@ -286,10 +401,16 @@ def build_comparison_tab(
 
         previous_selections["first"] = first
         previous_selections["second"] = second
+
+        update_selector_options()
         refresh_comparison()
 
-    first_schedule_select.on_value_change(lambda _: refresh_comparison())
-    second_schedule_select.on_value_change(lambda _: refresh_comparison())
+    first_schedule_select.on_value_change(
+        lambda _: handle_schedule_change("first")
+    )
+    second_schedule_select.on_value_change(
+        lambda _: handle_schedule_change("second")
+    )
 
     filter_type_select.on_value_change(lambda _: refresh_comparison())
     filter_value_select.on_value_change(lambda _: update_calendars())
@@ -299,8 +420,8 @@ def build_comparison_tab(
     # External refresh
     # ---------------------------------------------------------
 
-    def refresh() -> None:
-        """Refresh schedule choices after schedules are loaded or generated."""
+    def refresh(changed_select=None, selected_index_override=None) -> None:
+        """Refresh schedule choices while preserving independent selections."""
         nonlocal options
 
         options = schedule_controller.schedule_options()
@@ -308,29 +429,24 @@ def build_comparison_tab(
         first_current = selected_index(first_schedule_select)
         second_current = selected_index(second_schedule_select)
 
+        # Apply an uploaded schedule to only the requested selector.
+        if changed_select is first_schedule_select:
+            first_current = selected_index_override
+
+        elif changed_select is second_schedule_select:
+            second_current = selected_index_override
+
         if first_current not in options:
-            first_current = (
-                schedule_controller.selected_index if schedule_controller.has_schedules else None
-            )
+            first_current = None
 
         if second_current not in options:
             second_current = None
 
-        # Keep the selectors distinct when schedules are added or removed.
         if first_current is not None and first_current == second_current:
-            second_current = None
-
-        # Automatically populate the second selector when another
-        # schedule becomes available.
-        if second_current is None and len(options) > 1:
-            second_current = next(
-                (index for index in options if index != first_current),
-                None,
-            )
-
-        # A single schedule cannot be compared against itself.
-        if len(options) <= 1:
-            second_current = None
+            if changed_select is first_schedule_select:
+                second_current = None
+            else:
+                first_current = None
 
         first_schedule_select.options = options
         second_schedule_select.options = options
@@ -338,14 +454,12 @@ def build_comparison_tab(
         first_schedule_select.value = first_current
         second_schedule_select.value = second_current
 
-        first_schedule_select.update()
-        second_schedule_select.update()
+        update_selector_options()
 
-        # These are intentional external changes, not user selections.
         previous_selections["first"] = first_current
         previous_selections["second"] = second_current
 
-        refresh_comparison()
+        refresh_comparison(changed_select)
 
     # Initial render
     refresh_comparison()

@@ -391,6 +391,113 @@ def _update_analysis(
     _update_resource_heatmap(lab_heatmap, analysis.lab_utilization)
 
 
+def build_statistics_comparison_panel(title: str):
+    """Build one schedule's statistics panel for side-by-side comparison."""
+
+    # The schedule name is the heading for the entire statistics column.
+    with ui.column().classes("w-full min-w-0 gap-4"):
+        with surface_card("Schedule"):
+            with ui.column().classes("w-full gap-1"):
+                schedule_title = ui.label(title).classes(
+                    "text-lg font-semibold"
+                )
+
+        # Schedule overview
+        with surface_card("Schedule Overview"):
+            with ui.row().classes("w-full flex-wrap gap-3"):
+                metric_values = {
+                    "quality": _metric_card("Composite Grade"),
+                    "scheduled": _metric_card("Scheduled Courses"),
+                    "faculty": _metric_card("Faculty Assigned"),
+                }
+
+            quality_values = _score_breakdown()
+
+        # Faculty workload
+        with surface_card("Faculty Workload"):
+            workload_table = _placeholder_table(
+                [
+                    {"name": "faculty", "label": "Faculty", "field": "faculty", "align": "left"},
+                    {"name": "courses", "label": "Courses", "field": "courses", "align": "right"},
+                    {"name": "hours", "label": "Teaching Hours", "field": "hours", "align": "right"},
+                    {"name": "daily", "label": "Daily Hours (M-F)", "field": "daily", "align": "left"},
+                    {
+                        "name": "longest",
+                        "label": "Longest Daily Span",
+                        "field": "longest",
+                        "align": "right",
+                    },
+                ]
+            )
+
+        # Course and faculty distribution
+        with ui.grid(columns=2).classes("w-full gap-4"):
+            with surface_card("Class Distribution"):
+                class_bars = _weekday_bars()
+                ui.separator().style("background: var(--border-color)")
+
+                class_summary = {
+                    "busy": ui.label("Busiest Day: —").classes("text-sm"),
+                    "quiet": ui.label("Least Busy Day: —").classes("text-sm"),
+                }
+
+                start_time_summary = ui.label(
+                    "Early Starts (<9:00 AM): — · Late Ends (>5:00 PM): —"
+                ).classes("text-sm")
+
+            with surface_card("Faculty Distribution"):
+                faculty_bars = _weekday_bars()
+                ui.separator().style("background: var(--border-color)")
+
+                faculty_summary = ui.label("Empty Weekdays: —").classes("text-sm")
+                empty_blocks_summary = ui.label(
+                    "Available Empty Blocks (30+ min): —"
+                ).classes("text-sm")
+
+        # Room and lab utilization
+        with surface_card("Room & Lab Utilization"):
+            room_table, room_heatmap = _resource_section("Room")
+            ui.separator().style("background: var(--border-color)")
+            lab_table, lab_heatmap = _resource_section("Lab")
+
+    def refresh(entry: ScheduleEntry | None) -> None:
+        """Update this panel using its own selected schedule."""
+        analysis = (
+            schedule_analysis_controller.analyze_schedule(entry)
+            if entry is not None
+            else None
+        )
+
+        quality_settings = load_quality_grade_settings(
+            entry.config_name if entry is not None else None
+        )
+
+        _update_analysis(
+            analysis,
+            metric_values,
+            quality_values,
+            quality_settings,
+            workload_table,
+            class_bars,
+            faculty_bars,
+            class_summary,
+            faculty_summary,
+            empty_blocks_summary,
+            start_time_summary,
+            room_table,
+            room_heatmap,
+            lab_table,
+            lab_heatmap,
+        )
+
+    def update_title(name: str) -> None:
+        """Update the schedule heading."""
+        schedule_title.text = name
+        schedule_title.update()
+
+    return refresh, update_title
+
+
 def build_statistics_tab(on_load_schedule: Callable[[], None]):
     """Build the Statistics tab and return its refresh callback."""
 

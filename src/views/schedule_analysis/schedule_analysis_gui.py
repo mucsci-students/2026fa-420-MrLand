@@ -149,37 +149,58 @@ def schedule_analysis() -> ScheduleAnalysisRefresh:
         upload.reset()
         load_dialog.close()
 
+    
     def on_schedule_loaded(entry, error) -> None:
         """Handle the result of an uploaded schedule."""
+        nonlocal load_target
+
         if error:
             load_status.text = error
             return
 
-        refresh()
+        # Synchronize generated schedules before looking up the uploaded
+        # schedule's index, since this can change the indexes.
+        schedule_controller.sync_generated()
 
-        # If the upload came from a Comparison selector, select the
-        # newly loaded schedule in that selector.
-        if load_target is not None:
+        target_select = load_target
+
+        if target_select is not None:
             options = schedule_controller.schedule_options()
-            loaded_index = schedule_controller.selected_index
 
-            if options:
-                load_target.options = options
+            loaded_index = next(
+                (
+                    index
+                    for index in options
+                    if schedule_controller.entry_at(index) is entry
+                ),
+                None,
+            )
 
-                # Check whether the other comparison selector already
-                # has this schedule selected.
-                if load_target.value != loaded_index and load_target is not None:
-                    load_target.value = loaded_index
-                    load_target.update()
+            if loaded_index is not None:
+                refresh_comparison(target_select, loaded_index)
+            else:
+                load_status.text = (
+                    f"Could not find the uploaded schedule '{entry.file_name}' "
+                    "in the schedule list."
+                )
+                return
 
-                refresh_comparison()
+        # Refresh the remaining analysis views.
+        schedule_controller.sync_generated()
 
+        refresh_statistics()
+        what_if_tab.refresh_original_schedule()
+
+        load_target = None
         load_dialog.close()
 
         ui.notify(
             f"Loaded {entry.file_name} ({len(entry.records)} sections)",
             type="positive",
         )
+
+
+
 
     async def on_upload(event) -> None:
         generation = load_generation
