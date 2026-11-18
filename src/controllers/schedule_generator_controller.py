@@ -12,6 +12,7 @@ from src.models.schedule_generator_model import (
     ScheduleGenerationState,
     ScheduleGeneratorModel,
 )
+from src.models.schedule_result import ScheduleResult
 
 
 class ScheduleGeneratorController:
@@ -21,13 +22,13 @@ class ScheduleGeneratorController:
         self.model = model or ScheduleGeneratorModel()
 
     @property
-    def generated_schedules(self):
+    def generated_schedules(self) -> list[ScheduleResult]:
         return self.model.generated_schedules
 
     def list_config_names(self) -> list[str]:
         return self.model.list_config_names()
 
-    def load_config(self, config_name: str):
+    def load_config(self, config_name: str) -> CombinedConfig:
         return self.model.load_config(config_name)
 
     def state_snapshot(self) -> ScheduleGenerationState:
@@ -39,14 +40,14 @@ class ScheduleGeneratorController:
     def clear_generated_schedules(self) -> bool:
         return self.model.clear_generated_schedules()
 
-    def schedule_to_json(self, result, schedule_number: int) -> bytes:
+    def schedule_to_json(self, result: ScheduleResult, schedule_number: int) -> bytes:
         return self.model.schedule_to_json(result, schedule_number)
 
-    def schedule_to_csv(self, result, schedule_number: int) -> bytes:
+    def schedule_to_csv(self, result: ScheduleResult, schedule_number: int) -> bytes:
         return self.model.schedule_to_csv(result, schedule_number)
 
     def generate_active_configuration(
-        self, config, config_name: str = "active configuration"
+        self, config: CombinedConfig, config_name: str = "active configuration"
     ) -> tuple[ScheduleGenerationState | None, str | None]:
         if self.model.state_snapshot().running:
             return None, "Generation is already in progress. Please wait for it to finish."

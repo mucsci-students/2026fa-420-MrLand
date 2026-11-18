@@ -5,9 +5,9 @@ Used by: GUI."""
 import json
 import threading
 from dataclasses import dataclass, replace
-from time import sleep
-from typing import Any
 
+from scheduler.config import CombinedConfig, OptimizerFlags
+from scheduler.contracts import ScheduleDiagnosis
 from scheduler.scheduler import Scheduler
 
 from src.models.configuration_model import load_config
@@ -29,7 +29,7 @@ class ScheduleGenerationState:
     generated: int = 0
     valid: int = 0
     message: str = ""
-    diagnosis: Any | None = None
+    diagnosis: ScheduleDiagnosis | None = None
     generation_id: int = 0
 
 
@@ -66,8 +66,53 @@ class ScheduleGeneratorModel:
         return list_configs()
 
     @staticmethod
-    def load_config(config_name: str) -> Any:
+    def load_config(config_name: str) -> CombinedConfig:
         return load_config(config_name)
+
+    def update_state(
+        self,
+        *,
+        running: bool | None = None,
+        finished: bool | None = None,
+        diagnosing: bool | None = None,
+        cancel_requested: bool | None = None,
+        diagnosis_cancelled: bool | None = None,
+        error: str | None = None,
+        config_name: str | None = None,
+        requested: int | None = None,
+        generated: int | None = None,
+        valid: int | None = None,
+        message: str | None = None,
+        diagnosis: ScheduleDiagnosis | None = None,
+        generation_id: int | None = None,
+    ) -> None:
+        with self._lock:
+            if running is not None:
+                self._state.running = running
+            if finished is not None:
+                self._state.finished = finished
+            if diagnosing is not None:
+                self._state.diagnosing = diagnosing
+            if cancel_requested is not None:
+                self._state.cancel_requested = cancel_requested
+            if diagnosis_cancelled is not None:
+                self._state.diagnosis_cancelled = diagnosis_cancelled
+            if error is not None:
+                self._state.error = error
+            if config_name is not None:
+                self._state.config_name = config_name
+            if requested is not None:
+                self._state.requested = requested
+            if generated is not None:
+                self._state.generated = generated
+            if valid is not None:
+                self._state.valid = valid
+            if message is not None:
+                self._state.message = message
+            if diagnosis is not None:
+                self._state.diagnosis = diagnosis
+            if generation_id is not None:
+                self._state.generation_id = generation_id
 
     def begin_generation(self, config_name: str, requested: int) -> bool:
         with self._lock:
@@ -89,59 +134,39 @@ class ScheduleGeneratorModel:
 
     def cancel_diagnosis(self) -> bool:
         with self._lock:
-            if not self._state.diagnosing or self._active_scheduler is None:
+            if not self._state.running or not self._state.diagnosing:
                 return False
-            scheduler = self._active_scheduler
-            start_interrupt_worker = not self._cancel_diagnosis_requested
+
             self._cancel_diagnosis_requested = True
             self._state.cancel_requested = True
-
-        try:
-            scheduler._diagnostics._ctx.interrupt()
-        except Exception:
-            with self._lock:
-                if self._active_scheduler is scheduler:
-                    self._cancel_diagnosis_requested = False
-                    self._state.cancel_requested = False
-            raise
-
-        if start_interrupt_worker:
-            threading.Thread(
-                target=self._interrupt_diagnosis_until_stopped,
-                args=(scheduler,),
-                daemon=True,
-            ).start()
-        return True
-
-    def _interrupt_diagnosis_until_stopped(self, scheduler: Scheduler) -> None:
-        while True:
-            with self._lock:
-                if not self._cancel_diagnosis_requested or self._active_scheduler is not scheduler:
-                    return
-            scheduler._diagnostics._ctx.interrupt()
-            sleep(0.05)
+            self._state.message = "Stopping diagnosis..."
+            if self._active_scheduler is not None:
+                diagnostics = getattr(self._active_scheduler, "_diagnostics", None)
+                context = getattr(diagnostics, "_ctx", None)
+                interrupt = getattr(context, "interrupt", None)
+                if callable(interrupt):
+                    interrupt()
+            return True
 
     def _finish_cancelled_diagnosis(self) -> None:
+        self._cancel_diagnosis_requested = False
         self._state.diagnosing = False
         self._state.cancel_requested = False
         self._state.diagnosis_cancelled = True
-        self._state.diagnosis = None
-        self._state.message = "No valid schedules could be generated."
+        self._state.error = None
         self._state.finished = True
         self._state.running = False
-        self._cancel_diagnosis_requested = False
+        self._state.generated = 0
+        self._state.valid = 0
+        self._state.message = "No valid schedules could be generated."
+        self._state.diagnosis = None
         self._active_scheduler = None
-
-    def update_state(self, **updates: Any) -> None:
-        with self._lock:
-            for name, value in updates.items():
-                setattr(self._state, name, value)
 
     def generate(
         self,
         config_name: str,
         limit_override: int | None,
-        optimizer_override: list[str] | None,
+        optimizer_override: list[OptimizerFlags] | None,
         max_time_gap_override: int | None = None,
         min_time_overlap_override: int | None = None,
     ) -> None:
@@ -170,7 +195,7 @@ class ScheduleGeneratorModel:
             return
         self.generate_configuration(config_name, full_config)
 
-    def generate_configuration(self, config_name: str, config: Any) -> None:
+    def generate_configuration(self, config_name: str, config: CombinedConfig) -> None:
         """Generate from an in-memory config and publish results to viewers."""
         try:
             limit = config.limit

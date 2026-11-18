@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from dotenv import load_dotenv
@@ -87,7 +87,7 @@ def build_scheduler_agent(
     apply_change: Callable[[Callable[[], Any]], tuple[bool, list[Any]]] | None = None,
     save_configuration: Callable[[str], None] | None = None,
     confirm_action: Callable[[str], bool] | None = None,
-    on_tool_result: Callable[[dict[str, Any]], None] | None = None,
+    on_tool_result: Callable[[Mapping[str, object]], None] | None = None,
     configuration_exists: Callable[[str], bool] | None = None,
     undo_configuration: Callable[[], CombinedConfig | None] | None = None,
     redo_configuration: Callable[[], CombinedConfig | None] | None = None,
@@ -146,7 +146,7 @@ def invoke_scheduler_agent(
     apply_change: Callable[[Callable[[], Any]], tuple[bool, list[Any]]] | None = None,
     save_configuration: Callable[[str], None] | None = None,
     confirm_action: Callable[[str], bool] | None = None,
-    on_tool_result: Callable[[dict[str, Any]], None] | None = None,
+    on_tool_result: Callable[[Mapping[str, object]], None] | None = None,
     configuration_exists: Callable[[str], bool] | None = None,
     undo_configuration: Callable[[], CombinedConfig | None] | None = None,
     redo_configuration: Callable[[], CombinedConfig | None] | None = None,
