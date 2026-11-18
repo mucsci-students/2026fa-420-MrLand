@@ -61,6 +61,7 @@ class ToolResultDetails(TypedDict, total=False):
     action: str
     combinations: object
     data: object
+    save_destination: Literal["download", "file"]
     errors: object
     generated: int
     valid: int
@@ -528,12 +529,9 @@ class SchedulerAgentState:
             return self._result(False, f"Could not save configuration '{config_name}': {error}")
         return self._result(
             True,
-            (
-                f"Configuration queued for download as '{config_name}.json'."
-                if self._save_configuration is not None
-                else f"Configuration saved as '{config_name}.json'."
-            ),
+            f"Configuration save completed for '{config_name}.json'.",
             action="saved",
+            save_destination="download" if self._save_configuration is not None else "file",
         )
 
     # Generate from the active config and direct results to the viewer.
@@ -1027,6 +1025,7 @@ def get_tool_list(
 
     def validation_error(error: list[object]) -> str:
         result = report(state._result(False, f"Invalid tool arguments: {error}"))
+        # LangChain requires validation handlers to return text; encode the standard result.
         return json.dumps(result, default=str)
 
     tools = [

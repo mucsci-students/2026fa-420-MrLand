@@ -406,7 +406,8 @@ def test_download_save_callback_uses_gui_download_behavior_without_replacement_p
     result = tools["save_configuration"].invoke({"config_name": "Fall 2026"})
 
     assert result["success"]
-    assert result["message"] == "Configuration queued for download as 'Fall 2026.json'."
+    assert result["message"] == "Configuration save completed for 'Fall 2026.json'."
+    assert result["save_destination"] == "download"
     assert saved_names == ["Fall 2026"]
 
 
@@ -432,9 +433,10 @@ def test_invalid_tool_arguments_return_structured_failure():
     result = tools["update_configuration_settings"].invoke({"limit": "not-a-number"})
 
     parsed = json.loads(result)
+    assert parsed == reported[0]
+    assert set(parsed) == {"success", "message"}
     assert parsed["success"] is False
     assert "Invalid tool arguments" in parsed["message"]
-    assert reported[0]["success"] is False
 
 
 def test_save_tool_uses_the_application_save_callback(monkeypatch):
@@ -451,7 +453,31 @@ def test_save_tool_uses_the_application_save_callback(monkeypatch):
     result = tools["save_configuration"].invoke({"config_name": "Fall 2026"})
 
     assert result["success"]
-    assert result["message"] == "Configuration queued for download as 'Fall 2026.json'."
+    assert result["message"] == "Configuration save completed for 'Fall 2026.json'."
+    assert result["save_destination"] == "download"
+    assert saved_names == ["Fall 2026"]
+
+
+def test_direct_save_reports_file_destination_with_the_same_message(monkeypatch):
+    from src.ai import agent_tools
+
+    config = ConfigurationController().new_configuration()
+    saved_names = []
+    monkeypatch.setattr(agent_tools, "validate_config", lambda _config: [])
+    monkeypatch.setattr(
+        agent_tools.ConfigService,
+        "save",
+        lambda _service, _config, name: saved_names.append(name),
+    )
+    tools = _tools(
+        SchedulerAgentState(config, configuration_exists=lambda _name: False),
+    )
+
+    result = tools["save_configuration"].invoke({"config_name": "Fall 2026"})
+
+    assert result["success"]
+    assert result["message"] == "Configuration save completed for 'Fall 2026.json'."
+    assert result["save_destination"] == "file"
     assert saved_names == ["Fall 2026"]
 
 
@@ -493,6 +519,8 @@ def test_generate_schedules_uses_the_active_configuration(monkeypatch):
 
     assert result["success"]
     assert "Generated 1 schedule(s), 1 valid." in result["message"]
+    assert result["generated"] == 1
+    assert result["valid"] == 1
     assert "Schedule Viewer tab" in result["message"]
     assert "CS 101.01" not in result["message"]
     assert viewer.sync_generated()
