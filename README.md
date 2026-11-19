@@ -1,4 +1,5 @@
 # 2026fa-420-MrLand
+
 ## CMSC 420-f26
 
 ---
@@ -197,21 +198,22 @@ Supported requests include:
 
 ### Available application tools
 
-The agent uses the following registered tools in `src/ai/agent_tools.py`:
+The agent assembles the registered tools in `src/ai/agent_tools.py`; their
+definitions are in `src/ai/agent_tool_definitions.py`:
 
-| Tool | Purpose |
-|---|---|
-| `get_active_configuration_status` | Check whether a configuration is active. |
-| `get_config_summary` | Summarize counts of rooms, labs, courses, and faculty. |
-| `inspect_configuration` | Inspect the full configuration or a supported area. |
-| `create_configuration_item` | Create a supported configuration item. |
-| `update_configuration_item` | Update an existing supported item. |
-| `delete_configuration_item` | Delete an item after confirmation. |
-| `update_configuration_settings` | Change global scheduler settings. |
-| `validate_current_config` | Validate the active configuration. |
-| `save_configuration` | Validate and save the configuration as JSON. |
-| `generate_schedules` | Generate schedules from a valid active configuration. |
-| `list_combinations` | List editor combinations after the user supplies the password. |
+| Tool                              | Purpose                                                        |
+| --------------------------------- | -------------------------------------------------------------- |
+| `get_active_configuration_status` | Check whether a configuration is active.                       |
+| `get_config_summary`              | Summarize counts of rooms, labs, courses, and faculty.         |
+| `inspect_configuration`           | Inspect the full configuration or a supported area.            |
+| `create_configuration_item`       | Create a supported configuration item.                         |
+| `update_configuration_item`       | Update an existing supported item.                             |
+| `delete_configuration_item`       | Delete an item after confirmation.                             |
+| `update_configuration_settings`   | Change global scheduler settings.                              |
+| `validate_current_config`         | Validate the active configuration.                             |
+| `save_configuration`              | Validate and save the configuration as JSON.                   |
+| `generate_schedules`              | Generate schedules from a valid active configuration.          |
+| `list_combinations`               | List editor combinations after the user supplies the password. |
 
 The assistant must use these tools for configuration changes and application actions. It is instructed not to claim that it changed or saved something unless the corresponding tool/application workflow confirms the result.
 
@@ -420,16 +422,16 @@ Add dependencies with `uv add <package>` or development dependencies with `uv ad
 
 Run the same checks configured in GitHub Actions:
 
-| Check | Command |
-|---|---|
-| Build source distribution and wheel | `uv build` |
-| Run all tests | `uv run pytest` |
-| Run tests and Model coverage report | `uv run pytest --cov --cov-report=term-missing` |
-| Run tests and produce Codecov XML | `uv run pytest --cov --cov-report=xml --cov-report=term-missing` |
-| Ruff lint | `uv run ruff check .` |
-| Check formatting without changing files | `uv run ruff format --check .` |
-| Apply Ruff formatting | `uv run ruff format .` |
-| Type checking | `uv run ty check` |
+| Check                                   | Command                                                          |
+| --------------------------------------- | ---------------------------------------------------------------- |
+| Build source distribution and wheel     | `uv build`                                                       |
+| Run all tests                           | `uv run pytest`                                                  |
+| Run tests and Model coverage report     | `uv run pytest --cov --cov-report=term-missing`                  |
+| Run tests and produce Codecov XML       | `uv run pytest --cov --cov-report=xml --cov-report=term-missing` |
+| Ruff lint                               | `uv run ruff check .`                                            |
+| Check formatting without changing files | `uv run ruff format --check .`                                   |
+| Apply Ruff formatting                   | `uv run ruff format .`                                           |
+| Type checking                           | `uv run ty check`                                                |
 
 To apply automatic Ruff lint fixes locally, use:
 
@@ -513,8 +515,8 @@ The application uses an MVC organization and includes Strategy, Memento, Composi
 
 ### 3. Memento
 
-- **Locations:** `src/controllers/configuration_controller.py` and `src/views/ai_assistant.py`.
-- **How it is used:** `ConfigurationMemento` stores a deep-copy snapshot of the active configuration and its validity state. The AI assistant creates a snapshot before processing a request and restores it if one of the requested operations fails.
+- **Locations:** `src/controllers/configuration_controller.py` and `src/views/ai_assistant_conversation.py`.
+- **How it is used:** `ConfigurationMemento` stores a deep-copy snapshot of the active configuration and its validity state. The assistant conversation creates a snapshot before processing a request and restores it if one of the requested operations fails.
 - **Why it fits:** The application can roll back a multi-operation AI request to the exact configuration state that existed before the request, rather than leaving partial edits behind.
 
 ### 4. Composite
@@ -553,9 +555,13 @@ The application uses an MVC organization and includes Strategy, Memento, Composi
 ├── screenshots/
 ├── src/
 │   ├── ai/
+│   │   ├── agent_tool_definitions.py
+│   │   ├── agent_tool_guards.py
+│   │   ├── agent_tool_schemas.py
 │   │   ├── agent_tools.py
 │   │   ├── api_errors.py
-│   │   └── scheduler_agent.py
+│   │   ├── scheduler_agent.py
+│   │   ├── scheduler_agent_state.py
 │   ├── configs/
 │   ├── controllers/
 │   ├── models/
@@ -567,7 +573,6 @@ The application uses an MVC organization and includes Strategy, Memento, Composi
 The application follows MVC package organization: configuration and schedule state are in `models`, application coordination is in `controllers`, and NiceGUI pages/components are in `views`. AI agent setup and tool definitions are grouped in `src/ai/`.
 
 ## Sprint 4 Technical Debt Reduction
-
 
 ### 1. Separate interactive CRUD from GUI/AI operations
 
@@ -596,6 +601,7 @@ The application follows MVC package organization: configuration and schedule sta
 - **Why it was debt:** It was harder to find and change one piece of behavior when the same files handled several tasks.
 - **Improvement:** The meeting-details dialog and shared calendar types now have their own files. Undo / redo tracking is handled by `ConfigurationHistory`, while the editor continues to handle the display and notifications.
 - **Behavior evidence:** Tests cover calendar layout and time behavior, as well as undoing / redoing an AI edit in the configuration editor.
+
 ---
 
 ## Known Limitations
