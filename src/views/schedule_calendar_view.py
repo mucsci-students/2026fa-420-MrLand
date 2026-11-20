@@ -67,6 +67,44 @@ class ScheduleCalendarView:
         ui.add_head_html(
             """
             <style>
+                /* Calendar event colors for dark mode. */
+                :root {
+                    --calendar-event-text: #d8e7e8;
+                    --calendar-event-details: #e0eaec;
+
+                    --calendar-course-1: #21414a;
+                    --calendar-course-2: #3b3157;
+                    --calendar-course-3: #4a3828;
+                    --calendar-course-4: #293e59;
+                    --calendar-course-5: #49313b;
+                    --calendar-course-6: #304936;
+                    --calendar-course-7: #563c26;
+                    --calendar-course-8: #264653;
+                    --calendar-course-9: #5a2a27;
+                    --calendar-course-10: #3d405b;
+                    --calendar-course-11: #344e41;
+                    --calendar-course-12: #533747;
+                }
+
+                /* Lighter event colors for light mode. */
+                html[data-theme="light"] {
+                    --calendar-event-text: #17324f;
+                    --calendar-event-details: #354c63;
+
+                    --calendar-course-1: #d4e8ed;
+                    --calendar-course-2: #e4dcf5;
+                    --calendar-course-3: #f3e3d0;
+                    --calendar-course-4: #d9e7f7;
+                    --calendar-course-5: #f3dce5;
+                    --calendar-course-6: #dcebdc;
+                    --calendar-course-7: #f5e2c9;
+                    --calendar-course-8: #d3e9e8;
+                    --calendar-course-9: #f3d9d6;
+                    --calendar-course-10: #e2e3f2;
+                    --calendar-course-11: #dce8df;
+                    --calendar-course-12: #eeddf2;
+                }
+
                 .schedule-calendar-fullscreen {
                     position: fixed !important;
                     inset: 0 !important;
@@ -132,15 +170,16 @@ class ScheduleCalendarView:
                         var(--border-color) 60px
                     );
                 }
+                
                 .schedule-calendar-event {
                     position: absolute;
                     top: 0;
                     box-sizing: border-box;
                     overflow: hidden;
                     padding: 5px 7px;
-                    border-left: 4px solid #75e6da;
+                    border-left: 4px solid;
                     border-radius: 4px;
-                    color: #d8e7e8;
+                    color: var(--calendar-event-text);
                     font-size: 12px;
                     line-height: 1.3;
                     cursor: pointer;
@@ -150,13 +189,16 @@ class ScheduleCalendarView:
                     filter: brightness(1.2);
                     z-index: 1;
                 }
+                body.body--light .schedule-calendar-event:hover {
+                    filter: brightness(0.96);
+                }
                 .schedule-calendar-event-title {
                     font-weight: 700;
                     overflow-wrap: anywhere;
                     word-break: break-word;
                 }
                 .schedule-calendar-event-details {
-                    color: #e0eaec;
+                    color: var(--calendar-event-details);
                     overflow-wrap: anywhere;
                     word-break: break-word;
                 }
@@ -556,21 +598,22 @@ class ScheduleCalendarView:
     ) -> None:
         show_meeting_details(self, controller, row, start, end, cluster, entry)
 
-    # Return a background and border color for a course.
+        # Return a background and border color for a course.
     def _course_color(self, course: str) -> tuple[str, str]:
+        # Use the full schedule so a course keeps its color in every view.
         palette = [
-            ("#21414a", "#75e6da"),
-            ("#3b3157", "#b8a4ff"),
-            ("#4a3828", "#f0bd82"),
-            ("#293e59", "#8fc5ff"),
-            ("#49313b", "#f2a3bd"),
-            ("#304936", "#a6dfa9"),
-            ("#563c26", "#ffc078"),
-            ("#264653", "#2a9d8f"),
-            ("#5a2a27", "#ff8a80"),
-            ("#3d405b", "#f2cc8f"),
-            ("#344e41", "#a3b18a"),
-            ("#533747", "#e0aaff"),
+            ("var(--calendar-course-1)", "#75e6da"),
+            ("var(--calendar-course-2)", "#b8a4ff"),
+            ("var(--calendar-course-3)", "#f0bd82"),
+            ("var(--calendar-course-4)", "#8fc5ff"),
+            ("var(--calendar-course-5)", "#f2a3bd"),
+            ("var(--calendar-course-6)", "#a6dfa9"),
+            ("var(--calendar-course-7)", "#ffc078"),
+            ("var(--calendar-course-8)", "#2a9d8f"),
+            ("var(--calendar-course-9)", "#ff8a80"),
+            ("var(--calendar-course-10)", "#f2cc8f"),
+            ("var(--calendar-course-11)", "#a3b18a"),
+            ("var(--calendar-course-12)", "#e0aaff"),
         ]
 
         # Use the full schedule so a course keeps its color in every view.

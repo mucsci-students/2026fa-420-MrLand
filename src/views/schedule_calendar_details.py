@@ -33,6 +33,37 @@ def show_meeting_details(
     cluster: OverlapCluster,
     entry: ScheduleEntry | None = None,
 ) -> None:
+    
+    # custom css styling to help follow light/dark mode
+    ui.add_head_html(
+        """
+        <style>
+            .schedule-calendar-details-card {
+                background: var(--surface-raised);
+                color: var(--app-foreground);
+            }
+
+            .schedule-calendar-details-navigation {
+                border-color: var(--border-color);
+            }
+
+            .schedule-calendar-details-tab {
+                color: var(--app-foreground);
+            }
+
+            body.body--dark .schedule-calendar-details-tab-active {
+                background: #21414a;
+                color: #75e6da;
+            }
+
+            body.body--light .schedule-calendar-details-tab-active {
+                background: #d7e9ee;
+                color: #173b55;
+            }
+        </style>
+        """
+    )
+        
     selected: SelectedMeeting = {
         "row": row,
         "start": start,
@@ -44,11 +75,17 @@ def show_meeting_details(
     # create and format pop-up dialog
     with (
         ui.dialog() as dialog,
-        ui.card().classes("w-[min(900px,95vw)] max-w-none bg-[#101820] text-[#d8e7e8]"),
+        ui.card()
+        .classes("w-[min(900px,95vw)] max-w-none")
+        .style("background: var(--surface); color: var(--app-foreground);"),
     ):
         heading = ui.label().classes("text-xl font-bold")
         with ui.row().classes("w-full items-stretch gap-4"):
-            navigation = ui.column().classes("w-44 shrink-0 gap-2 border-r border-[#29404b] pr-3")
+            navigation = (
+                ui.column()
+                .classes("w-44 shrink-0 gap-2 pr-3")
+                .style("border-right: 1px solid var(--border-color);")
+            )
             content = ui.column().classes("min-w-0 flex-1 gap-3")
 
         with ui.row().classes("w-full justify-end"):
@@ -323,11 +360,13 @@ def show_meeting_details(
                     section,
                     on_click=lambda name=section: show_section(name),
                 ).props("flat no-caps align=left").classes(
-                    "w-full justify-start "
-                    + (
-                        "bg-[#21414a] text-[#75e6da]"
+                    "w-full justify-start"
+                ).style(
+                    (
+                        "background: var(--surface-accent, var(--surface-hover)); "
+                        "color: var(--accent-color);"
                         if section == active_section["value"]
-                        else "text-[#d8e7e8]"
+                        else "background: transparent; color: var(--app-foreground);"
                     )
                 )
 
