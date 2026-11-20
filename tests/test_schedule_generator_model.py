@@ -9,7 +9,16 @@ from typing import Any, ClassVar
 
 import pytest
 
-from src.models.schedule_generator_model import ScheduleGeneratorModel
+from src.models.schedule_generator_model import (
+    CancelledGenerationPhase,
+    DiagnosingGenerationPhase,
+    FailedGenerationPhase,
+    FinishedGenerationPhase,
+    IdleGenerationPhase,
+    RunningGenerationPhase,
+    ScheduleGenerationState,
+    ScheduleGeneratorModel,
+)
 
 
 class FakeScheduler:
@@ -58,6 +67,42 @@ def patch_scheduler(monkeypatch):
         "src.models.schedule_generator_model.Scheduler",
         FakeScheduler,
     )
+
+
+@pytest.mark.parametrize(
+    ("phase", "running", "finished", "diagnosing", "cancel_requested", "cancelled"),
+    [
+        (IdleGenerationPhase(), False, False, False, False, False),
+        (RunningGenerationPhase(), True, False, False, False, False),
+        (DiagnosingGenerationPhase(), True, False, True, False, False),
+        (FinishedGenerationPhase(), False, True, False, False, False),
+        (CancelledGenerationPhase(), False, True, False, False, True),
+        (FailedGenerationPhase(), False, True, False, False, False),
+    ],
+)
+def test_generation_phases_set_the_existing_status_snapshot(
+    phase,
+    running,
+    finished,
+    diagnosing,
+    cancel_requested,
+    cancelled,
+):
+    state = ScheduleGenerationState(
+        running=True,
+        finished=True,
+        diagnosing=True,
+        cancel_requested=True,
+        diagnosis_cancelled=True,
+    )
+
+    phase.enter(state)
+
+    assert state.running is running
+    assert state.finished is finished
+    assert state.diagnosing is diagnosing
+    assert state.cancel_requested is cancel_requested
+    assert state.diagnosis_cancelled is cancelled
 
 
 def test_list_config_names_uses_shared_repository_outside_project_cwd(model, tmp_path, monkeypatch):

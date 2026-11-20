@@ -499,7 +499,7 @@ The Codecov configuration is in [`codecov.yaml`](codecov.yaml). The CI job uploa
 
 ## Design Patterns
 
-The application uses an MVC organization and includes Strategy, Memento, Composite, Observer, and Template Method implementations.
+The application uses an MVC organization and includes Strategy, Memento, Composite, Observer, Template Method, and State implementations.
 
 ### 1. Model–View–Controller (MVC)
 
@@ -536,6 +536,12 @@ The application uses an MVC organization and includes Strategy, Memento, Composi
 - **Location:** `src/controllers/schedule_print_export_controller.py`.
 - **How it is used:** `PrintLayoutTemplate.build` defines the common print-layout algorithm. `ResourcePrintLayoutTemplate` and `FacultyPrintLayoutTemplate` customize grouping, headings, and row values while sharing schedule validation, ordering, and HTML/page rendering.
 - **Why it fits:** Faculty and resource exports have different grouping details but the same document structure and print requirements. The template keeps those common steps consistent.
+
+### 7. State
+
+- **Location:** `src/models/schedule_generator_model.py`.
+- **How it is used:** `GenerationPhase` and the idle, running, diagnosing, finished, cancelled, and failed phase implementations control schedule-generation lifecycle transitions. `ScheduleGeneratorModel` delegates phase entry and reconciliation while preserving the existing `ScheduleGenerationState` snapshot used by the progress bar and schedule view.
+- **Why it fits:** Generation behavior depends on whether the scheduler is idle, searching, diagnosing constraints, cancelled, finished, or failed. Explicit phases make those transitions easier to maintain without scattering lifecycle booleans across workers.
 
 ---
 
