@@ -54,6 +54,9 @@ class ScheduleCalendarView:
 
         # initialize the schedule object
         self.filtered_schedule: list[dict] = []
+        # Keep the full schedule for stable course colors across filtered views.
+        self.color_schedule: list[dict] = []
+        self.display_mode = "Entire Schedule"
         # initialize the selected day variable from the day filter
         self.selected_day: str | None = None
         # add a variable to track whether the calendar is in full screen mode
@@ -279,8 +282,19 @@ class ScheduleCalendarView:
     # ---------------------------------------------------------
 
     # Replace the calendar contents with the parent's filtered rows.
-    def update(self, filtered_schedule: list[dict], selected_day: str | None = None) -> None:
+    def update(
+        self,
+        filtered_schedule: list[dict],
+        selected_day: str | None = None,
+        *,
+        display_mode: str = "Entire Schedule",
+        color_schedule: list[dict] | None = None,
+    ) -> None:
         self.filtered_schedule = [row.copy() for row in filtered_schedule]
+        self.color_schedule = [
+            row.copy() for row in (color_schedule if color_schedule is not None else filtered_schedule)
+        ]
+        self.display_mode = display_mode
         self.selected_day = selected_day
         self._render()
 
@@ -446,8 +460,12 @@ class ScheduleCalendarView:
                             ).classes("schedule-calendar-event-details")
 
                             if not self.compact:
+                                details_values = (resource,) if self.display_mode == "Faculty" else (
+                                    resource,
+                                    faculty,
+                                )
                                 details = " • ".join(
-                                    value for value in (resource, faculty) if value != "—"
+                                    value for value in details_values if value != "—"
                                 )
                                 if details:
                                     ui.label(details).classes("schedule-calendar-event-details")
@@ -536,7 +554,7 @@ class ScheduleCalendarView:
         cluster: OverlapCluster,
         entry: ScheduleEntry | None = None,
     ) -> None:
-        show_meeting_details(self, controller, row, start, end, cluster)
+        show_meeting_details(self, controller, row, start, end, cluster, entry)
 
     # Return a background and border color for a course.
     def _course_color(self, course: str) -> tuple[str, str]:
@@ -555,8 +573,8 @@ class ScheduleCalendarView:
             ("#533747", "#e0aaff"),
         ]
 
-        # Create a sorted list of unique course names from the filtered schedule
-        courses = sorted({str(row.get("course", "")) for row in self.filtered_schedule})
+        # Use the full schedule so a course keeps its color in every view.
+        courses = sorted({str(row.get("course", "")) for row in self.color_schedule})
 
         try:
             index = courses.index(course)
