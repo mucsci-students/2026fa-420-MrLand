@@ -7,12 +7,14 @@ from scheduler.config import FacultyConfig, LabConfig, RoomConfig
 from scheduler.models.course import Course
 
 from src.controllers.schedule_controller import ScheduleController
+from src.controllers.schedule_filters_controller import create_resource_schedule
 from src.controllers.schedule_inspection_controller import (
     get_course_details,
     get_faculty_details,
     get_lab_details,
     get_room_details,
 )
+from src.models.schedule_viewer_model import ScheduleEntry
 from src.views.schedule_calendar_types import OverlapCluster, ScheduleRow, SelectedMeeting
 
 
@@ -29,7 +31,39 @@ def show_meeting_details(
     start: int,
     end: int,
     cluster: OverlapCluster,
+    entry: ScheduleEntry | None = None,
 ) -> None:
+
+    # custom css styling to help follow light/dark mode
+    ui.add_head_html(
+        """
+        <style>
+            .schedule-calendar-details-card {
+                background: var(--surface-raised);
+                color: var(--app-foreground);
+            }
+
+            .schedule-calendar-details-navigation {
+                border-color: var(--border-color);
+            }
+
+            .schedule-calendar-details-tab {
+                color: var(--app-foreground);
+            }
+
+            body.body--dark .schedule-calendar-details-tab-active {
+                background: #21414a;
+                color: #75e6da;
+            }
+
+            body.body--light .schedule-calendar-details-tab-active {
+                background: #d7e9ee;
+                color: #173b55;
+            }
+        </style>
+        """
+    )
+
     selected: SelectedMeeting = {
         "row": row,
         "start": start,
@@ -41,11 +75,17 @@ def show_meeting_details(
     # create and format pop-up dialog
     with (
         ui.dialog() as dialog,
-        ui.card().classes("w-[min(900px,95vw)] max-w-none bg-[#101820] text-[#d8e7e8]"),
+        ui.card()
+        .classes("w-[min(900px,95vw)] max-w-none")
+        .style("background: var(--surface); color: var(--app-foreground);"),
     ):
         heading = ui.label().classes("text-xl font-bold")
         with ui.row().classes("w-full items-stretch gap-4"):
-            navigation = ui.column().classes("w-44 shrink-0 gap-2 border-r border-[#29404b] pr-3")
+            navigation = (
+                ui.column()
+                .classes("w-44 shrink-0 gap-2 pr-3")
+                .style("border-right: 1px solid var(--border-color);")
+            )
             content = ui.column().classes("min-w-0 flex-1 gap-3")
 
         with ui.row().classes("w-full justify-end"):
@@ -58,7 +98,7 @@ def show_meeting_details(
         RoomConfig | LabConfig | None,
         str | None,
     ]:
-        current = schedule_controller.current
+        current = entry if entry is not None else schedule_controller.current
         if current is None or current.config is None:
             return None, None, None, None
 
@@ -97,6 +137,66 @@ def show_meeting_details(
 
         return course, faculty, resource, resource_type
 
+    # Return every meeting belonging to the selected course section.
+    def section_meetings() -> list[tuple[str, str, str, str]]:
+        current = entry if entry is not None else schedule_controller.current
+        if current is None:
+            return []
+
+        course_id = str(selected["row"].get("course", "")).strip()
+        if not course_id or course_id == "—":
+            return []
+
+        meetings = []
+        day_order = {"MON": 1, "TUE": 2, "WED": 3, "THU": 4, "FRI": 5}
+        day_names = {
+            "MON": "Monday",
+            "TUE": "Tuesday",
+            "WED": "Wednesday",
+            "THU": "Thursday",
+            "FRI": "Friday",
+        }
+
+        # Records preserve the course-section ID and the original lab marker.
+        for record in current.records:
+            if str(record.get("course", "")).strip() != course_id:
+                continue
+
+            meeting_rows = create_resource_schedule([record])
+            time_entries = [
+                value.strip() for value in str(record.get("times", "")).split(",") if value.strip()
+            ]
+
+            for meeting, time_entry in zip(meeting_rows, time_entries):
+                is_lab = time_entry.endswith("^")
+                clean_time = time_entry.removesuffix("^").replace("@online", "")
+                try:
+                    day, time_range = clean_time.split(" ", 1)
+                    start_text, end_text = time_range.split("-", 1)
+                    start_hour, start_minute = (int(part) for part in start_text.split(":"))
+                    end_hour, end_minute = (int(part) for part in end_text.split(":"))
+                    start_minutes = start_hour * 60 + start_minute
+                    end_minutes = end_hour * 60 + end_minute
+                except (ValueError, TypeError):
+                    continue
+
+                meeting_type = "Lab" if is_lab else "Class"
+                if "@online" in time_entry:
+                    meeting_type = "Online"
+                elif not is_lab and record.get("room"):
+                    meeting_type = "Class"
+
+                meetings.append(
+                    (
+                        day_names.get(day, day),
+                        f"{view._format_time(start_minutes)}–{view._format_time(end_minutes)}",
+                        meeting_type,
+                        view._display_value(meeting.get("resource")),
+                    )
+                )
+
+        return sorted(meetings, key=lambda item: (day_order.get(item[0], 99), item[1]))
+
     # Refresh the right-side content without creating another dialog.
     def show_section(section: str) -> None:
         active_section["value"] = section
@@ -119,6 +219,27 @@ def show_meeting_details(
                 )
                 ui.label(f"Faculty: {view._display_value(current_row.get('faculty'))}")
                 ui.label(f"Room / Lab: {view._display_value(current_row.get('resource'))}")
+                ui.separator()
+
+                ui.label("All Meetings for This Section").classes("font-bold")
+                meetings = section_meetings()
+                if meetings:
+                    with ui.column().classes("w-full gap-1"):
+                        with ui.row().classes("w-full font-semibold text-sm"):
+                            ui.label("Day").classes("w-20")
+                            ui.label("Time").classes("w-36")
+                            ui.label("Type").classes("w-24")
+                            ui.label("Room / Lab").classes("flex-1")
+                        for day, time_range, meeting_type, assigned_resource in meetings:
+                            with ui.row().classes("w-full items-center text-sm"):
+                                ui.label(day).classes("w-20")
+                                ui.label(time_range).classes("w-36")
+                                ui.label(meeting_type).classes("w-24")
+                                ui.label(assigned_resource).classes("flex-1")
+                else:
+                    ui.label("No additional meeting information is available.").classes(
+                        "text-sm text-gray-400"
+                    )
                 ui.separator()
 
                 # Exclude the selected meeting from the overlap list.
@@ -239,13 +360,11 @@ def show_meeting_details(
                 ui.button(
                     section,
                     on_click=lambda name=section: show_section(name),
-                ).props("flat no-caps align=left").classes(
-                    "w-full justify-start "
-                    + (
-                        "bg-[#21414a] text-[#75e6da]"
-                        if section == active_section["value"]
-                        else "text-[#d8e7e8]"
-                    )
+                ).props("flat no-caps align=left").classes("w-full justify-start").style(
+                    "background: var(--surface-accent, var(--surface-hover)); "
+                    "color: var(--accent-color);"
+                    if section == active_section["value"]
+                    else "background: transparent; color: var(--app-foreground);"
                 )
 
     # run the initial setup for the dialog

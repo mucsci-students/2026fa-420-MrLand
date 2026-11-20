@@ -21,10 +21,10 @@ DAYS = {
     "FRI": "Friday",
 }
 
-FILTER_FIELDS = {
-    "Course": "course",
+VIEW_FIELDS = {
     "Faculty": "faculty",
     "Room / Lab": "resource",
+    "Entire Schedule": None,
 }
 
 
@@ -42,6 +42,44 @@ def build_comparison_tab(
     on_load_schedule: Callable[[object], None],
 ) -> ComparisonRefresh:
     """Build the schedule comparison workspace and return its refresh callback."""
+
+    def toggle_comparison_fullscreen() -> None:
+        """Toggle fullscreen mode for the complete comparison view."""
+        ui.run_javascript(
+            """
+            const comparison = document.getElementById(
+                'schedule-comparison-fullscreen'
+            );
+
+            if (!comparison) {
+                return;
+            }
+
+            if (document.fullscreenElement === comparison) {
+                document.exitFullscreen();
+            } else if (!document.fullscreenElement) {
+                comparison.requestFullscreen();
+            }
+            """
+        )
+
+    # css styling for fullscreen comparison
+    ui.add_head_html(
+        """
+        <style>
+            #schedule-comparison-fullscreen:fullscreen {
+                width: 100%;
+                height: 100%;
+                max-height: 100%;
+                box-sizing: border-box;
+                overflow-y: auto;
+                overflow-x: hidden;
+                padding: 16px;
+                background: var(--app-background);
+            }
+        </style>
+        """
+    )
 
     options = schedule_controller.schedule_options()
     first_value = schedule_controller.selected_index if schedule_controller.has_schedules else None
@@ -98,22 +136,28 @@ def build_comparison_tab(
         statistics_tab = ui.tab("Statistics", icon="analytics")
 
     with ui.tab_panels(comparison_tabs, value=view_tab).classes("w-full"):
-        with ui.tab_panel(view_tab):
+        with (
+            ui.tab_panel(view_tab),
+            ui.element("div")
+            .props('id="schedule-comparison-fullscreen"')
+            .classes("w-full min-w-0"),
+            ui.column().classes("w-full min-w-0 gap-4"),
+        ):
             # ---------------------------------------------------------
-            # Shared comparison filters
+            # Shared View By controls
             # ---------------------------------------------------------
             with (
                 surface_card(
-                    "Comparison Filters",
-                    "Apply the same filters to both schedules.",
+                    "View By",
+                    "Apply the same view settings to both schedules.",
                 ),
                 ui.row().classes("w-full items-end gap-3 flex-wrap"),
             ):
-                filter_type_select = (
+                view_by_select = (
                     ui.select(
-                        list(FILTER_FIELDS),
-                        value=None,
-                        label="Filter By",
+                        list(VIEW_FIELDS),
+                        value="Faculty",
+                        label="View By",
                     )
                     .props("outlined")
                     .classes("min-w-[160px] flex-1")
@@ -123,7 +167,7 @@ def build_comparison_tab(
                     ui.select(
                         [],
                         value=None,
-                        label="Filter Value",
+                        label="Faculty / Room/Lab Value",
                     )
                     .props("outlined")
                     .classes("min-w-[180px] flex-1")
@@ -140,15 +184,14 @@ def build_comparison_tab(
                 )
 
                 ui.button(
-                    "Clear Filters",
-                    icon="filter_alt_off",
-                    on_click=lambda: clear_filters(),
-                ).props("outline")
+                    "Fullscreen",
+                    icon="fullscreen",
+                    on_click=toggle_comparison_fullscreen,
+                ).props("outline").classes("h-14")
 
             # ---------------------------------------------------------
             # Calendar display
             # ---------------------------------------------------------
-
             with ui.element("div").classes("grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0"):
                 with surface_card("First Schedule Calendar"):
                     first_view_title = ui.label("No Schedule Selected").classes(
@@ -277,38 +320,116 @@ def build_comparison_tab(
         second_statistics_title(second_name)
 
     # ---------------------------------------------------------
-    # Filter handling
+    # View By handling
     # ---------------------------------------------------------
 
-    def update_filter_values() -> None:
-        """Build filter choices from the two selected schedules."""
-        field = FILTER_FIELDS.get(filter_type_select.value)
+    def shared_time_range() -> tuple[int, int] | None:
+        """Calculate one time range using both complete schedules."""
+        rows = selected_rows(first_schedule_select) + selected_rows(second_schedule_select)
 
+        valid_times = []
+
+        for row in rows:
+            try:
+                start = first_calendar._to_minutes(row["start"])
+                end = first_calendar._to_minutes(row["end"])
+
+                if end > start:
+                    valid_times.append((start, end))
+
+            except (KeyError, TypeError, ValueError):
+                continue
+
+        if not valid_times:
+            return None
+
+        earliest_start = min(start for start, _ in valid_times)
+        latest_end = max(end for _, end in valid_times)
+
+        # Round the shared range to whole hours.
+        first_hour = earliest_start // 60
+        last_hour = (latest_end + 59) // 60
+
+        return first_hour * 60, last_hour * 60
+
+    def update_filter_values() -> None:
+        """Build faculty or room/lab choices from the two selected schedules."""
+        field = VIEW_FIELDS.get(view_by_select.value)
+
+        # Entire Schedule does not need a faculty or room/lab selection.
         if field is None:
             filter_value_select.options = []
             filter_value_select.value = None
+            filter_value_select.disable()
             filter_value_select.update()
             return
 
-        rows = selected_rows(first_schedule_select)
-        rows.extend(selected_rows(second_schedule_select))
+        rows = selected_rows(first_schedule_select) + selected_rows(second_schedule_select)
 
-        values = sorted(
-            {str(row.get(field, "")) for row in rows if row.get(field) not in (None, "")}
-        )
+        if field == "resource":
+            resource_values = {
+                str(row.get("resource"))
+                for row in rows
+                if row.get("resource") not in (None, "", "Online", "Unassigned")
+            }
+
+            for select in (first_schedule_select, second_schedule_select):
+                entry = selected_entry(select)
+
+                if entry is None:
+                    continue
+
+                for record in entry.records:
+                    for resource in (record.get("room"), record.get("lab")):
+                        if resource and resource not in {"Online", "Unassigned"}:
+                            resource_values.add(str(resource))
+
+            values = sorted(resource_values)
+        else:
+            values = sorted(
+                {str(row.get(field, "")) for row in rows if row.get(field) not in (None, "")}
+            )
 
         previous_value = filter_value_select.value
         filter_value_select.options = values
-        filter_value_select.value = previous_value if previous_value in values else None
+
+        # Keep the previous selection when possible.
+        # Otherwise, select the first available option by default.
+        if previous_value in values:
+            filter_value_select.value = previous_value
+        else:
+            filter_value_select.value = values[0] if values else None
+
+        if values:
+            filter_value_select.enable()
+        else:
+            filter_value_select.disable()
+
         filter_value_select.update()
 
-    def apply_filters(rows: list[dict]) -> list[dict]:
-        """Apply the shared comparison filters to one schedule."""
-        field = FILTER_FIELDS.get(filter_type_select.value)
+    def apply_filters(rows: list[dict], select) -> list[dict]:
+        """Apply the shared comparison view settings to one schedule."""
+        field = VIEW_FIELDS.get(view_by_select.value)
         value = filter_value_select.value
         selected_day = day_filter_select.value
 
-        if field is not None and value is not None:
+        if field == "resource" and value is not None:
+            entry = selected_entry(select)
+            records = entry.records if entry is not None else []
+
+            # Find courses connected to the selected room or lab.
+            matching_courses = {
+                record.get("course")
+                for record in records
+                if value in (record.get("room"), record.get("lab")) and record.get("course")
+            }
+
+            if matching_courses:
+                rows = [row for row in rows if row.get("course") in matching_courses]
+            else:
+                rows = [row for row in rows if str(row.get("resource", "")) == str(value)]
+
+        elif field is not None and value is not None:
             rows = [row for row in rows if str(row.get(field, "")) == str(value)]
 
         if selected_day is not None:
@@ -317,65 +438,70 @@ def build_comparison_tab(
         return rows
 
     def update_calendars() -> None:
-        """Refresh both calendars using their own selected schedules."""
-        first_rows = apply_filters(selected_rows(first_schedule_select))
-        second_rows = apply_filters(selected_rows(second_schedule_select))
+        """Refresh both calendars using their own schedules and shared time axis."""
+        first_rows = apply_filters(
+            selected_rows(first_schedule_select),
+            first_schedule_select,
+        )
+        second_rows = apply_filters(
+            selected_rows(second_schedule_select),
+            second_schedule_select,
+        )
 
         selected_day = day_filter_select.value
+        time_range = shared_time_range()
 
-        first_calendar.update(first_rows, selected_day)
-        second_calendar.update(second_rows, selected_day)
+        first_calendar.update(
+            first_rows,
+            selected_day,
+            time_range=time_range,
+            color_schedule=selected_rows(first_schedule_select),
+        )
+
+        second_calendar.update(
+            second_rows,
+            selected_day,
+            time_range=time_range,
+            color_schedule=selected_rows(second_schedule_select),
+        )
 
     def refresh_comparison(changed_select=None) -> None:
-        """Refresh the affected comparison column and shared filters."""
-        validate_selections()
+        """Refresh the affected comparison column and shared view controls."""
+        if not validate_selections():
+            return
+
         update_filter_values()
+
+        # Both calendars must refresh because their time axis is shared.
+        update_calendars()
 
         # A full refresh updates both columns.
         if changed_select is None:
-            update_calendars()
             update_schedule_names()
             update_statistics()
             return
 
-        # A targeted refresh updates only the selected column.
-        rows = apply_filters(selected_rows(changed_select))
-        selected_day = day_filter_select.value
-
+        # A targeted refresh updates only the selected column's heading
+        # and statistics. Both calendars have already been refreshed above.
         if changed_select is first_schedule_select:
-            first_calendar.update(rows, selected_day)
-            first_view_title.text = (
-                selected_entry(first_schedule_select).label
-                if selected_entry(first_schedule_select)
-                else "No Schedule Selected"
-            )
+            first_entry = selected_entry(first_schedule_select)
+            first_name = first_entry.label if first_entry else "No Schedule Selected"
+
+            first_view_title.text = first_name
             first_view_title.update()
 
-            first_name = first_view_title.text
             first_statistics_title(first_name)
-            first_statistics_refresh(selected_entry(first_schedule_select))
+            first_statistics_refresh(first_entry)
 
         elif changed_select is second_schedule_select:
-            second_calendar.update(rows, selected_day)
-            second_view_title.text = (
-                selected_entry(second_schedule_select).label
-                if selected_entry(second_schedule_select)
-                else "No Schedule Selected"
-            )
+            second_entry = selected_entry(second_schedule_select)
+            second_name = second_entry.label if second_entry else "No Schedule Selected"
+
+            second_view_title.text = second_name
             second_view_title.update()
 
-            second_name = second_view_title.text
             second_statistics_title(second_name)
-            second_statistics_refresh(selected_entry(second_schedule_select))
-
-    def clear_filters() -> None:
-        """Reset all shared comparison filters."""
-        filter_type_select.value = None
-        filter_value_select.value = None
-        day_filter_select.value = None
-
-        update_filter_values()
-        update_calendars()
+            second_statistics_refresh(second_entry)
 
     # ---------------------------------------------------------
     # Selector events
@@ -410,7 +536,7 @@ def build_comparison_tab(
     first_schedule_select.on_value_change(lambda _: handle_schedule_change("first"))
     second_schedule_select.on_value_change(lambda _: handle_schedule_change("second"))
 
-    filter_type_select.on_value_change(lambda _: refresh_comparison())
+    view_by_select.on_value_change(lambda _: refresh_comparison())
     filter_value_select.on_value_change(lambda _: update_calendars())
     day_filter_select.on_value_change(lambda _: update_calendars())
 

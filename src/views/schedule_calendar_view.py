@@ -54,35 +54,73 @@ class ScheduleCalendarView:
 
         # initialize the schedule object
         self.filtered_schedule: list[dict] = []
+        # Keep the full schedule for stable course colors across filtered views.
+        self.color_schedule: list[dict] = []
+        self.display_mode = "Entire Schedule"
         # initialize the selected day variable from the day filter
         self.selected_day: str | None = None
+        # Optional shared time range used by Schedule Comparison.
+        self.time_range: tuple[int, int] | None = None
         # add a variable to track whether the calendar is in full screen mode
         self.fullscreen = False
-        self.export_callback = None
 
         # Adds custom CSS for styling the Calendar
         ui.add_head_html(
             """
             <style>
-                .schedule-calendar-fullscreen {
-                    position: fixed !important;
-                    inset: 0 !important;
-                    z-index: 1000 !important;
-                    width: 100vw !important;
-                    height: 100dvh !important;
-                    max-height: 100dvh !important;
-                    overflow: auto !important;
-                    padding: 12px !important;
-                    box-sizing: border-box !important;
-                    background: var(--app-background) !important;
+                /* Calendar event colors for dark mode. */
+                :root {
+                    --calendar-event-text: #d8e7e8;
+                    --calendar-event-details: #e0eaec;
+
+                    --calendar-course-1: #21414a;
+                    --calendar-course-2: #3b3157;
+                    --calendar-course-3: #4a3828;
+                    --calendar-course-4: #293e59;
+                    --calendar-course-5: #49313b;
+                    --calendar-course-6: #304936;
+                    --calendar-course-7: #563c26;
+                    --calendar-course-8: #264653;
+                    --calendar-course-9: #5a2a27;
+                    --calendar-course-10: #3d405b;
+                    --calendar-course-11: #344e41;
+                    --calendar-course-12: #533747;
                 }
 
-                .schedule-calendar-fullscreen .schedule-calendar-scroll {
+                /* Lighter event colors for light mode. */
+                html[data-theme="light"] {
+                    --calendar-event-text: #17324f;
+                    --calendar-event-details: #354c63;
+
+                    --calendar-course-1: #d4e8ed;
+                    --calendar-course-2: #e4dcf5;
+                    --calendar-course-3: #f3e3d0;
+                    --calendar-course-4: #d9e7f7;
+                    --calendar-course-5: #f3dce5;
+                    --calendar-course-6: #dcebdc;
+                    --calendar-course-7: #f5e2c9;
+                    --calendar-course-8: #d3e9e8;
+                    --calendar-course-9: #f3d9d6;
+                    --calendar-course-10: #e2e3f2;
+                    --calendar-course-11: #dce8df;
+                    --calendar-course-12: #eeddf2;
+                }
+                #schedule-calendar-fullscreen:fullscreen {
+                    width: 100%;
+                    height: 100%;
+                    max-height: 100%;
+                    box-sizing: border-box;
+                    overflow: auto;
+                    padding: 12px;
+                    background: var(--app-background);
+                }
+
+                #schedule-calendar-fullscreen:fullscreen .schedule-calendar-scroll {
                     height: calc(100dvh - 90px);
                     overflow: hidden;
                 }
 
-                .schedule-calendar-fullscreen .schedule-calendar-grid {
+                #schedule-calendar-fullscreen:fullscreen .schedule-calendar-grid {
                     min-width: 0;
                     height: 100%;
                 }
@@ -129,15 +167,16 @@ class ScheduleCalendarView:
                         var(--border-color) 60px
                     );
                 }
+                
                 .schedule-calendar-event {
                     position: absolute;
                     top: 0;
                     box-sizing: border-box;
                     overflow: hidden;
                     padding: 5px 7px;
-                    border-left: 4px solid #75e6da;
+                    border-left: 4px solid;
                     border-radius: 4px;
-                    color: #d8e7e8;
+                    color: var(--calendar-event-text);
                     font-size: 12px;
                     line-height: 1.3;
                     cursor: pointer;
@@ -147,13 +186,16 @@ class ScheduleCalendarView:
                     filter: brightness(1.2);
                     z-index: 1;
                 }
+                body.body--light .schedule-calendar-event:hover {
+                    filter: brightness(0.96);
+                }
                 .schedule-calendar-event-title {
                     font-weight: 700;
                     overflow-wrap: anywhere;
                     word-break: break-word;
                 }
                 .schedule-calendar-event-details {
-                    color: #e0eaec;
+                    color: var(--calendar-event-details);
                     overflow-wrap: anywhere;
                     word-break: break-word;
                 }
@@ -208,80 +250,76 @@ class ScheduleCalendarView:
 
         # add calendar container and content area
         # Normal calendar and toolbar
-        self.container = ui.column().classes("w-full gap-2")
+        self.container = (
+            ui.column().classes("w-full gap-2").props('id="schedule-calendar-fullscreen"')
+        )
 
         # updates container if is a compact calendar
         if self.compact:
             self.container.classes("schedule-calendar-compact min-w-0")
 
         with self.container:
-            with ui.row().classes("w-full items-center justify-end gap-2"):
-                ui.button(
-                    "Fullscreen",
-                    icon="fullscreen",
-                    on_click=self._open_fullscreen,
-                ).props("outline")
+            if not self.compact:
+                with ui.row().classes("w-full items-center justify-end gap-2"):
+                    ui.button(
+                        "Fullscreen",
+                        icon="fullscreen",
+                        on_click=self._open_fullscreen,
+                    ).props("outline")
 
             self.calendar_content = ui.column().classes("w-full min-w-0 gap-0")
 
         # Fullscreen pop-up
-        self.fullscreen_dialog = ui.dialog().props("maximized")
-
-        with (
-            self.fullscreen_dialog,
-            ui.card()
-            .classes("w-full h-full gap-2")
-            .style(
-                "background: var(--app-background); color: var(--app-foreground);"
-                "display: flex; flex-direction: column;"
-            ),
-        ):
-            with ui.row().classes("w-full items-center justify-end gap-2"):
-                self.export_button = ui.button(
-                    "Export",
-                    icon="download",
-                    on_click=self._open_export,
-                ).props("outline")
-                self.export_button.set_visibility(False)
-
-                ui.button(
-                    "Exit Fullscreen",
-                    icon="close",
-                    on_click=self.fullscreen_dialog.close,
-                ).props("outline")
-
-            self.popup_calendar_content = (
-                ui.column()
-                .classes("w-full min-w-0 gap-0")
-                .style("flex: 1; min-height: 0; overflow-x: auto; overflow-y: auto;")
-            )
+        # Fullscreen calendar content uses the same calendar container.
+        self.popup_calendar_content = self.calendar_content
 
     # ---------------------------------------------------------
     # Fullscreen Calendar Methods
     # ---------------------------------------------------------
 
-    # Use the schedule viewer's existing export dialog
-    def set_export_callback(self, callback) -> None:
-        self.export_callback = callback
-        self.export_button.set_visibility(callback is not None)
-
-    def _open_export(self) -> None:
-        if self.export_callback is not None:
-            self.export_callback()
-
-    # Expand the calendar to the viewport, or return to normal
+    # Expand the calendar to the browser viewport, or return to normal
     def _open_fullscreen(self) -> None:
-        self._render()
-        self.fullscreen_dialog.open()
+        ui.run_javascript(
+            """
+            const calendar = document.getElementById(
+                'schedule-calendar-fullscreen'
+            );
+
+            if (!calendar) {
+                return;
+            }
+
+            if (document.fullscreenElement === calendar) {
+                document.exitFullscreen();
+            } else if (!document.fullscreenElement) {
+                calendar.requestFullscreen();
+            }
+            """
+        )
 
     # ---------------------------------------------------------
     # Update Calendar
     # ---------------------------------------------------------
 
     # Replace the calendar contents with the parent's filtered rows.
-    def update(self, filtered_schedule: list[dict], selected_day: str | None = None) -> None:
+    def update(
+        self,
+        filtered_schedule: list[dict],
+        selected_day: str | None = None,
+        *,
+        display_mode: str = "Entire Schedule",
+        color_schedule: list[dict] | None = None,
+        time_range: tuple[int, int] | None = None,
+    ) -> None:
+        """Replace the calendar contents with the parent's filtered rows and day."""
         self.filtered_schedule = [row.copy() for row in filtered_schedule]
+        self.color_schedule = [
+            row.copy()
+            for row in (color_schedule if color_schedule is not None else filtered_schedule)
+        ]
+        self.display_mode = display_mode
         self.selected_day = selected_day
+        self.time_range = time_range
         self._render()
 
     # ---------------------------------------------------------
@@ -289,17 +327,9 @@ class ScheduleCalendarView:
     # ---------------------------------------------------------
     def _render(self) -> None:
         self._render_calendar(self.calendar_content, popup=False)
-        self._render_calendar(self.popup_calendar_content, popup=True)
 
     def _render_calendar(self, target, popup: bool) -> None:
         target.clear()
-
-        if not self.filtered_schedule:
-            with target:
-                ui.label("No schedule entries match the current filters.").classes(
-                    "schedule-calendar-empty w-full"
-                )
-            return
 
         # find the days to display based on the selected day filter
         visible_days = (
@@ -320,16 +350,34 @@ class ScheduleCalendarView:
 
             valid_rows.append((row, start, end))
 
-        if not valid_rows:
+        # Use a shared time range when provided by Schedule Comparison.
+        # Otherwise, calculate the range from this calendar's valid meetings.
+        if self.time_range is not None:
+            range_start, range_end = self.time_range
+
+            first_hour = max(0, floor(range_start / 60))
+            last_hour = min(24, ceil(range_end / 60))
+
+        elif valid_rows:
+            first_hour = max(
+                0,
+                floor(min(start for _, start, _ in valid_rows) / 60),
+            )
+            last_hour = min(
+                24,
+                ceil(max(end for _, _, end in valid_rows) / 60),
+            )
+
+        else:
             with target:
-                ui.label("No entries with valid start and end times.").classes(
-                    "schedule-calendar-empty w-full"
+                message = (
+                    "No schedule entries match the current filters."
+                    if not self.filtered_schedule
+                    else "No entries with valid start and end times."
                 )
+                ui.label(message).classes("schedule-calendar-empty w-full")
             return
 
-        # set the first and last hour of the calendar based on the earliest start time and latest end time of the valid rows
-        first_hour = max(0, floor(min(start for _, start, _ in valid_rows) / 60))
-        last_hour = min(24, ceil(max(end for _, _, end in valid_rows) / 60))
         if last_hour <= first_hour:
             last_hour = min(24, first_hour + 1)
 
@@ -446,8 +494,16 @@ class ScheduleCalendarView:
                             ).classes("schedule-calendar-event-details")
 
                             if not self.compact:
+                                details_values = (
+                                    (resource,)
+                                    if self.display_mode == "Faculty"
+                                    else (
+                                        resource,
+                                        faculty,
+                                    )
+                                )
                                 details = " • ".join(
-                                    value for value in (resource, faculty) if value != "—"
+                                    value for value in details_values if value != "—"
                                 )
                                 if details:
                                     ui.label(details).classes("schedule-calendar-event-details")
@@ -536,27 +592,29 @@ class ScheduleCalendarView:
         cluster: OverlapCluster,
         entry: ScheduleEntry | None = None,
     ) -> None:
-        show_meeting_details(self, controller, row, start, end, cluster)
+        show_meeting_details(self, controller, row, start, end, cluster, entry)
 
-    # Return a background and border color for a course.
+        # Return a background and border color for a course.
+
     def _course_color(self, course: str) -> tuple[str, str]:
+        # Use the full schedule so a course keeps its color in every view.
         palette = [
-            ("#21414a", "#75e6da"),
-            ("#3b3157", "#b8a4ff"),
-            ("#4a3828", "#f0bd82"),
-            ("#293e59", "#8fc5ff"),
-            ("#49313b", "#f2a3bd"),
-            ("#304936", "#a6dfa9"),
-            ("#563c26", "#ffc078"),
-            ("#264653", "#2a9d8f"),
-            ("#5a2a27", "#ff8a80"),
-            ("#3d405b", "#f2cc8f"),
-            ("#344e41", "#a3b18a"),
-            ("#533747", "#e0aaff"),
+            ("var(--calendar-course-1)", "#75e6da"),
+            ("var(--calendar-course-2)", "#b8a4ff"),
+            ("var(--calendar-course-3)", "#f0bd82"),
+            ("var(--calendar-course-4)", "#8fc5ff"),
+            ("var(--calendar-course-5)", "#f2a3bd"),
+            ("var(--calendar-course-6)", "#a6dfa9"),
+            ("var(--calendar-course-7)", "#ffc078"),
+            ("var(--calendar-course-8)", "#2a9d8f"),
+            ("var(--calendar-course-9)", "#ff8a80"),
+            ("var(--calendar-course-10)", "#f2cc8f"),
+            ("var(--calendar-course-11)", "#a3b18a"),
+            ("var(--calendar-course-12)", "#e0aaff"),
         ]
 
-        # Create a sorted list of unique course names from the filtered schedule
-        courses = sorted({str(row.get("course", "")) for row in self.filtered_schedule})
+        # Use the full schedule so a course keeps its color in every view.
+        courses = sorted({str(row.get("course", "")) for row in self.color_schedule})
 
         try:
             index = courses.index(course)

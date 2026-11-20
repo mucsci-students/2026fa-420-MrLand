@@ -122,3 +122,50 @@ class TestCalendarEventLayout:
             "CS103",
         }
         assert all(event[3] < 2 for event in result)
+
+
+# ---------------------------------------------------------
+# Calendar Course Colors
+# ---------------------------------------------------------
+
+
+class TestCalendarCourseColors:
+    def test_course_color_is_consistent_with_filtered_schedule(self):
+        calendar = ScheduleCalendarView.__new__(ScheduleCalendarView)
+
+        calendar.color_schedule = [
+            {"course": "CS101"},
+            {"course": "CS102"},
+            {"course": "CS103"},
+        ]
+
+        first_color = calendar._course_color("CS102")
+
+        # Simulate filtering the displayed schedule.
+        calendar.filtered_schedule = [{"course": "CS102"}]
+
+        second_color = calendar._course_color("CS102")
+
+        assert first_color == second_color
+
+    def test_course_colors_are_different_for_different_courses(self):
+        calendar = ScheduleCalendarView.__new__(ScheduleCalendarView)
+
+        calendar.color_schedule = [
+            {"course": "CS101"},
+            {"course": "CS102"},
+        ]
+
+        first_color = calendar._course_color("CS101")
+        second_color = calendar._course_color("CS102")
+
+        assert first_color != second_color
+
+    def test_unknown_course_uses_first_palette_color(self):
+        calendar = ScheduleCalendarView.__new__(ScheduleCalendarView)
+        calendar.color_schedule = [{"course": "CS101"}]
+
+        unknown_color = calendar._course_color("UNKNOWN")
+        first_color = calendar._course_color("CS101")
+
+        assert unknown_color == first_color

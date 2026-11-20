@@ -5,7 +5,6 @@ from nicegui import ui
 from scheduler.config import CombinedConfig
 
 from src.controllers.schedule_controller import schedule_controller as controller
-from src.controllers.schedule_filters_controller import sort_schedule
 from src.controllers.schedule_inspection_controller import (
     get_course_details,
     get_faculty_details,
@@ -17,9 +16,9 @@ from src.controllers.schedule_inspection_controller import (
 class ScheduleTableView:
     """Table view for a schedule.
 
-    The parent schedule viewer owns the shared filters. Pass the already-filtered
-    schedule to update() whenever the schedule or a shared filter changes.
-    Sorting remains local to this table view.
+    The parent schedule viewer owns the Table tab filters. Pass the filtered
+    schedule to update() whenever the schedule or a Table filter changes.
+    Column sorting is handled directly by the table.
     """
 
     def __init__(self) -> None:
@@ -62,30 +61,6 @@ class ScheduleTableView:
             </style>
             """
         )
-
-        # Creates buttons for the user to sort the table by different columns and order
-        with ui.row().classes("w-full items-center gap-4"):
-            self.sort_select = (
-                ui.select(
-                    ["Day", "Start Time", "Course", "Faculty", "Room / Lab"],
-                    value="Day",
-                    label="Sort",
-                )
-                .props("outlined")
-                .classes("schedule-dropdown")
-                .style("width: 180px;")
-            )
-
-            self.order_select = (
-                ui.select(
-                    ["Ascending", "Descending"],
-                    value="Ascending",
-                    label="Order",
-                )
-                .props("outlined")
-                .classes("schedule-dropdown")
-                .style("width: 180px;")
-            )
 
         # ---------------------------------------------------------
         # Table
@@ -148,10 +123,6 @@ class ScheduleTableView:
 
         self._add_clickable_cells()
 
-        # updates table whenever the sort or order selection changes
-        self.sort_select.on_value_change(lambda _: self._render())
-        self.order_select.on_value_change(lambda _: self._render())
-
     # ---------------------------------------------------------
     # Update Table
     # ---------------------------------------------------------
@@ -161,45 +132,11 @@ class ScheduleTableView:
         self.filtered_schedule = [row.copy() for row in filtered_schedule]
         self._render()
 
-    # helper to sort and format the schedule for display in the table
+    # format the schedule for display in the table
     def _render(self) -> None:
-        """Sort and format a copy of the schedule for table display."""
-        updated_schedule = [row.copy() for row in self.filtered_schedule]
-        descending = self.order_select.value == "Descending"
-        sort_type = self.sort_select.value
-
-        if sort_type == "Day":
-            updated_schedule = sort_schedule(
-                updated_schedule,
-                descending=descending,
-            )
-        elif sort_type == "Start Time":
-            updated_schedule = sort_schedule(
-                updated_schedule,
-                "start",
-                descending=descending,
-            )
-        elif sort_type == "Course":
-            updated_schedule = sort_schedule(
-                updated_schedule,
-                "course",
-                descending=descending,
-            )
-        elif sort_type == "Faculty":
-            updated_schedule = sort_schedule(
-                updated_schedule,
-                "faculty",
-                descending=descending,
-            )
-        elif sort_type == "Room / Lab":
-            updated_schedule = sort_schedule(
-                updated_schedule,
-                "resource",
-                descending=descending,
-            )
-
+        """Format the filtered schedule and let the table handle column sorting."""
         display_schedule = []
-        for row in updated_schedule:
+        for row in self.filtered_schedule:
             display_row = row.copy()
             display_row["start"] = self._format_time(row["start"])
             display_row["end"] = self._format_time(row["end"])

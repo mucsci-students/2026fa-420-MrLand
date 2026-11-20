@@ -310,11 +310,14 @@ def schedule_viewer() -> Callable[[], None]:
 
             # helper to reset filter values to default
             def reset_filters():
-                filter_select.set_value("None")
-                filter_value_select.set_value(None)
-                day_filter_select.set_value(None)
-
-                update_filter_values()
+                calendar_view_select.set_value("Faculty")
+                calendar_filter_select.set_value("None")
+                calendar_day_filter_select.set_value(None)
+                table_filter_select.set_value("None")
+                table_day_filter_select.set_value(None)
+                update_calendar_filter_values()
+                update_calendar_filter_value_values()
+                update_table_filter_values()
                 update_table()
 
             # Button to reset all filters to their default values
@@ -357,54 +360,6 @@ def schedule_viewer() -> Callable[[], None]:
         ).classes("text-gray-400 mb-6")
 
         # ---------------------------------------------------------
-        # Sort and filter controls
-        # ---------------------------------------------------------
-
-        with ui.row().classes("w-full items-center gap-4 mb-6 flex-nowrap"):
-            # drop down to select the type of filter to apply to the schedule table
-            filter_select = (
-                ui.select(
-                    ["None", "Course", "Faculty", "Room / Lab"],
-                    value="None",
-                    label="Filter By",
-                )
-                .props("outlined")
-                .classes("schedule-dropdown")
-                .style("width: 180px;")
-            )
-
-            # drop down to select the value of the filter to apply to the schedule table
-            filter_value_select = (
-                ui.select(
-                    [],
-                    value=None,
-                    label="Filter Value",
-                )
-                .props("outlined")
-                .classes("schedule-dropdown")
-                .style("width: 200px;")
-            )
-
-            # drop down to select the day of the week to filter the schedule table
-            day_filter_select = (
-                ui.select(
-                    {
-                        None: "All Days",
-                        "MON": "Monday",
-                        "TUE": "Tuesday",
-                        "WED": "Wednesday",
-                        "THU": "Thursday",
-                        "FRI": "Friday",
-                    },
-                    value=None,
-                    label="Day",
-                )
-                .props("outlined")
-                .classes("schedule-dropdown")
-                .style("width: 180px;")
-            )
-
-        # ---------------------------------------------------------
         # Calendar and Table tabs
         # ---------------------------------------------------------
         with ui.tabs() as view_tabs:
@@ -413,87 +368,296 @@ def schedule_viewer() -> Callable[[], None]:
 
         with ui.tab_panels(view_tabs, value=calendar_tab).classes("w-full"):
             with ui.tab_panel(calendar_tab):
+                with ui.row().classes("w-full items-center gap-4 mb-4 flex-wrap"):
+                    calendar_view_select = (
+                        ui.select(
+                            ["Faculty", "Room / Lab", "Entire Schedule"],
+                            value="Faculty",
+                            label="View By",
+                        )
+                        .props("outlined")
+                        .classes("schedule-dropdown")
+                        .style("width: 200px;")
+                    )
+                    calendar_value_select = (
+                        ui.select(
+                            [],
+                            value=None,
+                            label="Faculty Member",
+                        )
+                        .props("outlined")
+                        .classes("schedule-dropdown")
+                        .style("width: 220px;")
+                    )
+                    calendar_filter_select = (
+                        ui.select(
+                            ["None", "Course", "Faculty", "Room / Lab"],
+                            value="None",
+                            label="Filter",
+                        )
+                        .props("outlined")
+                        .classes("schedule-dropdown")
+                        .style("width: 180px;")
+                    )
+                    calendar_filter_value_select = (
+                        ui.select(
+                            [],
+                            value=None,
+                            label="Filter Value",
+                        )
+                        .props("outlined")
+                        .classes("schedule-dropdown")
+                        .style("width: 220px;")
+                    )
+                    calendar_day_filter_select = (
+                        ui.select(
+                            {
+                                None: "All Days",
+                                "MON": "Monday",
+                                "TUE": "Tuesday",
+                                "WED": "Wednesday",
+                                "THU": "Thursday",
+                                "FRI": "Friday",
+                            },
+                            value=None,
+                            label="Day",
+                        )
+                        .props("outlined")
+                        .classes("schedule-dropdown")
+                        .style("width: 160px;")
+                    )
                 calendar_view = schedule_calendar_view()
 
             with ui.tab_panel(table_tab):
+                with ui.row().classes("w-full items-center gap-4 mb-4 flex-wrap"):
+                    table_filter_select = (
+                        ui.select(
+                            ["None", "Course", "Faculty", "Room / Lab"],
+                            value="None",
+                            label="Filter",
+                        )
+                        .props("outlined")
+                        .classes("schedule-dropdown")
+                        .style("width: 180px;")
+                    )
+                    table_filter_value_select = (
+                        ui.select(
+                            [],
+                            value=None,
+                            label="Filter Value",
+                        )
+                        .props("outlined")
+                        .classes("schedule-dropdown")
+                        .style("width: 220px;")
+                    )
+                    table_day_filter_select = (
+                        ui.select(
+                            {
+                                None: "All Days",
+                                "MON": "Monday",
+                                "TUE": "Tuesday",
+                                "WED": "Wednesday",
+                                "THU": "Thursday",
+                                "FRI": "Friday",
+                            },
+                            value=None,
+                            label="Day",
+                        )
+                        .props("outlined")
+                        .classes("schedule-dropdown")
+                        .style("width: 160px;")
+                    )
                 table_view = schedule_table_view()
 
         # ---------------------------------------------------------
         # Update filter values
         # ---------------------------------------------------------
 
-        # updates possible filter values for the user to choose from
-        def update_filter_values():
-            filter_type = filter_select.value
+        def configured_names(attribute: str) -> list[str]:
+            """Return configured names for faculty, rooms, or labs."""
+            entry = controller.current
+            config = entry.config if entry is not None else None
+            config_data = getattr(config, "config", config)
+            items = getattr(config_data, attribute, []) if config_data is not None else []
+            names = []
+            for item in items:
+                if isinstance(item, str):
+                    name = item
+                elif isinstance(item, dict):
+                    name = item.get("name")
+                else:
+                    name = getattr(item, "name", None)
+                if name:
+                    names.append(str(name))
+            return names
 
+        def update_calendar_filter_values():
+            """Populate the selection dropdown for Faculty or Room / Lab views."""
+            view = calendar_view_select.value
+            current_value = calendar_value_select.value
+
+            show_entire_schedule_filters = view == "Entire Schedule"
+            calendar_filter_select.visible = show_entire_schedule_filters
+            calendar_filter_value_select.visible = show_entire_schedule_filters
+
+            if view == "Faculty":
+                values = configured_names("faculty") or sorted(
+                    {row["faculty"] for row in schedule if row.get("faculty")}
+                )
+                calendar_value_select.props('label="Faculty Member"')
+                calendar_value_select.enable()
+                calendar_value_select.visible = True
+            elif view == "Room / Lab":
+                entry = controller.current
+                records = entry.records if entry is not None else []
+                values = configured_names("rooms") + configured_names("labs")
+                if not values:
+                    values = sorted(
+                        {
+                            resource
+                            for record in records
+                            for resource in (record.get("room"), record.get("lab"))
+                            if resource and resource not in {"Online", "Unassigned"}
+                        }
+                    )
+                if not values:
+                    values = sorted(
+                        {
+                            row["resource"]
+                            for row in schedule
+                            if row.get("resource") not in {None, "", "Online", "Unassigned"}
+                        }
+                    )
+                calendar_value_select.props('label="Room / Lab"')
+                calendar_value_select.enable()
+                calendar_value_select.visible = True
+            else:
+                values = []
+                calendar_value_select.visible = False
+
+            calendar_value_select.options = values
+            calendar_value_select.value = (
+                current_value if current_value in values else (values[0] if values else None)
+            )
+            calendar_value_select.update()
+
+        def update_calendar_filter_value_values():
+            """Populate the optional filter value for Entire Schedule view."""
+            filter_type = calendar_filter_select.value
             if filter_type == "Course":
-                values = sorted({course["course"] for course in schedule})
-
+                values = sorted({row["course"] for row in schedule if row.get("course")})
             elif filter_type == "Faculty":
-                values = sorted({course["faculty"] for course in schedule})
-
+                values = configured_names("faculty") or sorted(
+                    {row["faculty"] for row in schedule if row.get("faculty")}
+                )
             elif filter_type == "Room / Lab":
-                values = sorted({course["resource"] for course in schedule})
-
+                values = configured_names("rooms") + configured_names("labs")
+                if not values:
+                    values = sorted({row["resource"] for row in schedule if row.get("resource")})
             else:
                 values = []
 
-            # keep the current value when switching schedules, so the same
-            # faculty member or room can be compared across schedules
-            current_value = filter_value_select.value
+            current_value = calendar_filter_value_select.value
+            calendar_filter_value_select.options = values
+            calendar_filter_value_select.value = (
+                current_value if current_value in values else (values[0] if values else None)
+            )
+            calendar_filter_value_select.set_enabled(filter_type != "None" and bool(values))
+            calendar_filter_value_select.update()
 
-            filter_value_select.options = values
-
-            if current_value in values:
-                filter_value_select.value = current_value
-            elif values:
-                filter_value_select.value = values[0]
+        def update_table_filter_values():
+            filter_type = table_filter_select.value
+            if filter_type == "Course":
+                values = sorted({row["course"] for row in schedule if row.get("course")})
+            elif filter_type == "Faculty":
+                values = sorted({row["faculty"] for row in schedule if row.get("faculty")})
+            elif filter_type == "Room / Lab":
+                values = sorted({row["resource"] for row in schedule if row.get("resource")})
             else:
-                filter_value_select.value = None
+                values = []
 
-            filter_value_select.update()
+            current_value = table_filter_value_select.value
+            table_filter_value_select.options = values
+            table_filter_value_select.value = (
+                current_value if current_value in values else (values[0] if values else None)
+            )
+            table_filter_value_select.set_enabled(filter_type != "None" and bool(values))
+            table_filter_value_select.update()
 
         # ---------------------------------------------------------
-        # Update table
+        # Update table and calendar
         # ---------------------------------------------------------
 
         def update_table():
-            # Always start with the unfiltered schedule.
-            updated_schedule = schedule.copy()
-
-            # Apply the shared filter.
-            filter_type = filter_select.value
-            filter_value = filter_value_select.value
+            # The Table tab owns its own filters and day selection.
+            table_schedule = schedule.copy()
+            filter_type = table_filter_select.value
+            filter_value = table_filter_value_select.value
 
             if filter_type == "Course" and filter_value:
-                updated_schedule = filter_by_course(
-                    updated_schedule,
-                    filter_value,
-                )
-
+                table_schedule = filter_by_course(table_schedule, filter_value)
             elif filter_type == "Faculty" and filter_value:
-                updated_schedule = filter_by_faculty(
-                    updated_schedule,
-                    filter_value,
-                )
-
+                table_schedule = filter_by_faculty(table_schedule, filter_value)
             elif filter_type == "Room / Lab" and filter_value:
-                updated_schedule = filter_by_resource(
-                    updated_schedule,
-                    filter_value,
-                )
+                table_schedule = filter_by_resource(table_schedule, filter_value)
 
-            selected_day = day_filter_select.value
+            selected_table_day = table_day_filter_select.value
+            if selected_table_day:
+                table_schedule = [
+                    row for row in table_schedule if row.get("day") == selected_table_day
+                ]
+            table_view.update(table_schedule)
 
-            if selected_day:
-                updated_schedule = [
-                    row for row in updated_schedule if row.get("day") == selected_day
+            # Build the Calendar independently from the Table filters.
+            view = calendar_view_select.value
+            selected_value = calendar_value_select.value
+            calendar_schedule = schedule.copy()
+
+            if view == "Faculty" and selected_value:
+                calendar_schedule = filter_by_faculty(calendar_schedule, selected_value)
+            elif view == "Room / Lab" and selected_value:
+                entry = controller.current
+                records = entry.records if entry is not None else []
+
+                # Find every course that uses the selected room or lab.
+                matching_courses = {
+                    record.get("course")
+                    for record in records
+                    if selected_value in (record.get("room"), record.get("lab"))
+                    and record.get("course")
+                }
+
+                if matching_courses:
+                    # Show all room and lab assignments connected to those courses.
+                    calendar_schedule = [
+                        row for row in calendar_schedule if row.get("course") in matching_courses
+                    ]
+                else:
+                    calendar_schedule = [
+                        row for row in calendar_schedule if row.get("resource") == selected_value
+                    ]
+            elif view == "Entire Schedule":
+                filter_type = calendar_filter_select.value
+                filter_value = calendar_filter_value_select.value
+                if filter_type == "Course" and filter_value:
+                    calendar_schedule = filter_by_course(calendar_schedule, filter_value)
+                elif filter_type == "Faculty" and filter_value:
+                    calendar_schedule = filter_by_faculty(calendar_schedule, filter_value)
+                elif filter_type == "Room / Lab" and filter_value:
+                    calendar_schedule = filter_by_resource(calendar_schedule, filter_value)
+
+            selected_calendar_day = calendar_day_filter_select.value
+            if selected_calendar_day:
+                calendar_schedule = [
+                    row for row in calendar_schedule if row.get("day") == selected_calendar_day
                 ]
 
-            # Send the filtered rows to the table.
-            # The table handles its own sorting and time formatting.
-            table_view.update(updated_schedule)
-            calendar_view.update(updated_schedule, selected_day)
+            calendar_view.update(
+                calendar_schedule,
+                selected_calendar_day,
+                display_mode=view,
+                color_schedule=schedule,
+            )
 
         # ---------------------------------------------------------
         # Show the selected schedule
@@ -522,7 +686,9 @@ def schedule_viewer() -> Callable[[], None]:
             previous_button.set_enabled(controller.can_step(-1))
             next_button.set_enabled(controller.can_step(1))
 
-            update_filter_values()
+            update_calendar_filter_values()
+            update_calendar_filter_value_values()
+            update_table_filter_values()
             update_table()
 
         def on_schedule_selected(event):
@@ -645,9 +811,14 @@ def schedule_viewer() -> Callable[[], None]:
             # open on that one (e.g. Group by Faculty, "Hobbes"). Otherwise this
             # returns the normal default: Group by Room / lab, all rooms.
             # The user can still change both dropdowns before printing.
-            group_by, group_key = print_defaults_for_filter(
-                print_entry, filter_select.value, filter_value_select.value
-            )
+            if calendar_view_select.value == "Faculty":
+                print_filter, print_value = "Faculty", calendar_value_select.value
+            elif calendar_view_select.value == "Room / Lab":
+                print_filter, print_value = "Room / Lab", calendar_value_select.value
+            else:
+                print_filter = calendar_filter_select.value
+                print_value = calendar_filter_value_select.value
+            group_by, group_key = print_defaults_for_filter(print_entry, print_filter, print_value)
             print_orientation.value = group_by
             update_print_group_options()
             print_group.set_value(group_key)
@@ -667,9 +838,6 @@ def schedule_viewer() -> Callable[[], None]:
             ui.download(content, filename=file_name, media_type=media_type)
             print_export_dialog.close()
             ui.notify(f"Downloaded {file_name}.", type="positive")
-
-        # Give the calendar fullscreen toolbar access to the existing export dialog.
-        calendar_view.set_export_callback(open_export_dialog)
 
         def on_export_format_changed(event):
             name = (export_name.value or "").strip()
@@ -725,24 +893,27 @@ def schedule_viewer() -> Callable[[], None]:
         # Dropdown events
         # ---------------------------------------------------------
 
-        # updates when a different schedule is selected
         schedule_select.on_value_change(on_schedule_selected)
 
-        # updates when a new filter type is selected
-        filter_select.on_value_change(
-            lambda _: (
-                update_filter_values(),
-                update_table(),
-            )
+        def on_calendar_view_changed(_):
+            update_calendar_filter_values()
+            update_calendar_filter_value_values()
+            update_table()
+
+        calendar_view_select.on_value_change(on_calendar_view_changed)
+        calendar_value_select.on_value_change(lambda _: update_table())
+        calendar_filter_select.on_value_change(
+            lambda _: (update_calendar_filter_value_values(), update_table())
         )
+        calendar_filter_value_select.on_value_change(lambda _: update_table())
+        calendar_day_filter_select.on_value_change(lambda _: update_table())
 
-        # updates when a new filter value is selected
-        filter_value_select.on_value_change(lambda _: update_table())
+        table_filter_select.on_value_change(
+            lambda _: (update_table_filter_values(), update_table())
+        )
+        table_filter_value_select.on_value_change(lambda _: update_table())
+        table_day_filter_select.on_value_change(lambda _: update_table())
 
-        # updates when a new day filter is selected
-        day_filter_select.on_value_change(lambda _: update_table())
-
-        # resets all filters to their default values when the reset button is clicked
         reset_filters_button.on_click(lambda _: reset_filters())
 
         # ---------------------------------------------------------
