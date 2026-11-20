@@ -7,12 +7,10 @@ import threading
 from dataclasses import dataclass, replace
 from typing import Protocol
 
-from scheduler.config import CombinedConfig, OptimizerFlags
+from scheduler.config import CombinedConfig
 from scheduler.contracts import ScheduleDiagnosis
 from scheduler.scheduler import Scheduler
 
-from src.models.configuration_model import load_config
-from src.models.configuration_repository import ConfigLoadError, list_configs
 from src.models.schedule_files import records_from_result, records_to_csv
 from src.models.schedule_result import ScheduleResult
 
@@ -128,14 +126,6 @@ class ScheduleGeneratorModel:
             self._generated_schedules.clear()
             return True
 
-    def list_config_names(self) -> list[str]:
-        """List saved configurations from the shared, application-rooted repository."""
-        return list_configs()
-
-    @staticmethod
-    def load_config(config_name: str) -> CombinedConfig:
-        return load_config(config_name)
-
     def update_state(
         self,
         *,
@@ -243,39 +233,6 @@ class ScheduleGeneratorModel:
         self._state.message = "No valid schedules could be generated."
         self._state.diagnosis = None
         self._active_scheduler = None
-
-    def generate(
-        self,
-        config_name: str,
-        limit_override: int | None,
-        optimizer_override: list[OptimizerFlags] | None,
-        max_time_gap_override: int | None = None,
-        min_time_overlap_override: int | None = None,
-    ) -> None:
-        """Generate schedules and publish progress without touching the UI."""
-        try:
-            self.update_state(
-                config_name=config_name,
-                message=f"Loading configuration '{config_name}'...",
-            )
-            full_config = self.load_config(config_name)
-            if limit_override is not None:
-                full_config.limit = limit_override
-            if optimizer_override is not None:
-                full_config.optimizer_flags = optimizer_override
-            if max_time_gap_override is not None:
-                full_config.time_slot_config.max_time_gap = max_time_gap_override
-            if min_time_overlap_override is not None:
-                full_config.time_slot_config.min_time_overlap = min_time_overlap_override
-        except (ConfigLoadError, FileNotFoundError, ValueError) as error:
-            self.update_state(
-                error=str(error),
-                message="Schedule generation failed.",
-                finished=True,
-                running=False,
-            )
-            return
-        self.generate_configuration(config_name, full_config)
 
     def generate_configuration(self, config_name: str, config: CombinedConfig) -> None:
         """Generate from an in-memory config and publish results to viewers."""

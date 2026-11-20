@@ -1,4 +1,4 @@
-"""Configuration validation, change management, and application-level persistence API.
+"""Configuration validation, change management, and uploaded-file parsing.
 
 Used by: GUI."""
 
@@ -12,16 +12,9 @@ from jsonschema import Draft202012Validator, FormatChecker
 from pydantic import ValidationError
 from scheduler.config import CombinedConfig, SchedulerConfig, TimeSlotConfig
 
-from src.models.configuration_repository import (
-    clean_config_name,
-    config_exists,
-    list_configs,
-    load_config,
-    save_config,
-)
+from src.models.configuration_repository import clean_config_name
 from src.models.quality_grading import (
     QUALITY_GRADE_SETTINGS_KEY,
-    QualityGradeSettings,
     settings_from_document,
 )
 
@@ -48,14 +41,8 @@ def create_draft_config() -> CombinedConfig:
 
 
 def validate_config_name(name: str) -> str:
-    """For creating a NEW config: a valid name that isn't already taken."""
-    name = clean_config_name(name)
-    if config_exists(name):
-        raise ValueError(
-            f"A configuration named '{name}' already exists. "
-            "Load it instead, or choose a different name."
-        )
-    return name
+    """Return a valid configuration name for the downloaded JSON file."""
+    return clean_config_name(name)
 
 
 @dataclass(frozen=True)
@@ -196,27 +183,6 @@ def _restore_config(config: CombinedConfig, snapshot: CombinedConfig) -> None:
 
 
 class ConfigService:
-    def save(
-        self,
-        config: CombinedConfig,
-        config_name: str,
-        quality_grade_settings: QualityGradeSettings | None = None,
-    ) -> None:
-        save_config(
-            config,
-            clean_config_name(config_name),
-            quality_grade_settings,
-        )
-
-    def load(self, config_name: str) -> CombinedConfig:
-        return load_config(config_name)
-
-    def exists(self, config_name: str) -> bool:
-        return config_exists(config_name)
-
-    def list_names(self) -> list[str]:
-        return list_configs()
-
     def load_uploaded(self, content: bytes) -> CombinedConfig:
         """Parse and validate an uploaded JSON configuration."""
         try:

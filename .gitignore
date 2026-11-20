@@ -205,7 +205,6 @@ tempCodeRunnerFile.py
 
 # Ruff stuff:
 .ruff_cache/
-src/configs/.quality_grade_settings/
 
 # PyPI configuration file
 .pypirc

@@ -22,9 +22,7 @@ from tests.conftest import active_client
 
 
 @pytest.mark.parametrize("reopen", [False, True])
-def test_cancel_pending_upload_preserves_schedule_and_allows_next_load(
-    monkeypatch, reopen
-):
+def test_cancel_pending_upload_preserves_schedule_and_allows_next_load(monkeypatch, reopen):
     content = records_to_csv(
         [
             {

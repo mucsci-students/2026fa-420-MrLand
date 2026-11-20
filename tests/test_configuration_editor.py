@@ -12,20 +12,16 @@ from nicegui.testing import UserInteraction, user_simulation
 
 import src.views.configuration_editor as editor
 from src.controllers.configuration_controller import ConfigurationController
-from src.models import configuration_repository as config_repo
 from tests.conftest import active_client
 from tests.test_configuration import make_valid_config
 
 
 @pytest.fixture
-def editor_controller(monkeypatch, tmp_path):
-    monkeypatch.setattr(config_repo, "CONFIG_DIR", tmp_path)
+def editor_controller(monkeypatch):
     test_controller = ConfigurationController()
     test_controller.configuration = make_valid_config()
     test_controller._has_valid_configuration = True
-    test_controller.save_configuration("demo")
     monkeypatch.setattr(editor, "controller", test_controller)
-    monkeypatch.setattr(test_controller, "list_names", lambda: ["demo"])
     return test_controller
 
 
@@ -177,29 +173,21 @@ def test_loaded_configuration_is_saved_until_edited(editor_controller):
     run_editor_simulation(action)
 
 
-def test_discard_and_load_opens_upload_without_saving(editor_controller, monkeypatch):
-    def unexpected_local_save(*args, **kwargs):
-        raise AssertionError("Discard and Load must not save the config locally.")
-
-    monkeypatch.setattr(editor_controller, "save_configuration", unexpected_local_save)
-
+def test_discard_and_load_opens_upload_without_saving(editor_controller):
     async def action(user, mark_unsaved):
         await load_demo_config(user, editor_controller, mark_unsaved)
+        downloads_before_discard = len(user.download.http_responses)
         user.find("Load configuration").click()
         await user.should_see("Unsaved changes")
         dialog = click_open_dialog_button(user, "Discard and Load")
         await user.should_see("Load Configuration")
         assert not dialog.value
+        assert len(user.download.http_responses) == downloads_before_discard
 
     run_editor_simulation(action)
 
 
-def test_save_and_load_downloads_json_then_opens_upload(editor_controller, monkeypatch):
-    def unexpected_local_save(*args, **kwargs):
-        raise AssertionError("Popup Save must download instead of saving locally.")
-
-    monkeypatch.setattr(editor_controller, "save_configuration", unexpected_local_save)
-
+def test_save_and_load_downloads_json_then_opens_upload(editor_controller):
     async def action(user, mark_unsaved):
         await load_demo_config(user, editor_controller, mark_unsaved)
         user.find("Load configuration").click()

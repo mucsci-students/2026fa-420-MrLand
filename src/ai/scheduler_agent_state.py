@@ -38,7 +38,6 @@ from src.controllers.schedule_generator_controller import schedule_generator_con
 from src.controllers.settings_controller import SettingsController
 from src.controllers.time_block_controller import TimeBlockController
 from src.models.configuration_model import (
-    ConfigService,
     ConfigValidationError,
     create_draft_config,
     validate_config,
@@ -62,14 +61,12 @@ class SchedulerAgentState:
         save_configuration: Callable[[str], None] | None = None,
         schedule_generator: ScheduleGenerator | None = None,
         confirm_action: Callable[[str], bool] | None = None,
-        configuration_exists: Callable[[str], bool] | None = None,
     ):
         self.config = config if config is not None else empty_scheduler_config()
         self.has_active_configuration = config is not None
         self._save_configuration = save_configuration
         self._schedule_generator = schedule_generator or schedule_generator_controller
         self._confirm_action = confirm_action
-        self._configuration_exists = configuration_exists or ConfigService().exists
 
     @staticmethod
     def _result(
@@ -440,32 +437,12 @@ class SchedulerAgentState:
     # Validate and save the active configuration through the app callback.
     def save_current_config(self, config_name: str) -> ToolResult:
         if self._save_configuration is None:
-            problems = validate_config(self.config)
-            if problems:
-                return self._result(
-                    False,
-                    "Configuration was not saved because validation failed.",
-                    errors=[
-                        {"area": problem.area, "item": problem.item, "message": problem.message}
-                        for problem in problems
-                    ],
-                )
+            return self._result(
+                False,
+                "Configuration downloads are only available through the Configuration Editor.",
+            )
         try:
-            if (
-                self._save_configuration is None
-                and self._configuration_exists(config_name)
-                and (
-                    self._confirm_action is None
-                    or not self._confirm_action(
-                        f"Replace the saved configuration '{config_name}.json'?"
-                    )
-                )
-            ):
-                return self._result(False, "Save cancelled; the existing file was not changed.")
-            if self._save_configuration is not None:
-                self._save_configuration(config_name)
-            else:
-                ConfigService().save(self.config, config_name)
+            self._save_configuration(config_name)
         except (ConfigValidationError, OSError, ValueError) as error:
             if isinstance(error, ConfigValidationError):
                 return self._result(
@@ -485,7 +462,7 @@ class SchedulerAgentState:
             True,
             f"Configuration save completed for '{config_name}.json'.",
             action="saved",
-            save_destination="download" if self._save_configuration is not None else "file",
+            save_destination="download",
         )
 
     # Generate from the active config and direct results to the viewer.

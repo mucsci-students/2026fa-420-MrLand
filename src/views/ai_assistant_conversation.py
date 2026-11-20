@@ -182,7 +182,6 @@ class AssistantConversation:
                 save_configuration=save_ai_configuration if config is not None else None,
                 confirm_action=confirm_ai_action,
                 on_tool_result=record_tool_result,
-                configuration_exists=self.controller.config_service.exists,
                 undo_configuration=apply_ai_undo if config is not None else None,
                 redo_configuration=apply_ai_redo if config is not None else None,
             )

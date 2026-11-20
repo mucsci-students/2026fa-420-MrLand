@@ -33,7 +33,7 @@ class ToolResultDetails(TypedDict, total=False):
     action: str
     combinations: object
     data: object
-    save_destination: Literal["download", "file"]
+    save_destination: Literal["download"]
     errors: object
     generated: int
     valid: int

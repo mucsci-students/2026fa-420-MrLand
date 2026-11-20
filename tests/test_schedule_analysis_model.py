@@ -3,7 +3,7 @@ from pathlib import Path
 from scheduler.config import CombinedConfig
 from scheduler.scheduler import Scheduler
 
-from src.models.configuration_repository import load_config
+from src.models.configuration_model import ConfigService
 from src.models.schedule_analysis_model import (
     ResourceUsage,
     ScheduleAnalysis,
@@ -220,8 +220,13 @@ def test_resource_utilization_geomean_weights_resources_equally():
     assert analysis.lab_utilization_geomean_percent is None
 
 
+def load_test_config(name: str):
+    fixture_path = Path(__file__).parent / "test_configs" / f"{name}.json"
+    return ConfigService().load_uploaded(fixture_path.read_bytes())
+
+
 def test_stats_outliers_config_generates_flagged_schedule():
-    config = load_config("stats_outliers")
+    config = load_test_config("stats_outliers")
     schedule = next(Scheduler(config).get_models())
     result = ScheduleResult("stats_outliers", schedule, config)
     entry = ScheduleEntry(
@@ -250,7 +255,7 @@ def test_stats_outliers_config_generates_flagged_schedule():
 
 
 def test_stats_outliers_partial_schedule_fixture_flags_missing_course():
-    config = load_config("stats_outliers")
+    config = load_test_config("stats_outliers")
     fixture_path = Path(__file__).parent / "fixtures" / "stats_outliers_partial_schedule.csv"
     config_name, records = parse_schedule_file(
         fixture_path.name,

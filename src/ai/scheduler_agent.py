@@ -67,9 +67,9 @@ BASE_SYSTEM_PROMPT = (
     "relevant configuration area before editing it. Validate edits and report "
     "validation problems. Save only when the user explicitly asks you to save. "
     "Generate schedules only from a valid active configuration. Ask for explicit "
-    "user confirmation before deleting an item or replacing a saved configuration; "
-    "the application will show a confirmation dialog and cancel the operation "
-    "if it is declined. Treat each user request as one transaction: if any "
+    "user confirmation before deleting an item. Configuration saves are browser "
+    "downloads; do not claim to replace an existing file because the browser "
+    "controls download destinations and name conflicts. Treat each user request as one transaction: if any "
     "requested operation fails, do not claim partial success. When schedules "
     "are generated, do not reproduce schedule rows; report the count and direct "
     "the user to the Schedule Viewer tab."
@@ -85,14 +85,12 @@ def build_scheduler_agent(
     save_configuration: Callable[[str], None] | None = None,
     confirm_action: Callable[[str], bool] | None = None,
     on_tool_result: Callable[[Mapping[str, object]], None] | None = None,
-    configuration_exists: Callable[[str], bool] | None = None,
     undo_configuration: Callable[[], CombinedConfig | None] | None = None,
     redo_configuration: Callable[[], CombinedConfig | None] | None = None,
 ) -> Any:
     state = SchedulerAgentState(
         config=config,
         confirm_action=confirm_action,
-        configuration_exists=configuration_exists,
     )
     if model is None:
         api_key = os.environ.get("OPENAI_API_KEY")
@@ -144,7 +142,6 @@ def invoke_scheduler_agent(
     save_configuration: Callable[[str], None] | None = None,
     confirm_action: Callable[[str], bool] | None = None,
     on_tool_result: Callable[[Mapping[str, object]], None] | None = None,
-    configuration_exists: Callable[[str], bool] | None = None,
     undo_configuration: Callable[[], CombinedConfig | None] | None = None,
     redo_configuration: Callable[[], CombinedConfig | None] | None = None,
 ) -> dict[str, Any]:
@@ -154,7 +151,6 @@ def invoke_scheduler_agent(
         save_configuration=save_configuration,
         confirm_action=confirm_action,
         on_tool_result=on_tool_result,
-        configuration_exists=configuration_exists,
         undo_configuration=undo_configuration,
         redo_configuration=redo_configuration,
     )

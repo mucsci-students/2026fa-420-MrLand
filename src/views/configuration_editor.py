@@ -21,7 +21,6 @@ from src.models.configuration_model import (
     ValidationProblem,
     validate_config_name,
 )
-from src.models.configuration_repository import ConfigLoadError
 from src.models.quality_grading import QualityGradeSettings
 from src.views.class_patterns_gui import class_patterns_gui
 from src.views.common import coming_soon, section_header
@@ -548,7 +547,7 @@ def configuration_editor(
 
             except ConfigValidationError as exc:
                 show_problems("Invalid configuration file", exc.problems)
-            except (ValueError, ConfigLoadError) as exc:
+            except ValueError as exc:
                 ui.notify(f"Unable to load configuration: {exc}", type="negative")
             except Exception as exc:  # noqa: BLE001 - surface unexpected upload callback failures
                 ui.notify(f"Unable to load configuration: {exc}", type="negative")

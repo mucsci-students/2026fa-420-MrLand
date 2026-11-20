@@ -1,12 +1,6 @@
 import pytest
 
-import src.models.configuration_model as config_service
 from src.models.configuration_model import validate_config_name
-
-
-@pytest.fixture(autouse=True)
-def no_existing_configs(monkeypatch):
-    monkeypatch.setattr(config_service, "config_exists", lambda name: False)
 
 
 def test_valid_name_is_trimmed():
@@ -34,7 +28,5 @@ def test_too_long_name_rejected():
         validate_config_name("a" * 65)
 
 
-def test_existing_name_rejected(monkeypatch):
-    monkeypatch.setattr(config_service, "config_exists", lambda name: name == "config1")
-    with pytest.raises(ValueError, match="already exists"):
-        validate_config_name("config1")
+def test_existing_name_is_allowed():
+    assert validate_config_name("config1") == "config1"

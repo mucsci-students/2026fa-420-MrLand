@@ -10,7 +10,6 @@ from nicegui.elements.upload_files import SmallFileUpload
 from nicegui.testing import UserInteraction, user_simulation
 
 from src.controllers.configuration_controller import ConfigurationController
-from src.models import configuration_repository as config_repo
 from src.views import configuration_editor
 from tests.conftest import active_client
 from tests.test_configuration import make_valid_config
@@ -96,9 +95,8 @@ def test_leaving_configuration_tab_requires_confirmation(
     asyncio.run(simulate())
 
 
-def test_leaving_edited_loaded_configuration_requires_confirmation(monkeypatch, tmp_path, app_gui):
+def test_leaving_edited_loaded_configuration_requires_confirmation(monkeypatch, app_gui):
     monkeypatch.setattr(Client, "on_connect", lambda _self, _handler: None)
-    monkeypatch.setattr(config_repo, "CONFIG_DIR", tmp_path)
     controller = ConfigurationController()
     controller.configuration = make_valid_config()
     monkeypatch.setattr(configuration_editor, "controller", controller)
