@@ -5,6 +5,7 @@ Used by: GUI."""
 import json
 import threading
 from dataclasses import dataclass, replace
+from typing import Protocol
 
 from scheduler.config import CombinedConfig, OptimizerFlags
 from scheduler.contracts import ScheduleDiagnosis
@@ -33,12 +34,78 @@ class ScheduleGenerationState:
     generation_id: int = 0
 
 
+class GenerationPhase(Protocol):
+    """State-pattern interface for generation lifecycle phases."""
+
+    def enter(self, state: ScheduleGenerationState) -> None: ...
+
+
+class IdleGenerationPhase:
+    def enter(self, state: ScheduleGenerationState) -> None:
+        state.running = False
+        state.finished = False
+        state.diagnosing = False
+        state.cancel_requested = False
+        state.diagnosis_cancelled = False
+        state.error = None
+
+
+class RunningGenerationPhase:
+    def enter(self, state: ScheduleGenerationState) -> None:
+        state.running = True
+        state.finished = False
+        state.diagnosing = False
+        state.cancel_requested = False
+        state.diagnosis_cancelled = False
+        state.error = None
+
+
+class DiagnosingGenerationPhase:
+    def enter(self, state: ScheduleGenerationState) -> None:
+        state.running = True
+        state.finished = False
+        state.diagnosing = True
+        state.cancel_requested = False
+        state.diagnosis_cancelled = False
+        state.error = None
+
+
+class FinishedGenerationPhase:
+    def enter(self, state: ScheduleGenerationState) -> None:
+        state.running = False
+        state.finished = True
+        state.diagnosing = False
+        state.cancel_requested = False
+        state.diagnosis_cancelled = False
+        state.error = None
+
+
+class CancelledGenerationPhase:
+    def enter(self, state: ScheduleGenerationState) -> None:
+        state.running = False
+        state.finished = True
+        state.diagnosing = False
+        state.cancel_requested = False
+        state.diagnosis_cancelled = True
+        state.error = None
+
+
+class FailedGenerationPhase:
+    def enter(self, state: ScheduleGenerationState) -> None:
+        state.running = False
+        state.finished = True
+        state.diagnosing = False
+        state.cancel_requested = False
+        state.diagnosis_cancelled = False
+
+
 class ScheduleGeneratorModel:
     """Own schedule-generation data, status, and serialization."""
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._state = ScheduleGenerationState()
+        self._phase: GenerationPhase = IdleGenerationPhase()
         self._generated_schedules: list[ScheduleResult] = []
         self._generation_id = 0
         self._active_scheduler: Scheduler | None = None
@@ -113,6 +180,25 @@ class ScheduleGeneratorModel:
                 self._state.diagnosis = diagnosis
             if generation_id is not None:
                 self._state.generation_id = generation_id
+            self._reconcile_phase_locked()
+
+    def _transition_phase_locked(self, phase: GenerationPhase) -> None:
+        self._phase = phase
+        phase.enter(self._state)
+
+    def _reconcile_phase_locked(self) -> None:
+        if self._state.diagnosis_cancelled:
+            self._phase = CancelledGenerationPhase()
+        elif self._state.error is not None:
+            self._phase = FailedGenerationPhase()
+        elif self._state.finished:
+            self._phase = FinishedGenerationPhase()
+        elif self._state.diagnosing:
+            self._phase = DiagnosingGenerationPhase()
+        elif self._state.running:
+            self._phase = RunningGenerationPhase()
+        else:
+            self._phase = IdleGenerationPhase()
 
     def begin_generation(self, config_name: str, requested: int) -> bool:
         with self._lock:
@@ -130,6 +216,7 @@ class ScheduleGeneratorModel:
                 requested=requested,
                 message="Starting scheduler...",
             )
+            self._transition_phase_locked(RunningGenerationPhase())
             return True
 
     def cancel_diagnosis(self) -> bool:
@@ -150,12 +237,7 @@ class ScheduleGeneratorModel:
 
     def _finish_cancelled_diagnosis(self) -> None:
         self._cancel_diagnosis_requested = False
-        self._state.diagnosing = False
-        self._state.cancel_requested = False
-        self._state.diagnosis_cancelled = True
-        self._state.error = None
-        self._state.finished = True
-        self._state.running = False
+        self._transition_phase_locked(CancelledGenerationPhase())
         self._state.generated = 0
         self._state.valid = 0
         self._state.message = "No valid schedules could be generated."
@@ -233,11 +315,9 @@ class ScheduleGeneratorModel:
                     if self._cancel_diagnosis_requested:
                         self._finish_cancelled_diagnosis()
                     else:
-                        self._state.diagnosing = False
+                        self._transition_phase_locked(FinishedGenerationPhase())
                         self._state.message = "No valid schedules could be generated."
                         self._state.diagnosis = diagnosis
-                        self._state.finished = True
-                        self._state.running = False
                         self._active_scheduler = None
                 return
 
@@ -254,22 +334,19 @@ class ScheduleGeneratorModel:
                     )
                     for schedule in generated
                 )
+                self._transition_phase_locked(FinishedGenerationPhase())
                 self._state.generated = len(generated)
                 self._state.valid = valid_count
                 self._state.message = f"Generated {len(generated)} of {limit} schedules."
-                self._state.finished = True
-                self._state.running = False
                 self._active_scheduler = None
         except Exception as error:  # noqa: BLE001 - worker boundary must publish scheduler failures
             with self._lock:
                 if self._cancel_diagnosis_requested and self._state.diagnosing:
                     self._finish_cancelled_diagnosis()
                 else:
-                    self._state.diagnosing = False
+                    self._transition_phase_locked(FailedGenerationPhase())
                     self._state.error = str(error)
                     self._state.message = "Schedule generation failed."
-                    self._state.finished = True
-                    self._state.running = False
                     self._active_scheduler = None
 
     @staticmethod
