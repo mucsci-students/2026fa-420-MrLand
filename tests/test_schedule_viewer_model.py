@@ -2,8 +2,10 @@ import io
 import json
 import zipfile
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
+from scheduler.models.course import CourseInstance
 
 from src.models.schedule_files import records_to_csv
 from src.models.schedule_result import ScheduleResult
@@ -35,7 +37,18 @@ def test_set_generated_is_change_sensitive_and_selects_first_entry():
     model = ScheduleViewerModel()
     first = ScheduleResult(
         config_name="fall",
-        schedule=[SimpleNamespace(course="CS 101", faculty="Dr. Smith", room="Room 1", lab=None, time="MON 09:00-09:50")],
+        schedule=[
+            cast(
+                CourseInstance,
+                SimpleNamespace(
+                    course="CS 101",
+                    faculty="Dr. Smith",
+                    room="Room 1",
+                    lab=None,
+                    time="MON 09:00-09:50",
+                ),
+            )
+        ],
     )
 
     assert model.set_generated([first]) is True
@@ -110,10 +123,22 @@ def test_export_validates_name_and_all_generated_sanitizes_names():
 
     model.set_generated(
         [
-            ScheduleResult(config_name='bad<>/name', schedule=[
-                SimpleNamespace(course="CS 101", faculty="Dr. Smith", room="Room 1", lab=None, time="MON 09:00-09:50")
-            ]),
-            ScheduleResult(config_name='bad<>/name', schedule=[]),
+            ScheduleResult(
+                config_name="bad<>/name",
+                schedule=[
+                    cast(
+                        CourseInstance,
+                        SimpleNamespace(
+                            course="CS 101",
+                            faculty="Dr. Smith",
+                            room="Room 1",
+                            lab=None,
+                            time="MON 09:00-09:50",
+                        ),
+                    )
+                ],
+            ),
+            ScheduleResult(config_name="bad<>/name", schedule=[]),
         ]
     )
     content, name, media_type = model.export_all_generated("csv")

@@ -1,7 +1,9 @@
 import json
 from types import SimpleNamespace
+from typing import cast
 
 import pytest
+from scheduler.models.course import CourseInstance
 
 from src.models.schedule_files import (
     CsvScheduleExportStrategy,
@@ -47,19 +49,25 @@ def test_generated_result_records_remove_marker_without_lab_and_keep_with_lab():
     result = ScheduleResult(
         config_name="fall",
         schedule=[
-            SimpleNamespace(
-                course="CS 101",
-                faculty="Dr. Smith",
-                room="Room 1",
-                lab=None,
-                time="MON 09:00-09:50^",
+            cast(
+                CourseInstance,
+                SimpleNamespace(
+                    course="CS 101",
+                    faculty="Dr. Smith",
+                    room="Room 1",
+                    lab=None,
+                    time="MON 09:00-09:50^",
+                ),
             ),
-            SimpleNamespace(
-                course="CS 102",
-                faculty="Dr. Jones",
-                room="Room 2",
-                lab="Lab 1",
-                time="TUE 10:00-10:50^",
+            cast(
+                CourseInstance,
+                SimpleNamespace(
+                    course="CS 102",
+                    faculty="Dr. Jones",
+                    room="Room 2",
+                    lab="Lab 1",
+                    time="TUE 10:00-10:50^",
+                ),
             ),
         ],
     )
@@ -87,11 +95,11 @@ def test_config_name_from_file_name(file_name, expected):
 
 def test_parse_csv_accepts_extra_columns_and_legacy_times():
     content = (
-        "schedule,config,course,faculty,room,lab,times\n"
-        "1,fall,CS 101,Dr. Smith,Room 1,,"
-        "\"[TimeInstance(day=TUE, start=TimePoint(timepoint=540), "
-        "duration=Duration(duration=50))]\"\n"
-    ).encode()
+        b"schedule,config,course,faculty,room,lab,times\n"
+        b"1,fall,CS 101,Dr. Smith,Room 1,,"
+        b'"[TimeInstance(day=TUE, start=TimePoint(timepoint=540), '
+        b'duration=Duration(duration=50))]"\n'
+    )
 
     config_name, records = parse_schedule_file("ignored.csv", content)
 
@@ -134,7 +142,7 @@ def test_parse_json_accepts_wrapped_document_and_online_times():
         ("schedule.json", b'[{"course": "CS 101"}]', "Unrecognized meeting time"),
         ("schedule.csv", b"course,faculty\nCS 101,Dr. Smith", "missing column"),
         ("schedule.json", b"[]", "does not contain"),
-        ("schedule.json", b'[null]', "must be a JSON object"),
+        ("schedule.json", b"[null]", "must be a JSON object"),
         ("schedule.json", b'[{"course": "", "times": ""}]', "missing the course name"),
     ],
 )

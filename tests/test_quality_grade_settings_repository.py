@@ -7,7 +7,9 @@ from src.models.quality_grading import QualityGradeSettings
 
 def test_quality_grade_settings_repository_returns_defaults_and_copies_values():
     assert load_quality_grade_settings(None).model_dump() == QualityGradeSettings().model_dump()
-    assert load_quality_grade_settings("missing").model_dump() == QualityGradeSettings().model_dump()
+    assert (
+        load_quality_grade_settings("missing").model_dump() == QualityGradeSettings().model_dump()
+    )
 
     settings = QualityGradeSettings(max_faculty_gap_minutes=45)
     save_quality_grade_settings("fall", settings)
