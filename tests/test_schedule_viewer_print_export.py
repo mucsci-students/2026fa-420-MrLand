@@ -86,7 +86,17 @@ def test_print_dialog_keeps_schedule_until_reopened(monkeypatch, tmp_path, updat
             current = controller.current
             assert current is not None
             await user.should_see(f"Selected schedule: {current.label}")
+
             with active_client(user):
+                orientation = next(
+                    e for e in ElementFilter(kind=ui.select) if e.label == "Group by"
+                )
+                group = next(
+                    e for e in ElementFilter(kind=ui.select) if e.label == "Resource or faculty"
+                )
+
+                orientation.value = "resource"
+
                 assert isinstance(group.options, dict)
                 assert "Room: Room Replacement" in group.options.values()
                 assert "Room: Room Original" not in group.options.values()

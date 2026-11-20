@@ -120,6 +120,35 @@ class TestCreateResourceSchedule:
         assert len(lab_meetings) == 2
         assert {row["resource"] for row in lab_meetings} == {"Lab A", "Lab B"}
 
+    def test_assigns_correct_resource_to_each_meeting(self, meeting_schedule):
+        result = create_resource_schedule(meeting_schedule)
+
+        resources_by_meeting = {(row["course"], row["day"]): row["resource"] for row in result}
+
+        assert resources_by_meeting == {
+            ("CS101", "MON"): "Room 101",
+            ("CS101", "WED"): "Room 101",
+            ("CS101", "FRI"): "Lab A",
+            ("CS102", "MON"): "Online",
+            ("CS102", "TUE"): "Lab B",
+        }
+
+    def test_assigns_unassigned_resource_when_room_or_lab_is_missing(self):
+        schedule = [
+            {
+                "course": "CS103",
+                "faculty": "Dr. Lee",
+                "room": "",
+                "lab": "",
+                "times": "MON 09:00-09:50, TUE 10:00-10:50^",
+            }
+        ]
+
+        result = create_resource_schedule(schedule)
+
+        assert len(result) == 2
+        assert all(row["resource"] == "Unassigned" for row in result)
+
     def test_assigns_online_resource(self, meeting_schedule):
         result = create_resource_schedule(meeting_schedule)
 
@@ -228,7 +257,13 @@ class TestSortSchedule:
     def test_sorts_by_course(self, resource_schedule):
         result = sort_schedule(resource_schedule, column="course")
 
-        assert [row["course"] for row in result] == ["CS101", "CS101", "CS101", "CS102", "CS102"]
+        assert [row["course"] for row in result] == [
+            "CS101",
+            "CS101",
+            "CS101",
+            "CS102",
+            "CS102",
+        ]
 
     def test_empty_schedule_returns_empty_list(self):
         assert sort_schedule([]) == []

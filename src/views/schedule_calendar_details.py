@@ -8,13 +8,13 @@ from scheduler.models.course import Course
 
 from src.controllers.schedule_controller import ScheduleController
 from src.controllers.schedule_filters_controller import create_resource_schedule
-from src.models.schedule_viewer_model import ScheduleEntry
 from src.controllers.schedule_inspection_controller import (
     get_course_details,
     get_faculty_details,
     get_lab_details,
     get_room_details,
 )
+from src.models.schedule_viewer_model import ScheduleEntry
 from src.views.schedule_calendar_types import OverlapCluster, ScheduleRow, SelectedMeeting
 
 
@@ -33,7 +33,7 @@ def show_meeting_details(
     cluster: OverlapCluster,
     entry: ScheduleEntry | None = None,
 ) -> None:
-    
+
     # custom css styling to help follow light/dark mode
     ui.add_head_html(
         """
@@ -63,7 +63,7 @@ def show_meeting_details(
         </style>
         """
     )
-        
+
     selected: SelectedMeeting = {
         "row": row,
         "start": start,
@@ -164,8 +164,7 @@ def show_meeting_details(
 
             meeting_rows = create_resource_schedule([record])
             time_entries = [
-                value.strip() for value in str(record.get("times", "")).split(",")
-                if value.strip()
+                value.strip() for value in str(record.get("times", "")).split(",") if value.strip()
             ]
 
             for meeting, time_entry in zip(meeting_rows, time_entries):
@@ -187,12 +186,14 @@ def show_meeting_details(
                 elif not is_lab and record.get("room"):
                     meeting_type = "Class"
 
-                meetings.append((
-                    day_names.get(day, day),
-                    f"{view._format_time(start_minutes)}–{view._format_time(end_minutes)}",
-                    meeting_type,
-                    view._display_value(meeting.get("resource")),
-                ))
+                meetings.append(
+                    (
+                        day_names.get(day, day),
+                        f"{view._format_time(start_minutes)}–{view._format_time(end_minutes)}",
+                        meeting_type,
+                        view._display_value(meeting.get("resource")),
+                    )
+                )
 
         return sorted(meetings, key=lambda item: (day_order.get(item[0], 99), item[1]))
 
@@ -359,15 +360,11 @@ def show_meeting_details(
                 ui.button(
                     section,
                     on_click=lambda name=section: show_section(name),
-                ).props("flat no-caps align=left").classes(
-                    "w-full justify-start"
-                ).style(
-                    (
-                        "background: var(--surface-accent, var(--surface-hover)); "
-                        "color: var(--accent-color);"
-                        if section == active_section["value"]
-                        else "background: transparent; color: var(--app-foreground);"
-                    )
+                ).props("flat no-caps align=left").classes("w-full justify-start").style(
+                    "background: var(--surface-accent, var(--surface-hover)); "
+                    "color: var(--accent-color);"
+                    if section == active_section["value"]
+                    else "background: transparent; color: var(--app-foreground);"
                 )
 
     # run the initial setup for the dialog

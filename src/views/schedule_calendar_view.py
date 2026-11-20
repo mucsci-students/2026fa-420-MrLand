@@ -251,9 +251,7 @@ class ScheduleCalendarView:
         # add calendar container and content area
         # Normal calendar and toolbar
         self.container = (
-            ui.column()
-            .classes("w-full gap-2")
-            .props('id="schedule-calendar-fullscreen"')
+            ui.column().classes("w-full gap-2").props('id="schedule-calendar-fullscreen"')
         )
 
         # updates container if is a compact calendar
@@ -317,11 +315,7 @@ class ScheduleCalendarView:
         self.filtered_schedule = [row.copy() for row in filtered_schedule]
         self.color_schedule = [
             row.copy()
-            for row in (
-                color_schedule
-                if color_schedule is not None
-                else filtered_schedule
-            )
+            for row in (color_schedule if color_schedule is not None else filtered_schedule)
         ]
         self.display_mode = display_mode
         self.selected_day = selected_day
@@ -381,9 +375,7 @@ class ScheduleCalendarView:
                     if not self.filtered_schedule
                     else "No entries with valid start and end times."
                 )
-                ui.label(message).classes(
-                    "schedule-calendar-empty w-full"
-                )
+                ui.label(message).classes("schedule-calendar-empty w-full")
             return
 
         if last_hour <= first_hour:
@@ -502,9 +494,13 @@ class ScheduleCalendarView:
                             ).classes("schedule-calendar-event-details")
 
                             if not self.compact:
-                                details_values = (resource,) if self.display_mode == "Faculty" else (
-                                    resource,
-                                    faculty,
+                                details_values = (
+                                    (resource,)
+                                    if self.display_mode == "Faculty"
+                                    else (
+                                        resource,
+                                        faculty,
+                                    )
                                 )
                                 details = " • ".join(
                                     value for value in details_values if value != "—"
@@ -599,6 +595,7 @@ class ScheduleCalendarView:
         show_meeting_details(self, controller, row, start, end, cluster, entry)
 
         # Return a background and border color for a course.
+
     def _course_color(self, course: str) -> tuple[str, str]:
         # Use the full schedule so a course keeps its color in every view.
         palette = [

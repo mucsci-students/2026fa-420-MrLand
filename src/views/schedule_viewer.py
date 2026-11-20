@@ -553,9 +553,7 @@ def schedule_viewer() -> Callable[[], None]:
             elif filter_type == "Room / Lab":
                 values = configured_names("rooms") + configured_names("labs")
                 if not values:
-                    values = sorted(
-                        {row["resource"] for row in schedule if row.get("resource")}
-                    )
+                    values = sorted({row["resource"] for row in schedule if row.get("resource")})
             else:
                 values = []
 
@@ -632,15 +630,11 @@ def schedule_viewer() -> Callable[[], None]:
                 if matching_courses:
                     # Show all room and lab assignments connected to those courses.
                     calendar_schedule = [
-                        row
-                        for row in calendar_schedule
-                        if row.get("course") in matching_courses
+                        row for row in calendar_schedule if row.get("course") in matching_courses
                     ]
                 else:
                     calendar_schedule = [
-                        row
-                        for row in calendar_schedule
-                        if row.get("resource") == selected_value
+                        row for row in calendar_schedule if row.get("resource") == selected_value
                     ]
             elif view == "Entire Schedule":
                 filter_type = calendar_filter_select.value
@@ -824,9 +818,7 @@ def schedule_viewer() -> Callable[[], None]:
             else:
                 print_filter = calendar_filter_select.value
                 print_value = calendar_filter_value_select.value
-            group_by, group_key = print_defaults_for_filter(
-                print_entry, print_filter, print_value
-            )
+            group_by, group_key = print_defaults_for_filter(print_entry, print_filter, print_value)
             print_orientation.value = group_by
             update_print_group_options()
             print_group.set_value(group_key)
@@ -846,7 +838,6 @@ def schedule_viewer() -> Callable[[], None]:
             ui.download(content, filename=file_name, media_type=media_type)
             print_export_dialog.close()
             ui.notify(f"Downloaded {file_name}.", type="positive")
-
 
         def on_export_format_changed(event):
             name = (export_name.value or "").strip()

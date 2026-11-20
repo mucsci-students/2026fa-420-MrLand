@@ -82,11 +82,7 @@ def build_comparison_tab(
     )
 
     options = schedule_controller.schedule_options()
-    first_value = (
-        schedule_controller.selected_index
-        if schedule_controller.has_schedules
-        else None
-    )
+    first_value = schedule_controller.selected_index if schedule_controller.has_schedules else None
 
     second_value = None
     if len(options) > 1:
@@ -96,9 +92,7 @@ def build_comparison_tab(
     # Schedule selection
     # ---------------------------------------------------------
 
-    with ui.element("div").classes(
-        "grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0"
-    ):
+    with ui.element("div").classes("grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0"):
         with surface_card("First Schedule"):
             first_schedule_select = (
                 ui.select(
@@ -142,103 +136,93 @@ def build_comparison_tab(
         statistics_tab = ui.tab("Statistics", icon="analytics")
 
     with ui.tab_panels(comparison_tabs, value=view_tab).classes("w-full"):
-        with ui.tab_panel(view_tab):
-            with ui.element("div").props(
-                'id="schedule-comparison-fullscreen"'
-            ).classes("w-full min-w-0"):
-                
-                with ui.column().classes("w-full min-w-0 gap-4"):
+        with (
+            ui.tab_panel(view_tab),
+            ui.element("div")
+            .props('id="schedule-comparison-fullscreen"')
+            .classes("w-full min-w-0"),
+            ui.column().classes("w-full min-w-0 gap-4"),
+        ):
+            # ---------------------------------------------------------
+            # Shared View By controls
+            # ---------------------------------------------------------
+            with (
+                surface_card(
+                    "View By",
+                    "Apply the same view settings to both schedules.",
+                ),
+                ui.row().classes("w-full items-end gap-3 flex-wrap"),
+            ):
+                view_by_select = (
+                    ui.select(
+                        list(VIEW_FIELDS),
+                        value="Faculty",
+                        label="View By",
+                    )
+                    .props("outlined")
+                    .classes("min-w-[160px] flex-1")
+                )
 
-                    # ---------------------------------------------------------
-                    # Shared View By controls
-                    # ---------------------------------------------------------
-                    with surface_card(
-                        "View By",
-                        "Apply the same view settings to both schedules.",
-                    ):
-                        with ui.row().classes("w-full items-end gap-3 flex-wrap"):
-                            view_by_select = (
-                                ui.select(
-                                    list(VIEW_FIELDS),
-                                    value="Faculty",
-                                    label="View By",
-                                )
-                                .props("outlined")
-                                .classes("min-w-[160px] flex-1")
-                            )
+                filter_value_select = (
+                    ui.select(
+                        [],
+                        value=None,
+                        label="Faculty / Room/Lab Value",
+                    )
+                    .props("outlined")
+                    .classes("min-w-[180px] flex-1")
+                )
 
-                            filter_value_select = (
-                                ui.select(
-                                    [],
-                                    value=None,
-                                    label="Faculty / Room/Lab Value",
-                                )
-                                .props("outlined")
-                                .classes("min-w-[180px] flex-1")
-                            )
+                day_filter_select = (
+                    ui.select(
+                        DAYS,
+                        value=None,
+                        label="Day",
+                    )
+                    .props("outlined")
+                    .classes("min-w-[150px] flex-1")
+                )
 
-                            day_filter_select = (
-                                ui.select(
-                                    DAYS,
-                                    value=None,
-                                    label="Day",
-                                )
-                                .props("outlined")
-                                .classes("min-w-[150px] flex-1")
-                            )
+                ui.button(
+                    "Fullscreen",
+                    icon="fullscreen",
+                    on_click=toggle_comparison_fullscreen,
+                ).props("outline").classes("h-14")
 
-                            ui.button(
-                                "Fullscreen",
-                                icon="fullscreen",
-                                on_click=toggle_comparison_fullscreen,
-                            ).props("outline").classes("h-14")
+            # ---------------------------------------------------------
+            # Calendar display
+            # ---------------------------------------------------------
+            with ui.element("div").classes("grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0"):
+                with surface_card("First Schedule Calendar"):
+                    first_view_title = ui.label("No Schedule Selected").classes(
+                        "text-lg font-semibold"
+                    )
 
-                    # ---------------------------------------------------------
-                    # Calendar display
-                    # ---------------------------------------------------------
-                    with ui.element("div").classes(
-                        "grid grid-cols-1 md:grid-cols-2 gap-4 w-full min-w-0"
-                    ):
-                        with surface_card("First Schedule Calendar"):
-                            first_view_title = ui.label(
-                                "No Schedule Selected"
-                            ).classes("text-lg font-semibold")
+                    first_calendar = schedule_calendar_view(
+                        entry_provider=lambda: selected_entry(first_schedule_select),
+                        compact=True,
+                    )
 
-                            first_calendar = schedule_calendar_view(
-                                entry_provider=lambda: selected_entry(
-                                    first_schedule_select
-                                ),
-                                compact=True,
-                            )
+                with surface_card("Second Schedule Calendar"):
+                    second_view_title = ui.label("No Schedule Selected").classes(
+                        "text-lg font-semibold"
+                    )
 
-                        with surface_card("Second Schedule Calendar"):
-                            second_view_title = ui.label(
-                                "No Schedule Selected"
-                            ).classes("text-lg font-semibold")
-
-                            second_calendar = schedule_calendar_view(
-                                entry_provider=lambda: selected_entry(
-                                    second_schedule_select
-                                ),
-                                compact=True,
-                            )
+                    second_calendar = schedule_calendar_view(
+                        entry_provider=lambda: selected_entry(second_schedule_select),
+                        compact=True,
+                    )
 
         with (
             ui.tab_panel(statistics_tab),
-            ui.element("div").classes(
-                "grid grid-cols-1 lg:grid-cols-2 gap-4 w-full min-w-0"
-            ),
+            ui.element("div").classes("grid grid-cols-1 lg:grid-cols-2 gap-4 w-full min-w-0"),
         ):
-            first_statistics_refresh, first_statistics_title = (
-                build_statistics_comparison_panel(
-                    "No Schedule Selected"
-                )
+            first_statistics_refresh, first_statistics_title = build_statistics_comparison_panel(
+                "No Schedule Selected"
             )
 
-            second_statistics_refresh, second_statistics_title = (
-                build_statistics_comparison_panel(
-                    "No Schedule Selected"
-                )
+            second_statistics_refresh, second_statistics_title = build_statistics_comparison_panel(
+                "No Schedule Selected"
             )
 
     # ---------------------------------------------------------
@@ -258,15 +242,11 @@ def build_comparison_tab(
         second = selected_index(second_schedule_select)
 
         first_schedule_select.options = {
-            index: label
-            for index, label in options.items()
-            if index != second
+            index: label for index, label in options.items() if index != second
         }
 
         second_schedule_select.options = {
-            index: label
-            for index, label in options.items()
-            if index != first
+            index: label for index, label in options.items() if index != first
         }
 
         first_schedule_select.update()
@@ -345,10 +325,7 @@ def build_comparison_tab(
 
     def shared_time_range() -> tuple[int, int] | None:
         """Calculate one time range using both complete schedules."""
-        rows = (
-            selected_rows(first_schedule_select)
-            + selected_rows(second_schedule_select)
-        )
+        rows = selected_rows(first_schedule_select) + selected_rows(second_schedule_select)
 
         valid_times = []
 
@@ -387,10 +364,7 @@ def build_comparison_tab(
             filter_value_select.update()
             return
 
-        rows = (
-            selected_rows(first_schedule_select)
-            + selected_rows(second_schedule_select)
-        )
+        rows = selected_rows(first_schedule_select) + selected_rows(second_schedule_select)
 
         if field == "resource":
             resource_values = {
@@ -413,11 +387,7 @@ def build_comparison_tab(
             values = sorted(resource_values)
         else:
             values = sorted(
-                {
-                    str(row.get(field, ""))
-                    for row in rows
-                    if row.get(field) not in (None, "")
-                }
+                {str(row.get(field, "")) for row in rows if row.get(field) not in (None, "")}
             )
 
         previous_value = filter_value_select.value
@@ -451,32 +421,19 @@ def build_comparison_tab(
             matching_courses = {
                 record.get("course")
                 for record in records
-                if value in (record.get("room"), record.get("lab"))
-                and record.get("course")
+                if value in (record.get("room"), record.get("lab")) and record.get("course")
             }
 
             if matching_courses:
-                rows = [
-                    row for row in rows
-                    if row.get("course") in matching_courses
-                ]
+                rows = [row for row in rows if row.get("course") in matching_courses]
             else:
-                rows = [
-                    row for row in rows
-                    if str(row.get("resource", "")) == str(value)
-                ]
+                rows = [row for row in rows if str(row.get("resource", "")) == str(value)]
 
         elif field is not None and value is not None:
-            rows = [
-                row for row in rows
-                if str(row.get(field, "")) == str(value)
-            ]
+            rows = [row for row in rows if str(row.get(field, "")) == str(value)]
 
         if selected_day is not None:
-            rows = [
-                row for row in rows
-                if row.get("day") == selected_day
-            ]
+            rows = [row for row in rows if row.get("day") == selected_day]
 
         return rows
 
@@ -576,22 +533,12 @@ def build_comparison_tab(
         update_selector_options()
         refresh_comparison()
 
-    first_schedule_select.on_value_change(
-        lambda _: handle_schedule_change("first")
-    )
-    second_schedule_select.on_value_change(
-        lambda _: handle_schedule_change("second")
-    )
+    first_schedule_select.on_value_change(lambda _: handle_schedule_change("first"))
+    second_schedule_select.on_value_change(lambda _: handle_schedule_change("second"))
 
-    view_by_select.on_value_change(
-        lambda _: refresh_comparison()
-    )
-    filter_value_select.on_value_change(
-        lambda _: update_calendars()
-    )
-    day_filter_select.on_value_change(
-        lambda _: update_calendars()
-    )
+    view_by_select.on_value_change(lambda _: refresh_comparison())
+    filter_value_select.on_value_change(lambda _: update_calendars())
+    day_filter_select.on_value_change(lambda _: update_calendars())
 
     # ---------------------------------------------------------
     # External refresh

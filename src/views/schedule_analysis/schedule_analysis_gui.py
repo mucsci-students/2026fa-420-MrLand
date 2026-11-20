@@ -270,12 +270,14 @@ def schedule_analysis() -> ScheduleAnalysisRefresh:
         # Analysis tabs and global refresh button
         # -----------------------------------------------------
 
-        with ui.row().classes("w-full items-center justify-between"):
+        with (
+            ui.row().classes("w-full items-center justify-between"),
+            ui.tabs().props("dense no-caps").classes("analysis-tabs") as analysis_tabs,
+        ):
             # Analysis tabs
-            with ui.tabs().props("dense no-caps").classes("analysis-tabs") as analysis_tabs:
-                ui.tab("statistics", label="Statistics")
-                ui.tab("comparison", label="Schedule Comparison")
-                ui.tab("what-if", label="What-If Analysis")
+            ui.tab("statistics", label="Statistics")
+            ui.tab("comparison", label="Schedule Comparison")
+            ui.tab("what-if", label="What-If Analysis")
 
         # -----------------------------------------------------
         # Tab panels
