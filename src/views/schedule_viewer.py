@@ -508,6 +508,7 @@ def schedule_viewer() -> Callable[[], None]:
                 calendar_value_select.enable()
                 calendar_value_select.visible = True
             elif view == "Room / Lab":
+                entry = controller.current
                 records = entry.records if entry is not None else []
                 values = configured_names("rooms") + configured_names("labs")
                 if not values:
@@ -619,20 +620,27 @@ def schedule_viewer() -> Callable[[], None]:
             elif view == "Room / Lab" and selected_value:
                 entry = controller.current
                 records = entry.records if entry is not None else []
-                if selected_value in {
-                    record.get("room") for record in records if record.get("room")
-                }:
-                    matching_sections = {
-                        record.get("course")
-                        for record in records
-                        if record.get("room") == selected_value and record.get("course")
-                    }
+
+                # Find every course that uses the selected room or lab.
+                matching_courses = {
+                    record.get("course")
+                    for record in records
+                    if selected_value in (record.get("room"), record.get("lab"))
+                    and record.get("course")
+                }
+
+                if matching_courses:
+                    # Show all room and lab assignments connected to those courses.
                     calendar_schedule = [
-                        row for row in calendar_schedule if row.get("course") in matching_sections
+                        row
+                        for row in calendar_schedule
+                        if row.get("course") in matching_courses
                     ]
                 else:
                     calendar_schedule = [
-                        row for row in calendar_schedule if row.get("resource") == selected_value
+                        row
+                        for row in calendar_schedule
+                        if row.get("resource") == selected_value
                     ]
             elif view == "Entire Schedule":
                 filter_type = calendar_filter_select.value
@@ -839,8 +847,6 @@ def schedule_viewer() -> Callable[[], None]:
             print_export_dialog.close()
             ui.notify(f"Downloaded {file_name}.", type="positive")
 
-        # Give the calendar fullscreen toolbar access to the existing export dialog.
-        calendar_view.set_export_callback(open_export_dialog)
 
         def on_export_format_changed(event):
             name = (export_name.value or "").strip()

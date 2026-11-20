@@ -277,17 +277,6 @@ def schedule_analysis() -> ScheduleAnalysisRefresh:
                 ui.tab("comparison", label="Schedule Comparison")
                 ui.tab("what-if", label="What-If Analysis")
 
-            # Refresh button
-            refresh_button = (
-                ui.button(
-                    "Refresh",
-                    icon="refresh",
-                    on_click=refresh,
-                )
-                .props("outline")
-                .style("color: var(--text-muted)")
-            )
-
         # -----------------------------------------------------
         # Tab panels
         # -----------------------------------------------------
@@ -354,7 +343,6 @@ def schedule_analysis() -> ScheduleAnalysisRefresh:
 
         analysis_tabs.on_value_change(on_analysis_tab_change)
 
-    refresh_button.on_click(refresh)
     upload.on_upload(on_upload)
 
     refresh()

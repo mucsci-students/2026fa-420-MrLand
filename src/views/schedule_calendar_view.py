@@ -59,9 +59,10 @@ class ScheduleCalendarView:
         self.display_mode = "Entire Schedule"
         # initialize the selected day variable from the day filter
         self.selected_day: str | None = None
+        # Optional shared time range used by Schedule Comparison.
+        self.time_range: tuple[int, int] | None = None
         # add a variable to track whether the calendar is in full screen mode
         self.fullscreen = False
-        self.export_callback = None
 
         # Adds custom CSS for styling the Calendar
         ui.add_head_html(
@@ -104,26 +105,22 @@ class ScheduleCalendarView:
                     --calendar-course-11: #dce8df;
                     --calendar-course-12: #eeddf2;
                 }
-
-                .schedule-calendar-fullscreen {
-                    position: fixed !important;
-                    inset: 0 !important;
-                    z-index: 1000 !important;
-                    width: 100vw !important;
-                    height: 100dvh !important;
-                    max-height: 100dvh !important;
-                    overflow: auto !important;
-                    padding: 12px !important;
-                    box-sizing: border-box !important;
-                    background: var(--app-background) !important;
+                #schedule-calendar-fullscreen:fullscreen {
+                    width: 100%;
+                    height: 100%;
+                    max-height: 100%;
+                    box-sizing: border-box;
+                    overflow: auto;
+                    padding: 12px;
+                    background: var(--app-background);
                 }
 
-                .schedule-calendar-fullscreen .schedule-calendar-scroll {
+                #schedule-calendar-fullscreen:fullscreen .schedule-calendar-scroll {
                     height: calc(100dvh - 90px);
                     overflow: hidden;
                 }
 
-                .schedule-calendar-fullscreen .schedule-calendar-grid {
+                #schedule-calendar-fullscreen:fullscreen .schedule-calendar-grid {
                     min-width: 0;
                     height: 100%;
                 }
@@ -253,71 +250,54 @@ class ScheduleCalendarView:
 
         # add calendar container and content area
         # Normal calendar and toolbar
-        self.container = ui.column().classes("w-full gap-2")
+        self.container = (
+            ui.column()
+            .classes("w-full gap-2")
+            .props('id="schedule-calendar-fullscreen"')
+        )
 
         # updates container if is a compact calendar
         if self.compact:
             self.container.classes("schedule-calendar-compact min-w-0")
 
         with self.container:
-            with ui.row().classes("w-full items-center justify-end gap-2"):
-                ui.button(
-                    "Fullscreen",
-                    icon="fullscreen",
-                    on_click=self._open_fullscreen,
-                ).props("outline")
+            if not self.compact:
+                with ui.row().classes("w-full items-center justify-end gap-2"):
+                    ui.button(
+                        "Fullscreen",
+                        icon="fullscreen",
+                        on_click=self._open_fullscreen,
+                    ).props("outline")
 
             self.calendar_content = ui.column().classes("w-full min-w-0 gap-0")
 
         # Fullscreen pop-up
-        self.fullscreen_dialog = ui.dialog().props("maximized")
-
-        with (
-            self.fullscreen_dialog,
-            ui.card()
-            .classes("w-full h-full gap-2")
-            .style(
-                "background: var(--app-background); color: var(--app-foreground);"
-                "display: flex; flex-direction: column;"
-            ),
-        ):
-            with ui.row().classes("w-full items-center justify-end gap-2"):
-                self.export_button = ui.button(
-                    "Export",
-                    icon="download",
-                    on_click=self._open_export,
-                ).props("outline")
-                self.export_button.set_visibility(False)
-
-                ui.button(
-                    "Exit Fullscreen",
-                    icon="close",
-                    on_click=self.fullscreen_dialog.close,
-                ).props("outline")
-
-            self.popup_calendar_content = (
-                ui.column()
-                .classes("w-full min-w-0 gap-0")
-                .style("flex: 1; min-height: 0; overflow-x: auto; overflow-y: auto;")
-            )
+        # Fullscreen calendar content uses the same calendar container.
+        self.popup_calendar_content = self.calendar_content
 
     # ---------------------------------------------------------
     # Fullscreen Calendar Methods
     # ---------------------------------------------------------
 
-    # Use the schedule viewer's existing export dialog
-    def set_export_callback(self, callback) -> None:
-        self.export_callback = callback
-        self.export_button.set_visibility(callback is not None)
-
-    def _open_export(self) -> None:
-        if self.export_callback is not None:
-            self.export_callback()
-
-    # Expand the calendar to the viewport, or return to normal
+    # Expand the calendar to the browser viewport, or return to normal
     def _open_fullscreen(self) -> None:
-        self._render()
-        self.fullscreen_dialog.open()
+        ui.run_javascript(
+            """
+            const calendar = document.getElementById(
+                'schedule-calendar-fullscreen'
+            );
+
+            if (!calendar) {
+                return;
+            }
+
+            if (document.fullscreenElement === calendar) {
+                document.exitFullscreen();
+            } else if (!document.fullscreenElement) {
+                calendar.requestFullscreen();
+            }
+            """
+        )
 
     # ---------------------------------------------------------
     # Update Calendar
@@ -331,13 +311,21 @@ class ScheduleCalendarView:
         *,
         display_mode: str = "Entire Schedule",
         color_schedule: list[dict] | None = None,
+        time_range: tuple[int, int] | None = None,
     ) -> None:
+        """Replace the calendar contents with the parent's filtered rows and day."""
         self.filtered_schedule = [row.copy() for row in filtered_schedule]
         self.color_schedule = [
-            row.copy() for row in (color_schedule if color_schedule is not None else filtered_schedule)
+            row.copy()
+            for row in (
+                color_schedule
+                if color_schedule is not None
+                else filtered_schedule
+            )
         ]
         self.display_mode = display_mode
         self.selected_day = selected_day
+        self.time_range = time_range
         self._render()
 
     # ---------------------------------------------------------
@@ -345,17 +333,9 @@ class ScheduleCalendarView:
     # ---------------------------------------------------------
     def _render(self) -> None:
         self._render_calendar(self.calendar_content, popup=False)
-        self._render_calendar(self.popup_calendar_content, popup=True)
 
     def _render_calendar(self, target, popup: bool) -> None:
         target.clear()
-
-        if not self.filtered_schedule:
-            with target:
-                ui.label("No schedule entries match the current filters.").classes(
-                    "schedule-calendar-empty w-full"
-                )
-            return
 
         # find the days to display based on the selected day filter
         visible_days = (
@@ -376,16 +356,36 @@ class ScheduleCalendarView:
 
             valid_rows.append((row, start, end))
 
-        if not valid_rows:
+        # Use a shared time range when provided by Schedule Comparison.
+        # Otherwise, calculate the range from this calendar's valid meetings.
+        if self.time_range is not None:
+            range_start, range_end = self.time_range
+
+            first_hour = max(0, floor(range_start / 60))
+            last_hour = min(24, ceil(range_end / 60))
+
+        elif valid_rows:
+            first_hour = max(
+                0,
+                floor(min(start for _, start, _ in valid_rows) / 60),
+            )
+            last_hour = min(
+                24,
+                ceil(max(end for _, _, end in valid_rows) / 60),
+            )
+
+        else:
             with target:
-                ui.label("No entries with valid start and end times.").classes(
+                message = (
+                    "No schedule entries match the current filters."
+                    if not self.filtered_schedule
+                    else "No entries with valid start and end times."
+                )
+                ui.label(message).classes(
                     "schedule-calendar-empty w-full"
                 )
             return
 
-        # set the first and last hour of the calendar based on the earliest start time and latest end time of the valid rows
-        first_hour = max(0, floor(min(start for _, start, _ in valid_rows) / 60))
-        last_hour = min(24, ceil(max(end for _, _, end in valid_rows) / 60))
         if last_hour <= first_hour:
             last_hour = min(24, first_hour + 1)
 
