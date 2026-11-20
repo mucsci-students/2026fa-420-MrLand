@@ -90,17 +90,6 @@ class ScheduleController:
     # Loading
     # ------------------------------------------------------------------
 
-    def list_saved_files(self) -> list[str]:
-        return self.model.list_saved_files()
-
-    def load_saved_file(self, file_name: str | None) -> tuple[ScheduleEntry | None, str | None]:
-        if not file_name:
-            return None, "Please choose a schedule file."
-        try:
-            return self.model.load_saved_file(file_name), None
-        except (OSError, ValueError) as error:
-            return None, f"Could not load '{file_name}': {error}"
-
     def load_uploaded_file(
         self, file_name: str, content: bytes
     ) -> tuple[ScheduleEntry | None, str | None]:

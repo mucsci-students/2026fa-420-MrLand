@@ -18,7 +18,7 @@ from tests.conftest import active_client
 
 
 @pytest.mark.parametrize("update_method", ["sync_generated", "set_generated"])
-def test_print_dialog_keeps_schedule_until_reopened(monkeypatch, tmp_path, update_method):
+def test_print_dialog_keeps_schedule_until_reopened(monkeypatch, update_method):
     def result(name):
         return ScheduleResult(
             config_name=name,
@@ -38,7 +38,7 @@ def test_print_dialog_keeps_schedule_until_reopened(monkeypatch, tmp_path, updat
 
     generator = SimpleNamespace(generated_schedules=[result("Original")])
     controller = ScheduleController(
-        model=ScheduleViewerModel(directory=tmp_path),
+        model=ScheduleViewerModel(),
         generator=cast(ScheduleGeneratorController, generator),
     )
     monkeypatch.setattr(viewer, "controller", controller)

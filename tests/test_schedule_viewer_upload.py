@@ -23,7 +23,7 @@ from tests.conftest import active_client
 
 @pytest.mark.parametrize("reopen", [False, True])
 def test_cancel_pending_upload_preserves_schedule_and_allows_next_load(
-    monkeypatch, tmp_path, reopen
+    monkeypatch, reopen
 ):
     content = records_to_csv(
         [
@@ -37,7 +37,7 @@ def test_cancel_pending_upload_preserves_schedule_and_allows_next_load(
         ]
     )
     controller = ScheduleController(
-        model=ScheduleViewerModel(directory=tmp_path),
+        model=ScheduleViewerModel(),
         generator=cast(
             ScheduleGeneratorController,
             SimpleNamespace(generated_schedules=[]),
@@ -130,8 +130,8 @@ def test_cancel_pending_upload_preserves_schedule_and_allows_next_load(
         ),
     ],
 )
-def test_upload_rejects_malformed_course_sections(tmp_path, records, message):
-    model = ScheduleViewerModel(directory=tmp_path)
+def test_upload_rejects_malformed_course_sections(records, message):
+    model = ScheduleViewerModel()
 
     with pytest.raises(ValueError, match=message):
         model.load_bytes("schedule.json", json.dumps(records).encode("utf-8"))
@@ -139,8 +139,8 @@ def test_upload_rejects_malformed_course_sections(tmp_path, records, message):
     assert model.entries == []
 
 
-def test_upload_rejects_non_utf8_schedule_file(tmp_path):
-    model = ScheduleViewerModel(directory=tmp_path)
+def test_upload_rejects_non_utf8_schedule_file():
+    model = ScheduleViewerModel()
 
     with pytest.raises(ValueError, match="The file is not UTF-8 text."):
         model.load_bytes("schedule.csv", b"\xff")

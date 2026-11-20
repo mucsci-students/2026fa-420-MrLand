@@ -594,11 +594,11 @@ The application follows MVC package organization: configuration and schedule sta
 - **Improvement:** `ConfigService` now handles listing config names and reading and validating the uploaded JSON, using the shared configuration folder. The editor doesn't have its own separate parser anymore.
 - **Behavior evidence:** Tests cover listing configurations and uploading valid or invalid files.
 
-### 3. Make the schedule file handling report invalid data and I/O failures
+### 3. Report invalid schedule data
 
-- **Original problem and location:** `parse_schedule_file` in `src/models/schedule_files.py` could skip over bad schedule entries. `ScheduleViewerModel.list_saved_files` in `src/models/schedule_viewer_model.py` could treat file or folder access problems as if there were no saved schedules on disk.
-- **Why it was debt:** Users could get an incomplete schedule without knowing something was wrong, or could see an empty list instead of a concrete explanation when a file could not be accessed.
-- **Improvement:** The app now reports malformed schedule entries with their position in the file. It also reports schedule-folder access problems, and the controller and export UI show those errors instead of treating them as success.
+- **Original problem and location:** `parse_schedule_file` in `src/models/schedule_files.py` could skip over bad schedule entries.
+- **Why it was debt:** Users could get an incomplete schedule without knowing something was wrong.
+- **Improvement:** The app reports malformed schedule entries with their position in the file.
 - **Behavior evidence:** Tests check that malformed uploads are rejected.
 
 ### 4. Give calendar rendering and configuration history their own tasks
@@ -607,6 +607,13 @@ The application follows MVC package organization: configuration and schedule sta
 - **Why it was debt:** It was harder to find and change one piece of behavior when the same files handled several tasks.
 - **Improvement:** The meeting-details dialog and shared calendar types now have their own files. Undo / redo tracking is handled by `ConfigurationHistory`, while the editor continues to handle the display and notifications.
 - **Behavior evidence:** Tests cover calendar layout and time behavior, as well as undoing / redoing an AI edit in the configuration editor.
+
+### 5. Remove repository-local schedule storage
+
+- **Original problem and location:** `ScheduleViewerModel` used the repository's `src/schedules` folder to list and load schedules and to choose export filenames.
+- **Why it was debt:** That fixed folder was not controlled by the user, even though schedule downloads are handled by the browser. The app also depended on the folder being present to export generated schedules.
+- **Improvement:** The app no longer reads or writes schedules in the repository folder. Users load schedules through uploads, and generated schedules are downloaded through the browser. Export names start at 1 per config in each ZIP; the browser handles repeated download names.
+- **Behavior evidence:** Tests verify uploads and exports work without a saved-schedules folder and that ZIP entries are numbered sequentially.
 
 ---
 
