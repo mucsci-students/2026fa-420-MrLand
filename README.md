@@ -21,7 +21,7 @@
 MrLand is a course-scheduling application for creating and managing course configurations, generating schedules, and inspecting generated results. The application uses a NiceGUI web interface with three main areas:
 
 1. **Configuration Editor** – create, load, edit, validate, and save scheduler configurations.
-2. **Schedule Generator** – generate schedules from an active or saved configuration and monitor generation progress.
+2. **Schedule Generator** – generate schedules from an active or uploaded configuration and monitor generation progress.
 3. **Schedule Viewer** – inspect schedules in calendar or table form, filter meetings, and export results.
 
 A floating **Scheduler AI Assistant** is available throughout the GUI. It can inspect and edit the active configuration, validate it, save it, and request schedule generation using a defined set of application tools.
@@ -32,15 +32,15 @@ A floating **Scheduler AI Assistant** is available throughout the GUI. It can in
 
 ### Configuration Editor
 
-- Create new configuration drafts and load saved JSON configurations.
+- Create new configuration drafts and upload JSON configurations from your computer.
 - Manage courses, faculty, rooms, labs, class patterns, meetings, weekday time blocks, and global generation settings.
 - Validate the complete configuration against the scheduler's schema and model rules.
 - Preserve incomplete new drafts while preventing an edit from leaving an already-valid configuration invalid.
-- Save configurations as JSON under `src/configs/`.
+- Download configurations as JSON; the browser controls where the files are saved.
 
 ### Schedule Generator
 
-- Select a saved configuration or generate from the active editor configuration.
+- Upload a configuration or generate from the active editor configuration.
 - Review configured generation limits and optimizer settings.
 - Apply temporary overrides for a generation run, including supported time-slot settings.
 - Generate schedules in a background thread.
@@ -68,7 +68,7 @@ A floating **Scheduler AI Assistant** is available throughout the GUI. It can in
 
 ### What-If Analysis
 
-- Start from the active editor configuration, a generated schedule's configuration, a saved configuration, an uploaded JSON configuration, or a blank draft.
+- Start from the active editor configuration, a generated schedule's configuration, an uploaded JSON configuration, or a blank draft.
 - Edit the same configuration areas as the Configuration Editor without saving changes to disk.
 - Generate alternative schedules from a snapshot of the temporary configuration without clearing existing generated schedules.
 - Compare an alternative against the schedule currently selected in Schedule Analysis.
@@ -275,17 +275,17 @@ The assistant saves only when explicitly asked. Generation is allowed only after
 The assistant distinguishes between editing the active configuration and writing a JSON file:
 
 - **Applied in memory, not saved:** successful edits update the open configuration in the Configuration Editor. They remain part of the current application state, but have not been written to a configuration file.
-- **Saved to disk:** when the user explicitly asks the assistant to save, the application validates the configuration and writes it under `src/configs/` as JSON. The assistant reports the saved configuration name.
+- **Downloaded:** when the user explicitly asks the assistant to save, the application validates the configuration and downloads it as JSON. The browser controls its save location.
 - **No successful change:** if a request is rejected or cancelled, the assistant must not report it as applied.
 
-The assistant reports which of these outcomes occurred. Saving over an existing configuration requires confirmation.
+The assistant reports which of these outcomes occurred. Download filename conflicts are handled by the browser.
 
 ### Unsupported requests, validation, and failures
 
 - **Unsupported request:** the assistant explains that the requested action is outside its supported scheduler role and, where possible, identifies available actions. It does not pretend to perform unsupported work.
 - **Missing information:** the assistant asks a focused follow-up question rather than inventing required values.
 - **Validation failure:** the application rejects invalid changes and returns validation details. A new draft may remain incomplete, but an edit to an already-valid configuration cannot leave that configuration invalid.
-- **Delete or overwrite:** deleting a configuration item or replacing an existing saved configuration requires an explicit confirmation dialog. Declining cancels the operation.
+- **Delete:** deleting a configuration item requires an explicit confirmation dialog. Download filename conflicts are handled by the browser.
 - **Multi-operation request failure:** a request is treated as one transaction. If one requested operation fails, the application restores the configuration to its state before that request; it does not keep partial changes from that request.
 - **OpenAI/API failure:** the assistant displays a user-friendly error for common problems such as a missing or rejected API key, model permissions, exhausted quota, rate limits, network problems, timeouts, or an unavailable OpenAI service. Detailed exception information is written to the server log for debugging; raw API error details are not intentionally shown in the chat.
 
@@ -385,10 +385,10 @@ configuration editing, schedule generation, and schedule visualization.
 
 ## Configuration Files and Validation
 
-The scheduler stores configuration files as JSON under:
+Configuration files are JSON files that users upload from their computer and download through the browser. The application does not maintain a repository-local configuration folder. The schema used to validate configurations is:
 
 ```text
-src/configs/
+src/schemas/combined-config.schema.json
 ```
 
 A configuration can include:
@@ -568,12 +568,12 @@ The application uses an MVC organization and includes Strategy, Memento, Composi
 │   │   ├── api_errors.py
 │   │   ├── scheduler_agent.py
 │   │   ├── scheduler_agent_state.py
-│   ├── configs/
 │   ├── controllers/
 │   ├── models/
 │   ├── schemas/
 │   └── views/
 └── tests/
+    └── test_configs/
 ```
 
 The application follows MVC package organization: configuration and schedule state are in `models`, application coordination is in `controllers`, and NiceGUI pages/components are in `views`. AI agent setup and tool definitions are grouped in `src/ai/`.
@@ -587,18 +587,18 @@ The application follows MVC package organization: configuration and schedule sta
 - **Improvement:** The add, edit, and delete operations are now separate from the terminal prompts for all the different types. The GUI can call these operations directly, while the existing terminal and imports still work. Shared prompts for weekdays and numbers are in `cli_input.py`.
 - **Behavior evidence:** The tests cover both the terminal workflow and direct operations, including the shared ones used by the GUI and AI.
 
-### 2. Centralize configuration listing and uploaded-file parsing
+### 2. Centralize uploaded-configuration parsing
 
-- **Original problem and location:** Different parts of the app handled listing configs and reading uploaded config files. Some of that work was duplicated, and they didn't always use the same folder.
-- **Why it was debt:** Duplicate parsing could lead to different validation results, and inconsistent folder handling made it hard to tell where configurations were being found / loaded from.
-- **Improvement:** `ConfigService` now handles listing config names and reading and validating the uploaded JSON, using the shared configuration folder. The editor doesn't have its own separate parser anymore.
-- **Behavior evidence:** Tests cover listing configurations and uploading valid or invalid files.
+- **Original problem and location:** The Configuration Editor and Schedule Generator each accepted uploaded JSON configurations, while parsing and validation rules needed to remain consistent.
+- **Why it was debt:** Duplicated parsing could lead to different validation results for the same configuration.
+- **Improvement:** `ConfigService` handles parsing and validating uploaded JSON, and both views use that shared path.
+- **Behavior evidence:** Tests cover uploading valid and invalid configuration files in both workflows.
 
-### 3. Make the schedule file handling report invalid data and I/O failures
+### 3. Report invalid schedule data
 
-- **Original problem and location:** `parse_schedule_file` in `src/models/schedule_files.py` could skip over bad schedule entries. `ScheduleViewerModel.list_saved_files` in `src/models/schedule_viewer_model.py` could treat file or folder access problems as if there were no saved schedules on disk.
-- **Why it was debt:** Users could get an incomplete schedule without knowing something was wrong, or could see an empty list instead of a concrete explanation when a file could not be accessed.
-- **Improvement:** The app now reports malformed schedule entries with their position in the file. It also reports schedule-folder access problems, and the controller and export UI show those errors instead of treating them as success.
+- **Original problem and location:** `parse_schedule_file` in `src/models/schedule_files.py` could skip over bad schedule entries.
+- **Why it was debt:** Users could get an incomplete schedule without knowing something was wrong.
+- **Improvement:** The app reports malformed schedule entries with their position in the file.
 - **Behavior evidence:** Tests check that malformed uploads are rejected.
 
 ### 4. Give calendar rendering and configuration history their own tasks
@@ -608,6 +608,20 @@ The application follows MVC package organization: configuration and schedule sta
 - **Improvement:** The meeting-details dialog and shared calendar types now have their own files. Undo / redo tracking is handled by `ConfigurationHistory`, while the editor continues to handle the display and notifications.
 - **Behavior evidence:** Tests cover calendar layout and time behavior, as well as undoing / redoing an AI edit in the configuration editor.
 
+### 5. Remove repository-local schedule storage
+
+- **Original problem and location:** `ScheduleViewerModel` used the repository's `src/schedules` folder to list and load schedules and to choose export filenames.
+- **Why it was debt:** That fixed folder was not controlled by the user, even though schedule downloads are handled by the browser. The app also depended on the folder being present to export generated schedules.
+- **Improvement:** The app no longer reads or writes schedules in the repository folder. Users load schedules through uploads, and generated schedules are downloaded through the browser. Export names start at 1 per config in each ZIP; the browser handles repeated download names.
+- **Behavior evidence:** Tests verify uploads and exports work without a saved-schedules folder and that ZIP entries are numbered sequentially.
+
+### 6. Remove repository-local configuration storage
+
+- **Original problem and location:** Configuration persistence and quality-grade sidecars used `src/configs`, even though the editor already accepts user uploads and downloads JSON through the browser.
+- **Why it was debt:** The repository folder made the app manage user files and also mixed test fixtures with runtime configuration data.
+- **Improvement:** Runtime configurations are now loaded through uploads and saved through browser downloads. Quality-grade settings travel inside the configuration JSON; the app no longer reads or writes `src/configs`. Configurations needed by tests are kept in `tests/test_configs/`, while unused bundled configs are removed.
+- **Behavior evidence:** Tests verify upload/download round trips, embedded quality-grade settings, and generator/analysis behavior using fixtures from `tests/test_configs/`.
+
 ---
 
 ## Known Limitations
@@ -616,7 +630,7 @@ The application follows MVC package organization: configuration and schedule sta
 - AI configuration operations require an active configuration in the Configuration Editor. The assistant cannot edit a configuration before one is created or loaded.
 - The assistant is limited to its registered tools and scheduler domain. It is not a general-purpose application operator and does not perform arbitrary GUI or file-system actions.
 - The assistant asks for clarification when required configuration values are missing; it does not infer unprovided resource availability or assignments.
-- Deleting items and overwriting an existing saved configuration require confirmation.
+- Deleting configuration items requires confirmation. Configuration file name conflicts are handled by the browser.
 - AI changes are not automatically saved. They are applied to the active in-memory configuration until the user explicitly requests a save.
 - Calendar appearance and layout should still be checked manually at different screen sizes. Automated tests cover application logic and time/filter behavior, not every browser rendering condition.
 - Codecov's latest measured percentage is not embedded in the source repository; consult the Codecov dashboard for the current report.

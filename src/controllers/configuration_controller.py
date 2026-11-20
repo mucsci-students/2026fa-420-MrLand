@@ -1,4 +1,4 @@
-"""Coordinates configuration creation, validation, loading, saving, and edits.
+"""Coordinates configuration creation, validation, uploads, downloads, and edits.
 
 Used by: GUI."""
 
@@ -27,7 +27,6 @@ from src.models.configuration_observer import (
     publish_entity_changes,
 )
 from src.models.quality_grade_settings_repository import (
-    load_quality_grade_settings,
     save_quality_grade_settings,
 )
 from src.models.quality_grading import QualityGradeSettings, settings_from_document
@@ -92,28 +91,6 @@ class ConfigurationController:
 
             return self.configuration
 
-    def save_configuration(self, config_name: str) -> None:
-        """
-        Saves the open configuration under config_name. It validates first and
-        raises ConfigValidationError (with the list of problems) instead of
-        writing an invalid file. Raises ValueError if nothing is open.
-        """
-        with self._lock:
-            if self.configuration is None:
-                raise ValueError("No configuration has been created.")
-
-            problems = self.validate_configuration()
-
-            if problems:
-                raise ConfigValidationError(problems)
-
-            self.config_service.save(
-                self.configuration,
-                config_name,
-                self.quality_grade_settings,
-            )
-            save_quality_grade_settings(config_name, self.quality_grade_settings)
-
     def export_configuration(self, file_name: str) -> tuple[bytes, str, str]:
         """
         Builds a downloadable JSON copy of the open Config
@@ -145,26 +122,6 @@ class ConfigurationController:
             content = json.dumps(document, indent=4).encode("utf-8")
             return content, file_name, "application/json"
 
-    def load_configuration(self, config_name: str) -> CombinedConfig:
-        """
-        Loads a saved configuration and makes it the open one. A loaded file has
-        already passed validation, so _has_valid_configuration is set to True,
-        which means later edits that make it invalid will be rolled back.
-
-        Raises:
-        FileNotFound - No saved config has that name
-        ConfigLoadError - the file exists but can't be parsed or fails validation.
-
-        Returns Loaded Config
-        """
-
-        with self._lock:
-            quality_grade_settings = load_quality_grade_settings(config_name)
-            self.configuration = self.config_service.load(config_name)
-            self.quality_grade_settings = quality_grade_settings
-            self._has_valid_configuration = True
-            return self.configuration
-
     # Load and validate a configuration from an uploaded JSON file
     def load_uploaded_configuration(
         self,
@@ -190,9 +147,6 @@ class ConfigurationController:
         with self._lock:
             save_quality_grade_settings(config_name, settings)
             self.quality_grade_settings = settings
-
-    def list_names(self) -> list[str]:
-        return self.config_service.list_names()
 
     def validate_configuration(self) -> list[ValidationProblem]:
         """

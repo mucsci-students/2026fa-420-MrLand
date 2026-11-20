@@ -11,7 +11,6 @@ from src.controllers.schedule_generator_controller import (
     schedule_generator_controller as controller,
 )
 from src.models.configuration_model import ConfigValidationError
-from src.models.configuration_repository import ConfigLoadError
 from src.models.schedule_generator_model import ScheduleGenerationState
 from src.views.configuration_editor import controller as editor_controller
 from src.views.schedule_generation_progress import ScheduleGenerationProgress
@@ -58,7 +57,7 @@ def schedule_generator() -> None:
             problems = "; ".join(f"{problem.area}: {problem.message}" for problem in error.problems)
             config_load_error.text = f"Invalid configuration file: {problems}"
             config_load_error.visible = True
-        except (OSError, ValueError, ConfigLoadError) as error:
+        except (OSError, ValueError) as error:
             config_load_error.text = f"Unable to load configuration: {error}"
             config_load_error.visible = True
         finally:

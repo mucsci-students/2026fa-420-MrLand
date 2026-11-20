@@ -398,7 +398,6 @@ def test_download_save_callback_uses_gui_download_behavior_without_replacement_p
         SchedulerAgentState(
             config,
             save_configuration=saved_names.append,
-            configuration_exists=lambda _name: True,
             confirm_action=lambda _question: False,
         )
     )
@@ -446,7 +445,7 @@ def test_save_tool_uses_the_application_save_callback(monkeypatch):
     saved_names = []
     monkeypatch.setattr(scheduler_agent_state, "validate_config", lambda _config: [])
     tools = _tools(
-        SchedulerAgentState(config, configuration_exists=lambda _name: False),
+        SchedulerAgentState(config),
         save_configuration=saved_names.append,
     )
 
@@ -458,27 +457,17 @@ def test_save_tool_uses_the_application_save_callback(monkeypatch):
     assert saved_names == ["Fall 2026"]
 
 
-def test_direct_save_reports_file_destination_with_the_same_message(monkeypatch):
+def test_save_without_download_callback_reports_failure(monkeypatch):
     from src.ai import scheduler_agent_state
 
     config = ConfigurationController().new_configuration()
-    saved_names = []
     monkeypatch.setattr(scheduler_agent_state, "validate_config", lambda _config: [])
-    monkeypatch.setattr(
-        scheduler_agent_state.ConfigService,
-        "save",
-        lambda _service, _config, name: saved_names.append(name),
-    )
-    tools = _tools(
-        SchedulerAgentState(config, configuration_exists=lambda _name: False),
-    )
+    tools = _tools(SchedulerAgentState(config))
 
     result = tools["save_configuration"].invoke({"config_name": "Fall 2026"})
 
-    assert result["success"]
-    assert result["message"] == "Configuration save completed for 'Fall 2026.json'."
-    assert result["save_destination"] == "file"
-    assert saved_names == ["Fall 2026"]
+    assert result["success"] is False
+    assert "only available through the Configuration Editor" in result["message"]
 
 
 def test_generate_schedules_uses_the_active_configuration(monkeypatch):

@@ -1,5 +1,4 @@
 import asyncio
-from types import SimpleNamespace
 
 import pytest
 from nicegui import ElementFilter, ui
@@ -9,16 +8,12 @@ import src.views.schedule_generator as schedule_generator_view
 from src.controllers.schedule_generator_controller import (
     ScheduleGeneratorController,
 )
-from src.models import schedule_generator_model
 from src.models.schedule_generator_model import ScheduleGeneratorModel
 from tests.conftest import active_client
+from tests.test_configuration import make_valid_config
 
 
-def test_generation_limit_override_is_grouped_before_time_slot_settings(
-    monkeypatch,
-):
-    monkeypatch.setattr(schedule_generator_view.controller, "list_config_names", list)
-
+def test_generation_limit_override_is_grouped_before_time_slot_settings():
     async def simulate():
         async with user_simulation(root=schedule_generator_view.schedule_generator) as user:
             await user.open("/")
@@ -55,11 +50,8 @@ def test_generation_limit_override_is_grouped_before_time_slot_settings(
 
 def test_controller_passes_time_slot_overrides_to_generation(monkeypatch):
     model = ScheduleGeneratorModel()
-    monkeypatch.setattr(
-        model,
-        "load_config",
-        lambda _config_name: SimpleNamespace(limit=4),
-    )
+    config = make_valid_config()
+    config.limit = 4
     captured = {}
 
     class FakeThread:
@@ -81,10 +73,13 @@ def test_controller_passes_time_slot_overrides_to_generation(monkeypatch):
         None,
         "20",
         "45",
+        loaded_config=config,
     )
 
     assert (requested, error) == (4, None)
-    assert captured["args"] == ("sample", None, None, 20, 45)
+    assert captured["args"][0] == "sample"
+    assert captured["args"][1].time_slot_config.max_time_gap == 20
+    assert captured["args"][1].time_slot_config.min_time_overlap == 45
     assert captured["started"] is True
 
 
@@ -112,37 +107,3 @@ def test_controller_rejects_invalid_time_slot_overrides(setting, value, expected
 
     assert requested is None
     assert error == (f"Temporary {expected_error} must be a positive whole number.")
-
-
-def test_model_applies_time_slot_overrides(monkeypatch):
-    config = SimpleNamespace(
-        limit=3,
-        optimizer_flags=[],
-        time_slot_config=SimpleNamespace(
-            max_time_gap=30,
-            min_time_overlap=45,
-        ),
-    )
-    monkeypatch.setattr(
-        ScheduleGeneratorModel,
-        "load_config",
-        staticmethod(lambda _config_name: config),
-    )
-
-    class EmptyScheduler:
-        def __init__(self, received_config):
-            assert received_config is config
-
-        def get_models(self):
-            return iter(())
-
-        def diagnose(self):
-            return None
-
-    monkeypatch.setattr(schedule_generator_model, "Scheduler", EmptyScheduler)
-    model = ScheduleGeneratorModel()
-
-    model.generate("sample", None, None, 20, 60)
-
-    assert config.time_slot_config.max_time_gap == 20
-    assert config.time_slot_config.min_time_overlap == 60

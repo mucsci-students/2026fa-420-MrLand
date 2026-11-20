@@ -131,14 +131,8 @@ def test_progress_display_recovers_for_retries_after_no_solution(monkeypatch):
     controller = ScheduleGeneratorController()
     monkeypatch.setattr(generator, "controller", controller)
 
-    class TestConfigurationController:
-        def load_uploaded_configuration(self, _content, config_name=None):
-            return controller.load_config("not_working")
-
-    monkeypatch.setattr(generator, "ConfigurationController", TestConfigurationController)
-
     async def simulate():
-        config_path = Path(generator.__file__).resolve().parents[1] / "configs" / "not_working.json"
+        config_path = Path(__file__).parent / "test_configs" / "not_working.json"
         content = config_path.read_bytes()
         async with user_simulation(root=generator.schedule_generator) as user:
             await user.open("/")

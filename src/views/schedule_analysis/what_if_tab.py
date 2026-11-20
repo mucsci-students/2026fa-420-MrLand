@@ -13,7 +13,6 @@ from src.models.configuration_model import (
     ConfigValidationError,
     validate_config,
 )
-from src.models.configuration_repository import ConfigLoadError
 from src.models.schedule_files import records_from_result
 from src.models.what_if_session import WhatIfSession
 from src.views.class_patterns_gui import class_patterns_gui
@@ -198,7 +197,7 @@ class WhatIfTab:
                 return
             self._upload_dialog.close()
             ui.notify(f"Loaded {file_name} as a temporary configuration.", type="positive")
-        except (OSError, ValueError, ConfigValidationError, ConfigLoadError) as error:
+        except (OSError, ValueError, ConfigValidationError) as error:
             self._source_status.set_text(f"Unable to load configuration: {error}")
             ui.notify(str(error), type="negative")
         finally:

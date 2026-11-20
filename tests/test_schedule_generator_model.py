@@ -105,27 +105,6 @@ def test_generation_phases_set_the_existing_status_snapshot(
     assert state.diagnosis_cancelled is cancelled
 
 
-def test_list_config_names_uses_shared_repository_outside_project_cwd(model, tmp_path, monkeypatch):
-    config_directory = tmp_path / "saved-configs"
-    config_directory.mkdir()
-    (config_directory / "beta.json").write_text("{}", encoding="utf-8")
-    (config_directory / "alpha.json").write_text("{}", encoding="utf-8")
-    monkeypatch.setattr("src.models.configuration_repository.CONFIG_DIR", config_directory)
-    monkeypatch.chdir(tmp_path)
-
-    assert model.list_config_names() == ["alpha", "beta"]
-
-
-def test_list_config_names_does_not_hide_repository_errors(model, monkeypatch):
-    def fail_to_list():
-        raise PermissionError("configuration directory is not readable")
-
-    monkeypatch.setattr("src.models.schedule_generator_model.list_configs", fail_to_list)
-
-    with pytest.raises(PermissionError, match="not readable"):
-        model.list_config_names()
-
-
 class TestBeginGeneration:
     def test_enters_running_state(self, model):
         assert model.begin_generation("test-config", 3) is True
@@ -345,47 +324,6 @@ class TestGenerateConfiguration:
         assert state.valid == 0
         assert state.running is False
         assert state.finished is True
-
-
-class TestGenerate:
-    def test_configuration_load_failure_clears_running_state(self, model):
-        model.begin_generation("missing-config", 2)
-
-        def fail_load(config_name):
-            raise ValueError("configuration not found")
-
-        model.load_config = fail_load
-        model.generate("missing-config", None, None)
-
-        state = model.state_snapshot()
-
-        assert state.running is False
-        assert state.finished is True
-        assert state.error == "configuration not found"
-        assert state.message == "Schedule generation failed."
-
-    def test_applies_limit_and_optimizer_overrides(
-        self, model, config, patch_scheduler, monkeypatch
-    ):
-        FakeScheduler.schedules = ["schedule-a"]
-
-        monkeypatch.setattr(
-            model,
-            "load_config",
-            lambda config_name: config,
-        )
-
-        model.begin_generation("test-config", 5)
-        model.generate(
-            "test-config",
-            5,
-            ["optimizer-a"],
-        )
-
-        assert config.limit == 5
-        assert config.optimizer_flags == ["optimizer-a"]
-        assert model.state_snapshot().running is False
-        assert model.state_snapshot().finished is True
 
 
 class TestConcurrentGeneration:
