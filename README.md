@@ -194,6 +194,7 @@ Supported requests include:
 - Validate the active configuration.
 - Save the active configuration as a JSON file.
 - Generate schedules from a valid active configuration.
+- Undo or redo the most recent configuration changes.
 - List configuration-editor combinations after the user provides the required password.
 
 ### Available application tools
@@ -210,6 +211,8 @@ definitions are in `src/ai/agent_tool_definitions.py`:
 | `update_configuration_item`       | Update an existing supported item.                             |
 | `delete_configuration_item`       | Delete an item after confirmation.                             |
 | `update_configuration_settings`   | Change global scheduler settings.                              |
+| `undo_configuration_change`       | Undo the most recent configuration change.                    |
+| `redo_configuration_change`       | Redo the most recently undone configuration change.           |
 | `validate_current_config`         | Validate the active configuration.                             |
 | `save_configuration`              | Validate and save the configuration as JSON.                   |
 | `generate_schedules`              | Generate schedules from a valid active configuration.          |
@@ -493,7 +496,9 @@ skip_empty = true
 
 The Codecov configuration is in [`codecov.yaml`](codecov.yaml). The CI job uploads `coverage.xml` with the `model` flag. Codecov's project status checks the `model` flag against an 80% target with a 0% threshold; the model patch status is informational.
 
-**Latest Codecov result:** 85.63%
+**Latest local model coverage result:** 94.73% (measured November 22, 2026 by
+`uv run pytest --cov --cov-report=term-missing`; consult the Codecov dashboard
+for the latest CI upload).
 
 ---
 
@@ -633,7 +638,6 @@ The application follows MVC package organization: configuration and schedule sta
 - Deleting configuration items requires confirmation. Configuration file name conflicts are handled by the browser.
 - AI changes are not automatically saved. They are applied to the active in-memory configuration until the user explicitly requests a save.
 - Calendar appearance and layout should still be checked manually at different screen sizes. Automated tests cover application logic and time/filter behavior, not every browser rendering condition.
-- Codecov's latest measured percentage is not embedded in the source repository; consult the Codecov dashboard for the current report.
 
 ---
 
