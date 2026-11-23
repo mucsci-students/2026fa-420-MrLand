@@ -18,7 +18,7 @@ from src.models.schedule_viewer_model import ScheduleViewerModel
 from tests.conftest import active_client
 
 
-def test_clear_generated_results_preserves_uploaded_schedules(monkeypatch, tmp_path):
+def test_clear_generated_results_preserves_uploaded_schedules(monkeypatch):
     generator_model = ScheduleGeneratorModel()
     generator_model._generated_schedules.append(
         ScheduleResult(
@@ -38,7 +38,7 @@ def test_clear_generated_results_preserves_uploaded_schedules(monkeypatch, tmp_p
         )
     )
     controller = ScheduleController(
-        model=ScheduleViewerModel(directory=tmp_path),
+        model=ScheduleViewerModel(),
         generator=ScheduleGeneratorController(generator_model),
     )
     entry, error = controller.load_uploaded_file(

@@ -1,4 +1,5 @@
 # 2026fa-420-MrLand
+
 ## CMSC 420-f26
 
 ---
@@ -20,7 +21,7 @@
 MrLand is a course-scheduling application for creating and managing course configurations, generating schedules, and inspecting generated results. The application uses a NiceGUI web interface with three main areas:
 
 1. **Configuration Editor** – create, load, edit, validate, and save scheduler configurations.
-2. **Schedule Generator** – generate schedules from an active or saved configuration and monitor generation progress.
+2. **Schedule Generator** – generate schedules from an active or uploaded configuration and monitor generation progress.
 3. **Schedule Viewer** – inspect schedules in calendar or table form, filter meetings, and export results.
 
 A floating **Scheduler AI Assistant** is available throughout the GUI. It can inspect and edit the active configuration, validate it, save it, and request schedule generation using a defined set of application tools.
@@ -31,15 +32,15 @@ A floating **Scheduler AI Assistant** is available throughout the GUI. It can in
 
 ### Configuration Editor
 
-- Create new configuration drafts and load saved JSON configurations.
+- Create new configuration drafts and upload JSON configurations from your computer.
 - Manage courses, faculty, rooms, labs, class patterns, meetings, weekday time blocks, and global generation settings.
 - Validate the complete configuration against the scheduler's schema and model rules.
 - Preserve incomplete new drafts while preventing an edit from leaving an already-valid configuration invalid.
-- Save configurations as JSON under `src/configs/`.
+- Download configurations as JSON; the browser controls where the files are saved.
 
 ### Schedule Generator
 
-- Select a saved configuration or generate from the active editor configuration.
+- Upload a configuration or generate from the active editor configuration.
 - Review configured generation limits and optimizer settings.
 - Apply temporary overrides for a generation run, including supported time-slot settings.
 - Generate schedules in a background thread.
@@ -54,7 +55,24 @@ A floating **Scheduler AI Assistant** is available throughout the GUI. It can in
 - View meeting details and overlapping meetings in the calendar.
 - Expand the calendar to fullscreen and export from the fullscreen view.
 - Export a selected schedule or all generated schedules in CSV or JSON.
+- Download a Letter-size PDF of a selected schedule, grouped by room/lab or faculty.
 - Clear generated results without deleting schedules loaded from files.
+
+### Schedule Analysis
+
+- View schedule quality as letter grades for the largest individual faculty gap total, geometric-mean room and lab utilization, faculty workload balance, and weekday teaching-hours balance.
+- Grades use per-configuration A-grade targets, with defaults of 300 weekly faculty gap minutes, 60% room utilization, 50% lab utilization, and 2 hours for each balance standard deviation.
+- Edit targets under Global Settings in the Configuration Editor. The composite grade averages the available component grades using A=4 through F=0; unavailable measures are excluded.
+- The composite averages available grades as points (A=4 through F=0) and rounds to the nearest letter grade. Custom targets are saved with the configuration and included in JSON exports when they differ from defaults.
+- Top 5 Schedules ranks generated schedules for the selected schedule's configuration by the average points of available component grades.
+
+### What-If Analysis
+
+- Start from the active editor configuration, a generated schedule's configuration, an uploaded JSON configuration, or a blank draft.
+- Edit the same configuration areas as the Configuration Editor without saving changes to disk.
+- Generate alternative schedules from a snapshot of the temporary configuration without clearing existing generated schedules.
+- Compare an alternative against the schedule currently selected in Schedule Analysis.
+- Confirm before leaving with temporary changes; choosing to leave discards the What-If edits and results.
 
 ### Scheduler AI Assistant
 
@@ -176,27 +194,33 @@ Supported requests include:
 - Validate the active configuration.
 - Save the active configuration as a JSON file.
 - Generate schedules from a valid active configuration.
+- Undo or redo the most recent configuration changes.
 - List configuration-editor combinations after the user provides the required password.
 
 ### Available application tools
 
-The agent uses the following registered tools in `src/ai/agent_tools.py`:
+The agent assembles the registered tools in `src/ai/agent_tools.py`; their
+definitions are in `src/ai/agent_tool_definitions.py`:
 
-| Tool | Purpose |
-|---|---|
-| `get_active_configuration_status` | Check whether a configuration is active. |
-| `get_config_summary` | Summarize counts of rooms, labs, courses, and faculty. |
-| `inspect_configuration` | Inspect the full configuration or a supported area. |
-| `create_configuration_item` | Create a supported configuration item. |
-| `update_configuration_item` | Update an existing supported item. |
-| `delete_configuration_item` | Delete an item after confirmation. |
-| `update_configuration_settings` | Change global scheduler settings. |
-| `validate_current_config` | Validate the active configuration. |
-| `save_configuration` | Validate and save the configuration as JSON. |
-| `generate_schedules` | Generate schedules from a valid active configuration. |
-| `list_combinations` | List editor combinations after the user supplies the password. |
+| Tool                              | Purpose                                                        |
+| --------------------------------- | -------------------------------------------------------------- |
+| `get_active_configuration_status` | Check whether a configuration is active.                       |
+| `get_config_summary`              | Summarize counts of rooms, labs, courses, and faculty.         |
+| `inspect_configuration`           | Inspect the full configuration or a supported area.            |
+| `create_configuration_item`       | Create a supported configuration item.                         |
+| `update_configuration_item`       | Update an existing supported item.                             |
+| `delete_configuration_item`       | Delete an item after confirmation.                             |
+| `update_configuration_settings`   | Change global scheduler settings.                              |
+| `undo_configuration_change`       | Undo the most recent configuration change.                    |
+| `redo_configuration_change`       | Redo the most recently undone configuration change.           |
+| `validate_current_config`         | Validate the active configuration.                             |
+| `save_configuration`              | Validate and save the configuration as JSON.                   |
+| `generate_schedules`              | Generate schedules from a valid active configuration.          |
+| `list_combinations`               | List editor combinations after the user supplies the password. |
 
 The assistant must use these tools for configuration changes and application actions. It is instructed not to claim that it changed or saved something unless the corresponding tool/application workflow confirms the result.
+
+Tool results use a `success` and `message` envelope, with optional details for the action. LangChain returns invalid-argument failures as JSON text; decoding that text yields the same envelope. Save results use a consistent completion message and include `save_destination` (`download` in the editor or `file` for a direct save). Schedule-generation results report the generator's actual counts in both the message and the `generated`/`valid` details.
 
 ### Example requests
 
@@ -254,17 +278,17 @@ The assistant saves only when explicitly asked. Generation is allowed only after
 The assistant distinguishes between editing the active configuration and writing a JSON file:
 
 - **Applied in memory, not saved:** successful edits update the open configuration in the Configuration Editor. They remain part of the current application state, but have not been written to a configuration file.
-- **Saved to disk:** when the user explicitly asks the assistant to save, the application validates the configuration and writes it under `src/configs/` as JSON. The assistant reports the saved configuration name.
+- **Downloaded:** when the user explicitly asks the assistant to save, the application validates the configuration and downloads it as JSON. The browser controls its save location.
 - **No successful change:** if a request is rejected or cancelled, the assistant must not report it as applied.
 
-The assistant reports which of these outcomes occurred. Saving over an existing configuration requires confirmation.
+The assistant reports which of these outcomes occurred. Download filename conflicts are handled by the browser.
 
 ### Unsupported requests, validation, and failures
 
 - **Unsupported request:** the assistant explains that the requested action is outside its supported scheduler role and, where possible, identifies available actions. It does not pretend to perform unsupported work.
 - **Missing information:** the assistant asks a focused follow-up question rather than inventing required values.
 - **Validation failure:** the application rejects invalid changes and returns validation details. A new draft may remain incomplete, but an edit to an already-valid configuration cannot leave that configuration invalid.
-- **Delete or overwrite:** deleting a configuration item or replacing an existing saved configuration requires an explicit confirmation dialog. Declining cancels the operation.
+- **Delete:** deleting a configuration item requires an explicit confirmation dialog. Download filename conflicts are handled by the browser.
 - **Multi-operation request failure:** a request is treated as one transaction. If one requested operation fails, the application restores the configuration to its state before that request; it does not keep partial changes from that request.
 - **OpenAI/API failure:** the assistant displays a user-friendly error for common problems such as a missing or rejected API key, model permissions, exhausted quota, rate limits, network problems, timeouts, or an unavailable OpenAI service. Detailed exception information is written to the server log for debugging; raw API error details are not intentionally shown in the chat.
 
@@ -364,10 +388,10 @@ configuration editing, schedule generation, and schedule visualization.
 
 ## Configuration Files and Validation
 
-The scheduler stores configuration files as JSON under:
+Configuration files are JSON files that users upload from their computer and download through the browser. The application does not maintain a repository-local configuration folder. The schema used to validate configurations is:
 
 ```text
-src/configs/
+src/schemas/combined-config.schema.json
 ```
 
 A configuration can include:
@@ -401,16 +425,16 @@ Add dependencies with `uv add <package>` or development dependencies with `uv ad
 
 Run the same checks configured in GitHub Actions:
 
-| Check | Command |
-|---|---|
-| Build source distribution and wheel | `uv build` |
-| Run all tests | `uv run pytest` |
-| Run tests and Model coverage report | `uv run pytest --cov --cov-report=term-missing` |
-| Run tests and produce Codecov XML | `uv run pytest --cov --cov-report=xml --cov-report=term-missing` |
-| Ruff lint | `uv run ruff check .` |
-| Check formatting without changing files | `uv run ruff format --check .` |
-| Apply Ruff formatting | `uv run ruff format .` |
-| Type checking | `uv run ty check` |
+| Check                                   | Command                                                          |
+| --------------------------------------- | ---------------------------------------------------------------- |
+| Build source distribution and wheel     | `uv build`                                                       |
+| Run all tests                           | `uv run pytest`                                                  |
+| Run tests and Model coverage report     | `uv run pytest --cov --cov-report=term-missing`                  |
+| Run tests and produce Codecov XML       | `uv run pytest --cov --cov-report=xml --cov-report=term-missing` |
+| Ruff lint                               | `uv run ruff check .`                                            |
+| Check formatting without changing files | `uv run ruff format --check .`                                   |
+| Apply Ruff formatting                   | `uv run ruff format .`                                           |
+| Type checking                           | `uv run ty check`                                                |
 
 To apply automatic Ruff lint fixes locally, use:
 
@@ -472,13 +496,15 @@ skip_empty = true
 
 The Codecov configuration is in [`codecov.yaml`](codecov.yaml). The CI job uploads `coverage.xml` with the `model` flag. Codecov's project status checks the `model` flag against an 80% target with a 0% threshold; the model patch status is informational.
 
-**Latest Codecov result:** 85.63%
+**Latest local model coverage result:** 94.73% (measured November 22, 2026 by
+`uv run pytest --cov --cov-report=term-missing`; consult the Codecov dashboard
+for the latest CI upload).
 
 ---
 
 ## Design Patterns
 
-The application uses an MVC organization and includes Strategy, Memento, and Composite implementations.
+The application uses an MVC organization and includes Strategy, Memento, Composite, Observer, Template Method, and State implementations.
 
 ### 1. Model–View–Controller (MVC)
 
@@ -494,8 +520,8 @@ The application uses an MVC organization and includes Strategy, Memento, and Com
 
 ### 3. Memento
 
-- **Locations:** `src/controllers/configuration_controller.py` and `src/views/ai_assistant.py`.
-- **How it is used:** `ConfigurationMemento` stores a deep-copy snapshot of the active configuration and its validity state. The AI assistant creates a snapshot before processing a request and restores it if one of the requested operations fails.
+- **Locations:** `src/controllers/configuration_controller.py` and `src/views/ai_assistant_conversation.py`.
+- **How it is used:** `ConfigurationMemento` stores a deep-copy snapshot of the active configuration and its validity state. The assistant conversation creates a snapshot before processing a request and restores it if one of the requested operations fails.
 - **Why it fits:** The application can roll back a multi-operation AI request to the exact configuration state that existed before the request, rather than leaving partial edits behind.
 
 ### 4. Composite
@@ -503,6 +529,24 @@ The application uses an MVC organization and includes Strategy, Memento, and Com
 - **Location:** `src/views/theme.py`.
 - **How it is used:** `ThemeComponent` defines the common interface. `ThemeLeaf` represents one theme-script operation, while `ThemeComposite` contains multiple components and combines their scripts through the same `script()` interface. New theme operations can be added to the composite.
 - **Why it fits:** Individual theme operations and groups of operations can be treated uniformly, allowing a theme to be assembled from smaller reusable pieces.
+
+### 5. Observer
+
+- **Locations:** `src/models/configuration_observer.py` and `src/controllers/configuration_controller.py`.
+- **How it is used:** Every controller edit snapshots the configuration, runs the mutation, detects entity additions, renames, and deletions independent of collection ordering, and publishes events through a `ConfigurationSubject` to a `ConfigurationRelationshipObserver`. GUI and AI edits share this transactional path. The observer keeps course assignments, course conflicts, and faculty preferences synchronized with faculty, room, lab, and course identifiers.
+- **Why it fits:** Relationships are stored as names in separate configuration objects. The observer centralizes their updates, and whole-configuration validation rolls back both the edit and cascaded relationship changes if the result is invalid.
+
+### 6. Template Method
+
+- **Location:** `src/controllers/schedule_print_export_controller.py`.
+- **How it is used:** `PrintLayoutTemplate.build` defines the common print-layout algorithm. `ResourcePrintLayoutTemplate` and `FacultyPrintLayoutTemplate` customize grouping, headings, and row values while sharing schedule validation, ordering, and HTML/page rendering.
+- **Why it fits:** Faculty and resource exports have different grouping details but the same document structure and print requirements. The template keeps those common steps consistent.
+
+### 7. State
+
+- **Location:** `src/models/schedule_generator_model.py`.
+- **How it is used:** `GenerationPhase` and the idle, running, diagnosing, finished, cancelled, and failed phase implementations control schedule-generation lifecycle transitions. `ScheduleGeneratorModel` delegates phase entry and reconciliation while preserving the existing `ScheduleGenerationState` snapshot used by the progress bar and schedule view.
+- **Why it fits:** Generation behavior depends on whether the scheduler is idle, searching, diagnosing constraints, cancelled, finished, or failed. Explicit phases make those transitions easier to maintain without scattering lifecycle booleans across workers.
 
 ---
 
@@ -522,18 +566,66 @@ The application uses an MVC organization and includes Strategy, Memento, and Com
 ├── screenshots/
 ├── src/
 │   ├── ai/
+│   │   ├── agent_tool_definitions.py
+│   │   ├── agent_tool_guards.py
+│   │   ├── agent_tool_schemas.py
 │   │   ├── agent_tools.py
 │   │   ├── api_errors.py
-│   │   └── scheduler_agent.py
-│   ├── configs/
+│   │   ├── scheduler_agent.py
+│   │   ├── scheduler_agent_state.py
 │   ├── controllers/
 │   ├── models/
 │   ├── schemas/
 │   └── views/
 └── tests/
+    └── test_configs/
 ```
 
 The application follows MVC package organization: configuration and schedule state are in `models`, application coordination is in `controllers`, and NiceGUI pages/components are in `views`. AI agent setup and tool definitions are grouped in `src/ai/`.
+
+## Sprint 4 Technical Debt Reduction
+
+### 1. Separate interactive CRUD from GUI/AI operations
+
+- **Original problem and location:** The Course, Faculty, Room, Lab, Class Pattern, and Time Block modules mixed terminal questions and the messages with the add, edit, and delete operations used by the GUI. Some input prompts were also done multiple times.
+- **Why it was debt:** These modules were doing two jobs at once. That made GUI and AI behavior harder to work on without involving terminal input, and made it easier for validation to fail.
+- **Improvement:** The add, edit, and delete operations are now separate from the terminal prompts for all the different types. The GUI can call these operations directly, while the existing terminal and imports still work. Shared prompts for weekdays and numbers are in `cli_input.py`.
+- **Behavior evidence:** The tests cover both the terminal workflow and direct operations, including the shared ones used by the GUI and AI.
+
+### 2. Centralize uploaded-configuration parsing
+
+- **Original problem and location:** The Configuration Editor and Schedule Generator each accepted uploaded JSON configurations, while parsing and validation rules needed to remain consistent.
+- **Why it was debt:** Duplicated parsing could lead to different validation results for the same configuration.
+- **Improvement:** `ConfigService` handles parsing and validating uploaded JSON, and both views use that shared path.
+- **Behavior evidence:** Tests cover uploading valid and invalid configuration files in both workflows.
+
+### 3. Report invalid schedule data
+
+- **Original problem and location:** `parse_schedule_file` in `src/models/schedule_files.py` could skip over bad schedule entries.
+- **Why it was debt:** Users could get an incomplete schedule without knowing something was wrong.
+- **Improvement:** The app reports malformed schedule entries with their position in the file.
+- **Behavior evidence:** Tests check that malformed uploads are rejected.
+
+### 4. Give calendar rendering and configuration history their own tasks
+
+- **Original problem and location:** `ScheduleCalendarView` handled both the calendar layout and the meeting details dialog. The config editor also handled the undo and redo history alongside its UI callbacks.
+- **Why it was debt:** It was harder to find and change one piece of behavior when the same files handled several tasks.
+- **Improvement:** The meeting-details dialog and shared calendar types now have their own files. Undo / redo tracking is handled by `ConfigurationHistory`, while the editor continues to handle the display and notifications.
+- **Behavior evidence:** Tests cover calendar layout and time behavior, as well as undoing / redoing an AI edit in the configuration editor.
+
+### 5. Remove repository-local schedule storage
+
+- **Original problem and location:** `ScheduleViewerModel` used the repository's `src/schedules` folder to list and load schedules and to choose export filenames.
+- **Why it was debt:** That fixed folder was not controlled by the user, even though schedule downloads are handled by the browser. The app also depended on the folder being present to export generated schedules.
+- **Improvement:** The app no longer reads or writes schedules in the repository folder. Users load schedules through uploads, and generated schedules are downloaded through the browser. Export names start at 1 per config in each ZIP; the browser handles repeated download names.
+- **Behavior evidence:** Tests verify uploads and exports work without a saved-schedules folder and that ZIP entries are numbered sequentially.
+
+### 6. Remove repository-local configuration storage
+
+- **Original problem and location:** Configuration persistence and quality-grade sidecars used `src/configs`, even though the editor already accepts user uploads and downloads JSON through the browser.
+- **Why it was debt:** The repository folder made the app manage user files and also mixed test fixtures with runtime configuration data.
+- **Improvement:** Runtime configurations are now loaded through uploads and saved through browser downloads. Quality-grade settings travel inside the configuration JSON; the app no longer reads or writes `src/configs`. Configurations needed by tests are kept in `tests/test_configs/`, while unused bundled configs are removed.
+- **Behavior evidence:** Tests verify upload/download round trips, embedded quality-grade settings, and generator/analysis behavior using fixtures from `tests/test_configs/`.
 
 ---
 
@@ -543,10 +635,9 @@ The application follows MVC package organization: configuration and schedule sta
 - AI configuration operations require an active configuration in the Configuration Editor. The assistant cannot edit a configuration before one is created or loaded.
 - The assistant is limited to its registered tools and scheduler domain. It is not a general-purpose application operator and does not perform arbitrary GUI or file-system actions.
 - The assistant asks for clarification when required configuration values are missing; it does not infer unprovided resource availability or assignments.
-- Deleting items and overwriting an existing saved configuration require confirmation.
+- Deleting configuration items requires confirmation. Configuration file name conflicts are handled by the browser.
 - AI changes are not automatically saved. They are applied to the active in-memory configuration until the user explicitly requests a save.
 - Calendar appearance and layout should still be checked manually at different screen sizes. Automated tests cover application logic and time/filter behavior, not every browser rendering condition.
-- Codecov's latest measured percentage is not embedded in the source repository; consult the Codecov dashboard for the current report.
 
 ---
 

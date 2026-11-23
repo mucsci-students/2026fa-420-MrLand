@@ -12,20 +12,16 @@ from nicegui.testing import UserInteraction, user_simulation
 
 import src.views.configuration_editor as editor
 from src.controllers.configuration_controller import ConfigurationController
-from src.models import configuration_repository as config_repo
 from tests.conftest import active_client
 from tests.test_configuration import make_valid_config
 
 
 @pytest.fixture
-def editor_controller(monkeypatch, tmp_path):
-    monkeypatch.setattr(config_repo, "CONFIG_DIR", tmp_path)
+def editor_controller(monkeypatch):
     test_controller = ConfigurationController()
     test_controller.configuration = make_valid_config()
     test_controller._has_valid_configuration = True
-    test_controller.save_configuration("demo")
     monkeypatch.setattr(editor, "controller", test_controller)
-    monkeypatch.setattr(test_controller, "list_names", lambda: ["demo"])
     return test_controller
 
 
@@ -72,6 +68,27 @@ def test_multiple_panel_combinations_unlock_in_one_session(editor_controller):
         ]
 
     run_editor_simulation(action, on_unlock=on_unlock)
+
+
+def test_courses_panel_shows_relationship_updates_after_switching_panels(editor_controller):
+    async def action(user, _refresh):
+        await load_demo_config(user, editor_controller)
+        user.find("Faculty").click()
+        await user.should_see("Dr. Adrian")
+
+        course = editor_controller.configuration.config.courses[0]
+        accepted, problems = editor_controller.apply_change(
+            lambda: setattr(editor_controller.configuration.config.faculty[0], "name", "Dr. Jones")
+        )
+        assert accepted
+        assert problems == []
+        assert course.faculty == ["Dr. Jones"]
+
+        user.find("Courses").click()
+        await user.should_see("Faculty: Dr. Jones")
+        await user.should_not_see("Faculty: Dr. Adrian")
+
+    run_editor_simulation(action)
 
 
 async def load_demo_config(user, controller, mark_unsaved=None):
@@ -156,29 +173,21 @@ def test_loaded_configuration_is_saved_until_edited(editor_controller):
     run_editor_simulation(action)
 
 
-def test_discard_and_load_opens_upload_without_saving(editor_controller, monkeypatch):
-    def unexpected_local_save(*args, **kwargs):
-        raise AssertionError("Discard and Load must not save the config locally.")
-
-    monkeypatch.setattr(editor_controller, "save_configuration", unexpected_local_save)
-
+def test_discard_and_load_opens_upload_without_saving(editor_controller):
     async def action(user, mark_unsaved):
         await load_demo_config(user, editor_controller, mark_unsaved)
+        downloads_before_discard = len(user.download.http_responses)
         user.find("Load configuration").click()
         await user.should_see("Unsaved changes")
         dialog = click_open_dialog_button(user, "Discard and Load")
         await user.should_see("Load Configuration")
         assert not dialog.value
+        assert len(user.download.http_responses) == downloads_before_discard
 
     run_editor_simulation(action)
 
 
-def test_save_and_load_downloads_json_then_opens_upload(editor_controller, monkeypatch):
-    def unexpected_local_save(*args, **kwargs):
-        raise AssertionError("Popup Save must download instead of saving locally.")
-
-    monkeypatch.setattr(editor_controller, "save_configuration", unexpected_local_save)
-
+def test_save_and_load_downloads_json_then_opens_upload(editor_controller):
     async def action(user, mark_unsaved):
         await load_demo_config(user, editor_controller, mark_unsaved)
         user.find("Load configuration").click()
@@ -193,6 +202,67 @@ def test_save_and_load_downloads_json_then_opens_upload(editor_controller, monke
         )
         await user.should_see("Load Configuration")
         await user.should_see("Downloading 'demo.json'")
+
+    run_editor_simulation(action)
+
+
+def test_ai_save_callback_flushes_pending_global_settings_and_downloads(
+    editor_controller,
+):
+    async def action(user, refresh):
+        await load_demo_config(user, editor_controller)
+        user.find("Global settings").click()
+        user.find(kind=ui.number, content="Generation limit").clear().type("25")
+
+        assert refresh.download_for_ai("AI copy") == "AI copy.json"
+        download = await user.download.next()
+
+        assert download.status_code == 200
+        assert json.loads(download.content)["limit"] == 25
+        assert editor_controller.configuration.limit == 25
+        assert refresh.is_saved()
+
+    run_editor_simulation(action)
+
+
+def test_global_settings_save_custom_quality_target(editor_controller):
+    async def action(user, _refresh):
+        await load_demo_config(user, editor_controller)
+        user.find("Global settings").click()
+        user.find("Quality grade targets").click()
+        user.find("Max weekly faculty gap for A (minutes)").clear().type("420")
+        user.find("Save settings").click()
+
+        assert editor_controller.quality_grade_settings.max_faculty_gap_minutes == 420
+
+    run_editor_simulation(action)
+
+
+def test_ai_edits_use_editor_undo_and_redo_history(editor_controller):
+    from src.controllers.room_controller import RoomController
+
+    def add_ai_room():
+        config = editor_controller.configuration
+        assert config is not None
+        RoomController.add_room(config.config.rooms, "AI Room", 20, [], None)
+
+    async def action(user, refresh):
+        await load_demo_config(user, editor_controller)
+        config = editor_controller.configuration
+        assert config is not None
+        original_rooms = [room.name for room in config.config.rooms]
+
+        accepted, problems = refresh.apply_change_for_ai(add_ai_room)
+
+        assert accepted
+        assert not problems
+        assert "AI Room" in [room.name for room in editor_controller.configuration.config.rooms]
+        undone_config = refresh.undo_for_ai()
+        assert undone_config is editor_controller.configuration
+        assert [room.name for room in undone_config.config.rooms] == original_rooms
+        redone_config = refresh.redo_for_ai()
+        assert redone_config is editor_controller.configuration
+        assert "AI Room" in [room.name for room in redone_config.config.rooms]
 
     run_editor_simulation(action)
 

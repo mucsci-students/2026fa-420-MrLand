@@ -7,11 +7,11 @@ import threading
 
 from scheduler.config import CombinedConfig, OptimizerFlags
 
-from src.models.configuration_repository import ConfigLoadError
 from src.models.schedule_generator_model import (
     ScheduleGenerationState,
     ScheduleGeneratorModel,
 )
+from src.models.schedule_result import ScheduleResult
 
 
 class ScheduleGeneratorController:
@@ -21,29 +21,26 @@ class ScheduleGeneratorController:
         self.model = model or ScheduleGeneratorModel()
 
     @property
-    def generated_schedules(self):
+    def generated_schedules(self) -> list[ScheduleResult]:
         return self.model.generated_schedules
-
-    def list_config_names(self) -> list[str]:
-        return self.model.list_config_names()
-
-    def load_config(self, config_name: str):
-        return self.model.load_config(config_name)
 
     def state_snapshot(self) -> ScheduleGenerationState:
         return self.model.state_snapshot()
 
+    def cancel_diagnosis(self) -> bool:
+        return self.model.cancel_diagnosis()
+
     def clear_generated_schedules(self) -> bool:
         return self.model.clear_generated_schedules()
 
-    def schedule_to_json(self, result, schedule_number: int) -> bytes:
+    def schedule_to_json(self, result: ScheduleResult, schedule_number: int) -> bytes:
         return self.model.schedule_to_json(result, schedule_number)
 
-    def schedule_to_csv(self, result, schedule_number: int) -> bytes:
+    def schedule_to_csv(self, result: ScheduleResult, schedule_number: int) -> bytes:
         return self.model.schedule_to_csv(result, schedule_number)
 
     def generate_active_configuration(
-        self, config, config_name: str = "active configuration"
+        self, config: CombinedConfig, config_name: str = "active configuration"
     ) -> tuple[ScheduleGenerationState | None, str | None]:
         if self.model.state_snapshot().running:
             return None, "Generation is already in progress. Please wait for it to finish."
@@ -86,49 +83,25 @@ class ScheduleGeneratorController:
             return None, error
 
         if loaded_config is None:
-            try:
-                config = self.model.load_config(config_name)
-            except (ConfigLoadError, FileNotFoundError, ValueError) as error:
-                return None, f"Could not load configuration: {error}"
-        else:
-            config = copy.deepcopy(loaded_config)
+            return None, "Please upload or select a configuration."
+
+        config = copy.deepcopy(loaded_config)
 
         requested = limit_override if limit_override is not None else config.limit
-        if loaded_config is not None:
-            config.limit = requested
-            if optimizer_override is not None:
-                config.optimizer_flags = [OptimizerFlags(flag) for flag in optimizer_override]
-            if max_time_gap_override is not None:
-                config.time_slot_config.max_time_gap = max_time_gap_override
-            if min_time_overlap_override is not None:
-                config.time_slot_config.min_time_overlap = min_time_overlap_override
+        config.limit = requested
+        if optimizer_override is not None:
+            config.optimizer_flags = [OptimizerFlags(flag) for flag in optimizer_override]
+        if max_time_gap_override is not None:
+            config.time_slot_config.max_time_gap = max_time_gap_override
+        if min_time_overlap_override is not None:
+            config.time_slot_config.min_time_overlap = min_time_overlap_override
 
         if not self.model.begin_generation(config_name, requested):
             return None, None
 
-        if loaded_config is not None:
-            worker = threading.Thread(
-                target=self.model.generate_configuration,
-                args=(config_name, config),
-                daemon=True,
-            )
-            worker.start()
-            return requested, None
-
-        generation_args = (
-            config_name,
-            limit_override,
-            optimizer_override,
-        )
-        if max_time_gap_override is not None or min_time_overlap_override is not None:
-            generation_args += (
-                max_time_gap_override,
-                min_time_overlap_override,
-            )
-
         worker = threading.Thread(
-            target=self.model.generate,
-            args=generation_args,
+            target=self.model.generate_configuration,
+            args=(config_name, config),
             daemon=True,
         )
         worker.start()

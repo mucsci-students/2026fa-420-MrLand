@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import Any
 
 from dotenv import load_dotenv
@@ -19,11 +19,8 @@ except ImportError as exc:  # pragma: no cover - dependency resolution is handle
         "the AI packages to pyproject.toml."
     ) from exc
 
-from src.ai.agent_tools import (
-    SchedulerAgentState,
-    empty_scheduler_config,
-    get_tool_list,
-)
+from src.ai.agent_tools import get_tool_list
+from src.ai.scheduler_agent_state import SchedulerAgentState, empty_scheduler_config
 
 load_dotenv()
 
@@ -42,6 +39,8 @@ BASE_SYSTEM_PROMPT = (
     "- delete_configuration_item: delete a supported item after explicit "
     "confirmation.\n"
     "- update_configuration_settings: update global scheduler settings.\n"
+    "- undo_configuration_change: undo the most recent configuration change.\n"
+    "- redo_configuration_change: redo the most recently undone configuration change.\n"
     "- save_configuration: validate and save the active configuration as JSON.\n"
     "- generate_schedules: generate schedules from a valid active configuration.\n"
     "- get_active_configuration_status: report whether a configuration is active.\n"
@@ -68,9 +67,9 @@ BASE_SYSTEM_PROMPT = (
     "relevant configuration area before editing it. Validate edits and report "
     "validation problems. Save only when the user explicitly asks you to save. "
     "Generate schedules only from a valid active configuration. Ask for explicit "
-    "user confirmation before deleting an item or replacing a saved configuration; "
-    "the application will show a confirmation dialog and cancel the operation "
-    "if it is declined. Treat each user request as one transaction: if any "
+    "user confirmation before deleting an item. Configuration saves are browser "
+    "downloads; do not claim to replace an existing file because the browser "
+    "controls download destinations and name conflicts. Treat each user request as one transaction: if any "
     "requested operation fails, do not claim partial success. When schedules "
     "are generated, do not reproduce schedule rows; report the count and direct "
     "the user to the Schedule Viewer tab."
@@ -85,13 +84,13 @@ def build_scheduler_agent(
     apply_change: Callable[[Callable[[], Any]], tuple[bool, list[Any]]] | None = None,
     save_configuration: Callable[[str], None] | None = None,
     confirm_action: Callable[[str], bool] | None = None,
-    on_tool_result: Callable[[dict[str, Any]], None] | None = None,
-    configuration_exists: Callable[[str], bool] | None = None,
+    on_tool_result: Callable[[Mapping[str, object]], None] | None = None,
+    undo_configuration: Callable[[], CombinedConfig | None] | None = None,
+    redo_configuration: Callable[[], CombinedConfig | None] | None = None,
 ) -> Any:
     state = SchedulerAgentState(
         config=config,
         confirm_action=confirm_action,
-        configuration_exists=configuration_exists,
     )
     if model is None:
         api_key = os.environ.get("OPENAI_API_KEY")
@@ -126,6 +125,8 @@ def build_scheduler_agent(
             apply_change=apply_change,
             save_configuration=save_configuration,
             on_tool_result=on_tool_result,
+            undo_configuration=undo_configuration,
+            redo_configuration=redo_configuration,
         ),
         system_prompt=(BASE_SYSTEM_PROMPT + "\n\n" + configuration_context),
     )
@@ -140,8 +141,9 @@ def invoke_scheduler_agent(
     apply_change: Callable[[Callable[[], Any]], tuple[bool, list[Any]]] | None = None,
     save_configuration: Callable[[str], None] | None = None,
     confirm_action: Callable[[str], bool] | None = None,
-    on_tool_result: Callable[[dict[str, Any]], None] | None = None,
-    configuration_exists: Callable[[str], bool] | None = None,
+    on_tool_result: Callable[[Mapping[str, object]], None] | None = None,
+    undo_configuration: Callable[[], CombinedConfig | None] | None = None,
+    redo_configuration: Callable[[], CombinedConfig | None] | None = None,
 ) -> dict[str, Any]:
     agent = build_scheduler_agent(
         config=config,
@@ -149,13 +151,14 @@ def invoke_scheduler_agent(
         save_configuration=save_configuration,
         confirm_action=confirm_action,
         on_tool_result=on_tool_result,
-        configuration_exists=configuration_exists,
+        undo_configuration=undo_configuration,
+        redo_configuration=redo_configuration,
     )
     result = agent.invoke({"messages": [*(history or []), HumanMessage(content=query)]})
     return result
 
 
-def run_cli() -> None:
+def run_ai() -> None:
     # Run an interactive terminal conversation with the scheduler assistant.
     config = empty_scheduler_config()
     history: list[Any] = []
@@ -186,4 +189,4 @@ def run_cli() -> None:
 
 
 if __name__ == "__main__":
-    run_cli()
+    run_ai()

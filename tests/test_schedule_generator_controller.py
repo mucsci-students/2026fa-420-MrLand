@@ -13,6 +13,7 @@ from src.controllers.schedule_generator_controller import (
     ScheduleGeneratorController,
 )
 from src.models.schedule_generator_model import ScheduleGeneratorModel
+from tests.test_configuration import make_valid_config
 
 
 class FakeGeneratorModel:
@@ -23,7 +24,6 @@ class FakeGeneratorModel:
         self.begin_calls = []
         self.generate_calls = []
         self.generate_configuration_calls = []
-        self.load_error = None
         self.generated_schedules = []
         self.clear_generated_schedules_result = True
         self.clear_generated_schedules_calls = 0
@@ -42,14 +42,6 @@ class FakeGeneratorModel:
 
         self.running = True
         return True
-
-    def load_config(self, config_name):
-        if self.load_error:
-            raise self.load_error
-        return self.config
-
-    def generate(self, config_name, limit_override, optimizer_override):
-        self.generate_calls.append((config_name, limit_override, optimizer_override))
 
     def generate_configuration(self, config_name, config):
         self.generate_configuration_calls.append((config_name, config))
@@ -98,20 +90,19 @@ class TestStartGenerationValidation:
         assert error == ("Temporary generation limit must be a positive whole number.")
         assert model.begin_calls == []
 
-    def test_configuration_load_failure_is_reported(self, controller, model):
-        model.load_error = ValueError("invalid configuration")
-
+    def test_requires_an_uploaded_configuration(self, controller, model):
         requested, error = controller.start_generation("config.json", None, None)
 
         assert requested is None
-        assert "Could not load configuration" in error
-        assert "invalid configuration" in error
+        assert error == "Please upload or select a configuration."
         assert model.begin_calls == []
 
     def test_begin_generation_rejection_is_handled(self, controller, model):
         model.begin_result = False
 
-        requested, error = controller.start_generation("config.json", None, None)
+        requested, error = controller.start_generation(
+            "config.json", None, None, loaded_config=model.config
+        )
 
         assert requested is None
         assert error is None
@@ -135,14 +126,16 @@ class TestStartGeneration:
             FakeThread,
         )
 
-        requested, error = controller.start_generation("config.json", None, None)
+        requested, error = controller.start_generation(
+            "config.json", None, None, loaded_config=model.config
+        )
 
         assert requested == 10
         assert error is None
         assert model.begin_calls == [("config.json", 10)]
         assert len(started_threads) == 1
-        assert started_threads[0].target == model.generate
-        assert started_threads[0].args == ("config.json", None, None)
+        assert started_threads[0].target == model.generate_configuration
+        assert started_threads[0].args == ("config.json", model.config)
         assert started_threads[0].daemon is True
 
     def test_uses_valid_limit_override(self, controller, model, monkeypatch):
@@ -160,11 +153,17 @@ class TestStartGeneration:
             FakeThread,
         )
 
-        requested, error = controller.start_generation("config.json", "25", ["optimizer-a"])
+        requested, error = controller.start_generation(
+            "config.json",
+            "25",
+            [OptimizerFlags.FACULTY_COURSE.value],
+            loaded_config=model.config,
+        )
 
         assert requested == 25
         assert error is None
         assert model.begin_calls == [("config.json", 25)]
+        assert model.generate_configuration_calls == []
 
     def test_generates_from_uploaded_configuration_without_mutating_it(
         self, controller, model, monkeypatch
@@ -192,8 +191,6 @@ class TestStartGeneration:
                 min_time_overlap=10,
             ),
         )
-        model.load_error = RuntimeError("saved config should not be loaded")
-
         requested, error = controller.start_generation(
             "uploaded",
             "25",
@@ -237,8 +234,12 @@ class TestStartGeneration:
             FakeThread,
         )
 
-        first_result = controller.start_generation("config.json", None, None)
-        second_result = controller.start_generation("config.json", None, None)
+        first_result = controller.start_generation(
+            "config.json", None, None, loaded_config=model.config
+        )
+        second_result = controller.start_generation(
+            "config.json", None, None, loaded_config=model.config
+        )
 
         assert first_result == (10, None)
         assert second_result[0] is None
@@ -251,7 +252,8 @@ class TestGenerateActiveConfiguration:
     def test_rejects_request_when_already_running(self):
         model = FakeGeneratorModel(running=True)
         controller = ScheduleGeneratorController(model=cast(ScheduleGeneratorModel, model))
-        config = SimpleNamespace(limit=5)
+        config = make_valid_config()
+        config.limit = 5
 
         state, error = controller.generate_active_configuration(config, "active")
 
@@ -262,7 +264,8 @@ class TestGenerateActiveConfiguration:
         assert model.generate_configuration_calls == []
 
     def test_begins_and_generates_active_configuration(self, controller, model):
-        config = SimpleNamespace(limit=5)
+        config = make_valid_config()
+        config.limit = 5
 
         state, error = controller.generate_active_configuration(config, "active")
 

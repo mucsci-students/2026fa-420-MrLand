@@ -1,7 +1,6 @@
 # Unit tests for saving and loading scheduler configurations.
 
 import json
-import os
 
 import pytest
 from scheduler.config import CombinedConfig
@@ -9,6 +8,7 @@ from scheduler.config import CombinedConfig
 from src.controllers.configuration_controller import ConfigurationController
 from src.models import configuration_model as config_model
 from src.models import configuration_repository as config_repo
+from src.models.quality_grading import QualityGradeSettings
 
 
 def make_valid_config() -> CombinedConfig:
@@ -107,12 +107,6 @@ def break_config(config: CombinedConfig) -> None:
 
 
 @pytest.fixture
-def temp_config_dir(monkeypatch, tmp_path):
-    monkeypatch.setattr(config_repo, "CONFIG_DIR", tmp_path)
-    return tmp_path
-
-
-@pytest.fixture
 def valid_config() -> CombinedConfig:
     return make_valid_config()
 
@@ -157,161 +151,16 @@ def test_clean_config_name_rejects_invalid_names(bad_name):
         config_repo.clean_config_name(bad_name)
 
 
-def test_save_config_writes_json_file(temp_config_dir, valid_config):
-    config_repo.save_config(valid_config, "demo config")
-
-    saved_path = temp_config_dir / "demo config.json"
-    assert saved_path.is_file()
-    payload = json.loads(saved_path.read_text(encoding="utf-8"))
-    assert payload == valid_config.model_dump(mode="json")
-
-
-def test_save_config_strips_whitespace_from_name(temp_config_dir, valid_config):
-    config_repo.save_config(valid_config, "  demo  ")
-    assert (temp_config_dir / "demo.json").is_file()
-
-
-def test_save_config_creates_missing_directory(monkeypatch, tmp_path, valid_config):
-    missing_dir = tmp_path / "does" / "not" / "exist"
-    monkeypatch.setattr(config_repo, "CONFIG_DIR", missing_dir)
-
-    config_repo.save_config(valid_config, "demo")
-
-    assert (missing_dir / "demo.json").is_file()
-
-
-def test_save_config_overwrites_existing_file(temp_config_dir, valid_config):
-    config_repo.save_config(valid_config, "demo")
-
-    changed = make_valid_config()
-    changed.limit = 99
-    config_repo.save_config(changed, "demo")
-
-    assert config_repo.load_config("demo").limit == 99
-
-
-def test_save_config_leaves_no_temp_files(temp_config_dir, valid_config):
-    config_repo.save_config(valid_config, "demo")
-    assert [p.name for p in temp_config_dir.iterdir()] == ["demo.json"]
-
-
-def test_save_config_failure_keeps_original_and_cleans_temp(
-    temp_config_dir, valid_config, monkeypatch
-):
-    """The atomic write must not corrupt an existing config if the swap fails."""
-    config_repo.save_config(valid_config, "demo")
-    original_text = (temp_config_dir / "demo.json").read_text(encoding="utf-8")
-
-    def failing_replace(src, dst):
-        raise OSError("disk full")
-
-    monkeypatch.setattr(config_repo.os, "replace", failing_replace)
-
-    changed = make_valid_config()
-    changed.limit = 99
-    with pytest.raises(OSError):
-        config_repo.save_config(changed, "demo")
-
-    assert (temp_config_dir / "demo.json").read_text(encoding="utf-8") == original_text
-    assert [p.name for p in temp_config_dir.iterdir()] == ["demo.json"]
-
-
-def test_save_config_serialization_failure_keeps_original_and_cleans_temp(
-    temp_config_dir, valid_config, monkeypatch
-):
-    config_repo.save_config(valid_config, "demo")
-    original_text = (temp_config_dir / "demo.json").read_text(encoding="utf-8")
-
-    def fail_serialization(self, **kwargs):
-        raise RuntimeError("serialization failed")
-
-    monkeypatch.setattr(CombinedConfig, "model_dump_json", fail_serialization)
-
-    with pytest.raises(RuntimeError, match="serialization failed"):
-        config_repo.save_config(valid_config, "demo")
-
-    assert (temp_config_dir / "demo.json").read_text(encoding="utf-8") == original_text
-    assert [p.name for p in temp_config_dir.iterdir()] == ["demo.json"]
-
-
-def test_save_config_rejects_invalid_name_without_writing(temp_config_dir, valid_config):
-    with pytest.raises(ValueError):
-        config_repo.save_config(valid_config, "../escape")
-    assert list(temp_config_dir.iterdir()) == []
-
-
-def test_load_config_round_trips_saved_config(temp_config_dir, valid_config):
-    config_repo.save_config(valid_config, "demo config")
-
-    loaded = config_repo.load_config("demo config")
-
-    assert isinstance(loaded, CombinedConfig)
-    assert loaded.model_dump() == valid_config.model_dump()
-
-
-def test_load_config_missing_file_raises_file_not_found(temp_config_dir):
-    with pytest.raises(FileNotFoundError):
-        config_repo.load_config("missing config")
-
-
-def test_load_config_malformed_json_raises_config_load_error(temp_config_dir):
-    (temp_config_dir / "broken.json").write_text("{not valid json}", encoding="utf-8")
-    with pytest.raises(config_repo.ConfigLoadError):
-        config_repo.load_config("broken")
-
-
-def test_load_config_schema_invalid_json_raises_config_load_error(temp_config_dir):
-    """Well-formed JSON that fails CombinedConfig validation."""
-    (temp_config_dir / "wrong_shape.json").write_text("{}", encoding="utf-8")
-    with pytest.raises(config_repo.ConfigLoadError):
-        config_repo.load_config("wrong_shape")
-
-
-def test_load_config_rejects_invalid_name(temp_config_dir):
-    with pytest.raises(ValueError):
-        config_repo.load_config("../escape")
-
-
-def test_config_exists_false_then_true(temp_config_dir, valid_config):
-    assert config_repo.config_exists("demo") is False
-    config_repo.save_config(valid_config, "demo")
-    assert config_repo.config_exists("demo") is True
-
-
-def test_config_exists_rejects_invalid_name(temp_config_dir):
-    with pytest.raises(ValueError):
-        config_repo.config_exists("a/b")
-
-
-def test_list_configs_empty_when_directory_missing(monkeypatch, tmp_path):
-    monkeypatch.setattr(config_repo, "CONFIG_DIR", tmp_path / "nope")
-    assert config_repo.list_configs() == []
-
-
-def test_list_configs_empty_directory(temp_config_dir):
-    assert config_repo.list_configs() == []
-
-
-def test_list_configs_returns_sorted_stems_and_ignores_other_files(temp_config_dir, valid_config):
-    for name in ("zebra", "alpha", "middle"):
-        config_repo.save_config(valid_config, name)
-    (temp_config_dir / "notes.txt").write_text("ignore me", encoding="utf-8")
-    (temp_config_dir / "stray.tmp").write_text("ignore me", encoding="utf-8")
-
-    assert config_repo.list_configs() == ["alpha", "middle", "zebra"]
-
-
-def test_validate_config_name_accepts_new_name(temp_config_dir):
+def test_validate_config_name_cleans_name():
     assert config_model.validate_config_name("  fresh  ") == "fresh"
 
 
-def test_validate_config_name_rejects_existing_name(temp_config_dir, valid_config):
-    config_repo.save_config(valid_config, "taken")
-    with pytest.raises(ValueError, match="already exists"):
-        config_model.validate_config_name("taken")
+def test_validate_config_name_allows_browser_managed_duplicate_names():
+    assert config_model.validate_config_name("taken") == "taken"
+    assert config_model.validate_config_name("taken") == "taken"
 
 
-def test_validate_config_name_rejects_invalid_name(temp_config_dir):
+def test_validate_config_name_rejects_invalid_name():
     with pytest.raises(ValueError):
         config_model.validate_config_name("bad!name")
 
@@ -455,45 +304,16 @@ def test_apply_change_restores_config_and_reraises_on_exception(valid_config):
     assert valid_config.model_dump() == before
 
 
-def test_config_service_save_load_round_trip(temp_config_dir, valid_config):
+def test_config_service_loads_uploaded_json(valid_config):
     service = config_model.ConfigService()
-    service.save(valid_config, "demo")
 
-    loaded = service.load("demo")
+    loaded = service.load_uploaded(json.dumps(valid_config.model_dump(mode="json")).encode("utf-8"))
 
     assert loaded.model_dump() == valid_config.model_dump()
 
 
-def test_config_service_save_cleans_name(temp_config_dir, valid_config):
-    config_model.ConfigService().save(valid_config, "  demo  ")
-    assert (temp_config_dir / "demo.json").is_file()
-
-
-def test_config_service_save_rejects_invalid_name(temp_config_dir, valid_config):
-    with pytest.raises(ValueError):
-        config_model.ConfigService().save(valid_config, "../escape")
-    assert list(temp_config_dir.iterdir()) == []
-
-
-def test_config_service_exists_and_list_names(temp_config_dir, valid_config):
-    service = config_model.ConfigService()
-    assert service.exists("demo") is False
-    assert service.list_names() == []
-
-    service.save(valid_config, "demo")
-    service.save(valid_config, "another")
-
-    assert service.exists("demo") is True
-    assert service.list_names() == ["another", "demo"]
-
-
-def test_config_service_load_missing_raises(temp_config_dir):
-    with pytest.raises(FileNotFoundError):
-        config_model.ConfigService().load("nope")
-
-
 @pytest.fixture
-def controller(temp_config_dir) -> ConfigurationController:
+def controller() -> ConfigurationController:
     return ConfigurationController()
 
 
@@ -522,46 +342,7 @@ def test_controller_memento_restores_an_independent_configuration(controller, va
     assert controller.configuration.limit == 10
 
 
-def test_controller_save_without_config_raises(controller):
-    with pytest.raises(ValueError):
-        controller.save_configuration("demo")
-
-
-def test_controller_save_invalid_draft_raises_and_writes_nothing(controller, temp_config_dir):
-    controller.new_configuration()
-
-    with pytest.raises(config_model.ConfigValidationError) as exc_info:
-        controller.save_configuration("demo")
-
-    assert exc_info.value.problems
-    assert list(temp_config_dir.iterdir()) == []
-
-
-def test_controller_save_valid_config_writes_file(controller, temp_config_dir, valid_config):
-    controller.configuration = valid_config
-
-    controller.save_configuration("demo")
-
-    assert (temp_config_dir / "demo.json").is_file()
-
-
-def test_controller_invalid_save_does_not_overwrite_existing_config(
-    controller, temp_config_dir, valid_config
-):
-    controller.configuration = valid_config
-    controller.save_configuration("demo")
-    original = config_repo.load_config("demo").model_dump()
-
-    break_config(valid_config)
-    with pytest.raises(config_model.ConfigValidationError):
-        controller.save_configuration("demo")
-
-    assert config_repo.load_config("demo").model_dump() == original
-
-
-def test_controller_export_configuration_returns_browser_download_data(
-    controller, temp_config_dir, valid_config
-):
+def test_controller_export_configuration_returns_browser_download_data(controller, valid_config):
     controller.configuration = valid_config
 
     content, file_name, media_type = controller.export_configuration("demo")
@@ -569,7 +350,42 @@ def test_controller_export_configuration_returns_browser_download_data(
     assert file_name == "demo.json"
     assert media_type == "application/json"
     assert json.loads(content) == valid_config.model_dump(mode="json")
-    assert list(temp_config_dir.iterdir()) == []
+
+
+def test_controller_keeps_uploaded_quality_targets_and_embeds_them_in_download(
+    controller, valid_config
+):
+    settings = QualityGradeSettings(max_faculty_gap_minutes=420)
+    controller.configuration = valid_config
+    controller.set_quality_grade_settings("demo", settings)
+    content, _, _ = controller.export_configuration("demo")
+
+    loaded = ConfigurationController()
+    loaded.load_uploaded_configuration(content, config_name="demo")
+    assert loaded.quality_grade_settings == settings
+    assert json.loads(content)["quality_grade_settings"] == settings.model_dump(mode="json")
+
+    other = ConfigurationController()
+    other.load_uploaded_configuration(
+        json.dumps(valid_config.model_dump(mode="json")).encode("utf-8"),
+        config_name="other",
+    )
+    assert other.quality_grade_settings == QualityGradeSettings()
+
+
+def test_controller_upload_preserves_custom_quality_targets_for_dotted_name(
+    controller, valid_config
+):
+    document = valid_config.model_dump(mode="json")
+    document["quality_grade_settings"] = {"max_faculty_gap_minutes": 420}
+
+    loaded = controller.load_uploaded_configuration(
+        json.dumps(document).encode(),
+        config_name="plan.final",
+    )
+
+    assert loaded == valid_config
+    assert controller.quality_grade_settings.max_faculty_gap_minutes == 420
 
 
 def test_controller_export_configuration_requires_open_valid_config(controller):
@@ -579,36 +395,6 @@ def test_controller_export_configuration_requires_open_valid_config(controller):
     controller.new_configuration()
     with pytest.raises(config_model.ConfigValidationError):
         controller.export_configuration("demo.json")
-
-
-def test_controller_save_load_round_trip(controller, temp_config_dir, valid_config):
-    controller.configuration = valid_config
-    controller.save_configuration("demo")
-
-    other = ConfigurationController()
-    loaded = other.load_configuration("demo")
-
-    assert other.configuration is loaded
-    assert loaded.model_dump() == valid_config.model_dump()
-
-
-def test_controller_load_missing_raises(controller):
-    with pytest.raises(FileNotFoundError):
-        controller.load_configuration("nope")
-
-
-def test_controller_load_invalid_file_raises_config_load_error(controller, temp_config_dir):
-    (temp_config_dir / "broken.json").write_text("{nope", encoding="utf-8")
-    with pytest.raises(config_repo.ConfigLoadError):
-        controller.load_configuration("broken")
-
-
-def test_controller_list_names(controller, temp_config_dir, valid_config):
-    controller.configuration = valid_config
-    controller.save_configuration("beta")
-    controller.save_configuration("alpha")
-
-    assert controller.list_names() == ["alpha", "beta"]
 
 
 def test_controller_validate_without_config_raises(controller):
@@ -626,16 +412,13 @@ def test_controller_apply_change_without_config_raises(controller):
         controller.apply_change(lambda: None)
 
 
-def test_controller_loaded_config_rolls_back_invalid_change(
-    controller, temp_config_dir, valid_config
-):
-    controller.configuration = valid_config
-    controller.save_configuration("demo")
+def test_controller_uploaded_config_rolls_back_invalid_change(controller, valid_config):
+    loaded = controller.load_uploaded_configuration(
+        json.dumps(valid_config.model_dump(mode="json")).encode("utf-8"),
+        config_name="demo",
+    )
 
-    other = ConfigurationController()
-    loaded = other.load_configuration("demo")
-
-    accepted, problems = other.apply_change(lambda: break_config(loaded))
+    accepted, problems = controller.apply_change(lambda: break_config(loaded))
 
     assert accepted is False
     assert problems
@@ -652,12 +435,61 @@ def test_controller_valid_change_is_accepted_and_sets_baseline(controller, valid
     assert controller._has_valid_configuration is True
 
 
-def test_controller_new_configuration_resets_valid_baseline(
-    controller, temp_config_dir, valid_config
+def test_controller_rename_updates_relationships_in_transaction(controller, valid_config):
+    controller.configuration = valid_config
+    before = valid_config.model_copy(deep=True)
+
+    accepted, problems = controller.apply_change(
+        lambda: setattr(valid_config.config.faculty[0], "name", "Dr. Jones")
+    )
+
+    assert accepted
+    assert problems == []
+    assert valid_config.config.courses[0].faculty == ["Dr. Jones"]
+    assert before.config.courses[0].faculty == ["Dr. Adrian"]
+
+
+def test_controller_switches_configuration_when_previous_observer_was_removed(
+    controller, valid_config
 ):
     controller.configuration = valid_config
-    controller.save_configuration("demo")
-    controller.load_configuration("demo")  # baseline now True
+    controller.apply_change(lambda: None)
+    observer = controller._relationship_observer
+    assert observer is not None
+    controller._change_subject.unsubscribe(observer)
+
+    replacement = make_valid_config()
+    controller.configuration = replacement
+    accepted, problems = controller.apply_change(
+        lambda: setattr(replacement.config.faculty[0], "name", "Dr. Jones")
+    )
+
+    assert accepted
+    assert problems == []
+    assert replacement.config.courses[0].faculty == ["Dr. Jones"]
+
+
+def test_controller_observer_failure_rolls_back_entity_and_relationship_changes(
+    controller, valid_config
+):
+    controller.configuration = valid_config
+    faculty = valid_config.config.faculty[0]
+    faculty.course_preferences = {"CS 121": 6, "CS 222": 8}
+    before = valid_config.model_copy(deep=True)
+
+    with pytest.raises(ValueError, match="preference conflicts"):
+        controller.apply_change(
+            lambda: setattr(valid_config.config.courses[0], "course_id", "CS 222")
+        )
+
+    assert valid_config.model_dump() == before.model_dump()
+
+
+def test_controller_new_configuration_resets_valid_baseline(controller, valid_config):
+    controller.load_uploaded_configuration(
+        json.dumps(valid_config.model_dump(mode="json")).encode("utf-8"),
+        config_name="demo",
+    )
 
     draft = controller.new_configuration()  # baseline should reset
 
@@ -667,8 +499,8 @@ def test_controller_new_configuration_resets_valid_baseline(
     assert problems  # ...but problems are still reported
 
 
-def test_controller_full_flow_create_edit_save_load(controller, temp_config_dir):
-    """Draft -> fill in with a valid config -> save -> reload in a new controller."""
+def test_controller_full_flow_create_edit_download_upload(controller):
+    """Draft -> fill in with a valid config -> download -> upload."""
     controller.new_configuration()
     assert controller.validate_configuration()  # draft is invalid
 
@@ -676,8 +508,10 @@ def test_controller_full_flow_create_edit_save_load(controller, temp_config_dir)
     controller.configuration = expected
     assert controller.validate_configuration() == []
 
-    controller.save_configuration("flow")
+    content, file_name, media_type = controller.export_configuration("flow")
 
-    reloaded = ConfigurationController().load_configuration("flow")
+    reloaded_controller = ConfigurationController()
+    reloaded = reloaded_controller.load_uploaded_configuration(content, config_name="flow")
+    assert file_name == "flow.json"
+    assert media_type == "application/json"
     assert reloaded.model_dump() == expected.model_dump()
-    assert os.path.isfile(temp_config_dir / "flow.json")

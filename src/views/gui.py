@@ -8,7 +8,12 @@ from collections.abc import Callable
 from nicegui import ui
 
 from src.views.ai_assistant import scheduler_ai_assistant
-from src.views.configuration_editor import configuration_editor, controller
+from src.views.configuration_editor import (
+    ConfigurationEditorRefresh,
+    configuration_editor,
+    controller,
+)
+from src.views.schedule_analysis import schedule_analysis
 from src.views.schedule_generator import schedule_generator
 from src.views.schedule_viewer import schedule_viewer
 from src.views.theme import Theme, ThemeComposite, ThemeLeaf
@@ -33,7 +38,11 @@ def build_app() -> None:
                         : 'dark';
             window.addEventListener('beforeunload', event => {
                 const status = document.getElementById('configuration-draft-status');
-                if (status?.textContent.trim() === 'Draft - not saved') {
+                const whatIfStatus = document.getElementById('what-if-draft-status');
+                if (
+                    status?.textContent.trim() === 'Draft - not saved'
+                    || whatIfStatus?.textContent.trim() === 'What-If changes will be lost'
+                ) {
                     event.preventDefault();
                     event.returnValue = '';
                 }
@@ -336,19 +345,38 @@ def build_app() -> None:
         .props("data-theme-region=content")
         .classes("mx-auto w-full max-w-7xl gap-0 px-6 py-8")
     ):
-        tabs = ui.tabs().classes("w-full border-b border-[#29404b]")
+        tabs = ui.tabs().props("id=main-navigation").classes("w-full border-b border-[#29404b]")
         with tabs:
-            ui.tab("configuration", label="Configuration Editor", icon="tune")
-            ui.tab("generator", label="Schedule Generator", icon="auto_awesome")
-            ui.tab("viewer", label="Schedule Viewer", icon="calendar_view_week")
-        tabs.value = "configuration"
+            configuration_tab = ui.tab(
+                "configuration",
+                label="Configuration Editor",
+                icon="tune",
+            )
+            generator_tab = ui.tab(
+                "generator",
+                label="Schedule Generator",
+                icon="auto_awesome",
+            )
+            viewer_tab = ui.tab(
+                "viewer",
+                label="Schedule Viewer",
+                icon="calendar_view_week",
+            )
+            analysis_tab = ui.tab(
+                "analysis",
+                label="Schedule Analysis",
+                icon="analytics",
+            )
 
-        editor_refresh: Callable[[], None]
+        tabs.value = configuration_tab
+
+        editor_refresh: ConfigurationEditorRefresh
         viewer_refresh: Callable[[], None]
+        analysis_refresh: Callable[[], None]
         unlock_assistant: Callable[[str, str], None] = lambda _name, _emoji: None
         active_tab = {"value": "configuration"}
         pending_tab = {"value": None}
-        rejected_tab = {"value": None}
+        navigation_reason = {"value": None}
 
         def request_assistant_unlock(combination_name: str, hat_emoji: str) -> None:
             unlock_assistant(combination_name, hat_emoji)
@@ -361,64 +389,110 @@ def build_app() -> None:
                 schedule_generator()
             with ui.tab_panel("viewer"):
                 viewer_refresh = schedule_viewer()
+            with ui.tab_panel("analysis"):
+                analysis_refresh = schedule_analysis()
 
         def on_tab_change(event) -> None:
             next_tab = event.value
+            if pending_tab["value"] is not None:
+                return
             if next_tab == active_tab["value"]:
                 return
-            if next_tab == pending_tab["value"]:
-                return
-            if next_tab == rejected_tab["value"]:
-                rejected_tab["value"] = None
-                tabs.value = active_tab["value"]
-                return
             if active_tab["value"] == "configuration" and not editor_is_saved():
+                navigation_reason["value"] = "configuration"
                 pending_tab["value"] = next_tab
-                rejected_tab["value"] = next_tab
+                navigation_title.set_text("Unsaved configuration")
+                navigation_message.set_text(
+                    "Your configuration has unsaved changes. Leave this page without saving?"
+                )
+                stay_button.set_text("Stay in Configuration")
+                leave_button.set_text("Leave without saving")
                 unsaved_navigation_dialog.open()
+                tabs.value = configuration_tab
+                return
+            if active_tab["value"] == "analysis" and analysis_refresh.has_unsaved_what_if_changes():
+                navigation_reason["value"] = "what-if"
+                pending_tab["value"] = next_tab
+                navigation_title.set_text("Unsaved What-If changes")
+                navigation_message.set_text("What-If changes will be lost if you leave. Continue?")
+                stay_button.set_text("Stay in What-If")
+                leave_button.set_text("Leave and discard")
+                unsaved_navigation_dialog.open()
+                tabs.value = analysis_tab
                 return
             active_tab["value"] = next_tab
             if next_tab == "viewer":
                 viewer_refresh()
+            elif next_tab == "analysis":
+                analysis_refresh()
 
         def leave_editor_without_saving() -> None:
             next_tab = pending_tab["value"]
+            reason = navigation_reason["value"]
             pending_tab["value"] = None
-            rejected_tab["value"] = None
+            navigation_reason["value"] = None
             unsaved_navigation_dialog.close()
+
             if next_tab is None:
                 return
+
+            if reason == "what-if":
+                analysis_refresh.discard_what_if_changes()
+
             active_tab["value"] = next_tab
-            if next_tab == "viewer":
+
+            if next_tab == "configuration":
+                tabs.value = configuration_tab
+            elif next_tab == "generator":
+                tabs.value = generator_tab
+            elif next_tab == "viewer":
+                tabs.value = viewer_tab
                 viewer_refresh()
+            elif next_tab == "analysis":
+                tabs.value = analysis_tab
+                analysis_refresh()
 
         def stay_in_configuration() -> None:
-            rejected_tab["value"] = pending_tab["value"]
             pending_tab["value"] = None
+            navigation_reason["value"] = None
             unsaved_navigation_dialog.close()
-            tabs.value = active_tab["value"]
+            tabs.value = (
+                configuration_tab if active_tab["value"] == "configuration" else analysis_tab
+            )
 
         with (
             ui.dialog() as unsaved_navigation_dialog,
             ui.card().classes("border border-[#29404b] bg-[#182630]"),
         ):
-            ui.label("Unsaved configuration").classes("text-lg font-semibold text-white")
-            ui.label(
+            navigation_title = ui.label("Unsaved configuration").classes(
+                "text-lg font-semibold text-white"
+            )
+            navigation_message = ui.label(
                 "Your configuration has unsaved changes. Leave this page without saving?"
             ).classes("text-sm text-[#9fb2b8]")
             with ui.row().classes("mt-4 w-full justify-end gap-2"):
-                ui.button(
+                stay_button = ui.button(
                     "Stay in Configuration",
                     on_click=stay_in_configuration,
                 ).props("flat")
-                ui.button(
+                leave_button = ui.button(
                     "Leave without saving",
                     on_click=leave_editor_without_saving,
                 ).props("unelevated color=negative")
 
         tabs.on_value_change(on_tab_change)
 
-    unlock_assistant = scheduler_ai_assistant(controller, editor_refresh, editor_is_saved)
+    unlock_assistant = scheduler_ai_assistant(
+        controller,
+        editor_refresh,
+        editor_is_saved,
+        editor_refresh.download_for_ai,
+        editor_refresh.apply_change_for_ai,
+        editor_refresh.undo_for_ai,
+        editor_refresh.redo_for_ai,
+        editor_refresh.create_history_snapshot,
+        editor_refresh.restore_history_snapshot,
+    )
 
 
 def main() -> None:

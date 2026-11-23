@@ -1,4 +1,4 @@
-"""Configuration validation, change management, and application-level persistence API.
+"""Configuration validation, change management, and uploaded-file parsing.
 
 Used by: GUI."""
 
@@ -12,12 +12,10 @@ from jsonschema import Draft202012Validator, FormatChecker
 from pydantic import ValidationError
 from scheduler.config import CombinedConfig, SchedulerConfig, TimeSlotConfig
 
-from src.models.configuration_repository import (
-    clean_config_name,
-    config_exists,
-    list_configs,
-    load_config,
-    save_config,
+from src.models.configuration_repository import clean_config_name
+from src.models.quality_grading import (
+    QUALITY_GRADE_SETTINGS_KEY,
+    settings_from_document,
 )
 
 _CONFIG_SCHEMA_PATH = (
@@ -43,14 +41,8 @@ def create_draft_config() -> CombinedConfig:
 
 
 def validate_config_name(name: str) -> str:
-    """For creating a NEW config: a valid name that isn't already taken."""
-    name = clean_config_name(name)
-    if config_exists(name):
-        raise ValueError(
-            f"A configuration named '{name}' already exists. "
-            "Load it instead, or choose a different name."
-        )
-    return name
+    """Return a valid configuration name for the downloaded JSON file."""
+    return clean_config_name(name)
 
 
 @dataclass(frozen=True)
@@ -115,20 +107,6 @@ def _describe(config: CombinedConfig, loc: tuple) -> tuple[str, str | None, str]
     return "Whole configuration", None, ""
 
 
-def load_uploaded(self, content: bytes) -> CombinedConfig:
-    """Parse an uploaded JSON configuration."""
-    try:
-        config = CombinedConfig.model_validate_json(content)
-    except Exception as exc:
-        raise ValueError(f"Unable to load configuration: {exc}") from exc
-
-    problems = validate_config(config)
-    if problems:
-        raise ConfigValidationError(problems)
-
-    return config
-
-
 def validate_config(config: CombinedConfig) -> list[ValidationProblem]:
     """Check the whole configuration. Returns an empty list if it's valid.
 
@@ -172,15 +150,20 @@ def apply_configuration_change[T](
     mutation: Callable[[], T],
     *,
     has_valid_baseline: bool,
+    after_mutation: Callable[[CombinedConfig, CombinedConfig], None] | None = None,
 ) -> tuple[bool, list[ValidationProblem], T | None]:
     """Apply one edit and restore it when it invalidates a valid configuration.
 
     Incomplete new drafts may be edited until their first valid state. Every
     mutation is validated against the whole configuration before it is accepted.
+    The optional callback runs after the edit and before validation, within the
+    same rollback boundary.
     """
     previous_config = copy.deepcopy(config)
     try:
         result = mutation()
+        if after_mutation is not None:
+            after_mutation(previous_config, config)
         problems = validate_config(config)
     except Exception:
         _restore_config(config, previous_config)
@@ -200,22 +183,14 @@ def _restore_config(config: CombinedConfig, snapshot: CombinedConfig) -> None:
 
 
 class ConfigService:
-    def save(self, config: CombinedConfig, config_name: str) -> None:
-        save_config(config, clean_config_name(config_name))
-
-    def load(self, config_name: str) -> CombinedConfig:
-        return load_config(config_name)
-
-    def exists(self, config_name: str) -> bool:
-        return config_exists(config_name)
-
-    def list_names(self) -> list[str]:
-        return list_configs()
-
-    # Parse and validate an uploaded JSON configuration
     def load_uploaded(self, content: bytes) -> CombinedConfig:
+        """Parse and validate an uploaded JSON configuration."""
         try:
-            config = CombinedConfig.model_validate_json(content)
+            document = json.loads(content)
+            settings_from_document(document)
+            if isinstance(document, dict):
+                document.pop(QUALITY_GRADE_SETTINGS_KEY, None)
+            config = CombinedConfig.model_validate(document)
         except Exception as exc:
             raise ValueError(f"Unable to parse configuration JSON: {exc}") from exc
 

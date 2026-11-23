@@ -11,19 +11,22 @@ update(filtered_schedule) whenever the schedule or a shared filter changes.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from math import ceil, floor
-from typing import Any, TypedDict
 
 from nicegui import ui
-from scheduler.config import FacultyConfig, LabConfig, RoomConfig
-from scheduler.models.course import Course
 
-from src.controllers.schedule_controller import schedule_controller as controller
-from src.controllers.schedule_inspection_controller import (
-    get_course_details,
-    get_faculty_details,
-    get_lab_details,
-    get_room_details,
+from src.controllers.schedule_controller import (
+    schedule_controller as controller,
+)
+from src.models.schedule_viewer_model import ScheduleEntry
+from src.views.schedule_calendar_details import show_meeting_details
+from src.views.schedule_calendar_types import (
+    OverlapCluster,
+    ScheduleRow,
+)
+from src.views.schedule_calendar_types import (
+    SelectedMeeting as SelectedMeeting,  # noqa: PLC0414
 )
 
 DAYS = [
@@ -34,52 +37,90 @@ DAYS = [
     ("FRI", "Friday"),
 ]
 
-ScheduleRow = dict[str, Any]
-OverlapCluster = list[tuple[ScheduleRow, int, int]]
-
-
-class SelectedMeeting(TypedDict):
-    row: ScheduleRow
-    start: int
-    end: int
-    cluster: OverlapCluster
-
 
 class ScheduleCalendarView:
     """A simple Monday-Friday calendar with events positioned by time."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        entry_provider: Callable[[], ScheduleEntry | None] | None = None,
+        compact: bool = False,
+    ) -> None:
+        # Each calendar can provide its own schedule context for event details.
+        self.entry_provider = entry_provider or (lambda: controller.current)
+
+        # Compact mode is used by Schedule Comparison only.
+        self.compact = compact
+
         # initialize the schedule object
         self.filtered_schedule: list[dict] = []
+        # Keep the full schedule for stable course colors across filtered views.
+        self.color_schedule: list[dict] = []
+        self.display_mode = "Entire Schedule"
         # initialize the selected day variable from the day filter
         self.selected_day: str | None = None
+        # Optional shared time range used by Schedule Comparison.
+        self.time_range: tuple[int, int] | None = None
         # add a variable to track whether the calendar is in full screen mode
         self.fullscreen = False
-        self.export_callback = None
 
         # Adds custom CSS for styling the Calendar
         ui.add_head_html(
             """
             <style>
-                .schedule-calendar-fullscreen {
-                    position: fixed !important;
-                    inset: 0 !important;
-                    z-index: 1000 !important;
-                    width: 100vw !important;
-                    height: 100dvh !important;
-                    max-height: 100dvh !important;
-                    overflow: auto !important;
-                    padding: 12px !important;
-                    box-sizing: border-box !important;
-                    background: var(--app-background) !important;
+                /* Calendar event colors for dark mode. */
+                :root {
+                    --calendar-event-text: #d8e7e8;
+                    --calendar-event-details: #e0eaec;
+
+                    --calendar-course-1: #21414a;
+                    --calendar-course-2: #3b3157;
+                    --calendar-course-3: #4a3828;
+                    --calendar-course-4: #293e59;
+                    --calendar-course-5: #49313b;
+                    --calendar-course-6: #304936;
+                    --calendar-course-7: #563c26;
+                    --calendar-course-8: #264653;
+                    --calendar-course-9: #5a2a27;
+                    --calendar-course-10: #3d405b;
+                    --calendar-course-11: #344e41;
+                    --calendar-course-12: #533747;
                 }
 
-                .schedule-calendar-fullscreen .schedule-calendar-scroll {
+                /* Lighter event colors for light mode. */
+                html[data-theme="light"] {
+                    --calendar-event-text: #17324f;
+                    --calendar-event-details: #354c63;
+
+                    --calendar-course-1: #d4e8ed;
+                    --calendar-course-2: #e4dcf5;
+                    --calendar-course-3: #f3e3d0;
+                    --calendar-course-4: #d9e7f7;
+                    --calendar-course-5: #f3dce5;
+                    --calendar-course-6: #dcebdc;
+                    --calendar-course-7: #f5e2c9;
+                    --calendar-course-8: #d3e9e8;
+                    --calendar-course-9: #f3d9d6;
+                    --calendar-course-10: #e2e3f2;
+                    --calendar-course-11: #dce8df;
+                    --calendar-course-12: #eeddf2;
+                }
+                #schedule-calendar-fullscreen:fullscreen {
+                    width: 100%;
+                    height: 100%;
+                    max-height: 100%;
+                    box-sizing: border-box;
+                    overflow: auto;
+                    padding: 12px;
+                    background: var(--app-background);
+                }
+
+                #schedule-calendar-fullscreen:fullscreen .schedule-calendar-scroll {
                     height: calc(100dvh - 90px);
                     overflow: hidden;
                 }
 
-                .schedule-calendar-fullscreen .schedule-calendar-grid {
+                #schedule-calendar-fullscreen:fullscreen .schedule-calendar-grid {
                     min-width: 0;
                     height: 100%;
                 }
@@ -126,15 +167,16 @@ class ScheduleCalendarView:
                         var(--border-color) 60px
                     );
                 }
+                
                 .schedule-calendar-event {
                     position: absolute;
                     top: 0;
                     box-sizing: border-box;
                     overflow: hidden;
                     padding: 5px 7px;
-                    border-left: 4px solid #75e6da;
+                    border-left: 4px solid;
                     border-radius: 4px;
-                    color: #d8e7e8;
+                    color: var(--calendar-event-text);
                     font-size: 12px;
                     line-height: 1.3;
                     cursor: pointer;
@@ -144,13 +186,16 @@ class ScheduleCalendarView:
                     filter: brightness(1.2);
                     z-index: 1;
                 }
+                body.body--light .schedule-calendar-event:hover {
+                    filter: brightness(0.96);
+                }
                 .schedule-calendar-event-title {
                     font-weight: 700;
                     overflow-wrap: anywhere;
                     word-break: break-word;
                 }
                 .schedule-calendar-event-details {
-                    color: #e0eaec;
+                    color: var(--calendar-event-details);
                     overflow-wrap: anywhere;
                     word-break: break-word;
                 }
@@ -159,80 +204,122 @@ class ScheduleCalendarView:
                     color: var(--text-muted);
                     text-align: center;
                 }
+
+                /* Compact calendar styling for Schedule Comparison */
+                .schedule-calendar-compact {
+                    min-width: 0;
+                    width: 100%;
+                }
+
+                .schedule-calendar-compact .schedule-calendar-scroll {
+                    min-width: 0;
+                    overflow-x: hidden;
+                }
+
+                .schedule-calendar-compact .schedule-calendar-grid {
+                    min-width: 0;
+                }
+
+                .schedule-calendar-compact .schedule-calendar-heading {
+                    padding: 8px 3px;
+                    font-size: 11px;
+                }
+
+                .schedule-calendar-compact .schedule-calendar-time {
+                    padding-right: 4px;
+                    font-size: 10px;
+                }
+
+                .schedule-calendar-compact .schedule-calendar-event {
+                    padding: 3px 4px;
+                    border-left-width: 3px;
+                    font-size: 10px;
+                    line-height: 1.2;
+                }
+
+                .schedule-calendar-compact .schedule-calendar-event-title {
+                    font-size: 10px;
+                }
+
+                .schedule-calendar-compact .schedule-calendar-event-details {
+                    font-size: 9px;
+                }
             </style>
             """
         )
 
         # add calendar container and content area
         # Normal calendar and toolbar
-        self.container = ui.column().classes("w-full gap-2")
+        self.container = (
+            ui.column().classes("w-full gap-2").props('id="schedule-calendar-fullscreen"')
+        )
+
+        # updates container if is a compact calendar
+        if self.compact:
+            self.container.classes("schedule-calendar-compact min-w-0")
 
         with self.container:
-            with ui.row().classes("w-full items-center justify-end gap-2"):
-                ui.button(
-                    "Fullscreen",
-                    icon="fullscreen",
-                    on_click=self._open_fullscreen,
-                ).props("outline")
+            if not self.compact:
+                with ui.row().classes("w-full items-center justify-end gap-2"):
+                    ui.button(
+                        "Fullscreen",
+                        icon="fullscreen",
+                        on_click=self._open_fullscreen,
+                    ).props("outline")
 
-            self.calendar_content = ui.column().classes("w-full gap-0")
+            self.calendar_content = ui.column().classes("w-full min-w-0 gap-0")
 
         # Fullscreen pop-up
-        self.fullscreen_dialog = ui.dialog().props("maximized")
-
-        with (
-            self.fullscreen_dialog,
-            ui.card()
-            .classes("w-full h-full gap-2")
-            .style(
-                "background: var(--app-background); color: var(--app-foreground);"
-                "display: flex; flex-direction: column;"
-            ),
-        ):
-            with ui.row().classes("w-full items-center justify-end gap-2"):
-                ui.button(
-                    "Export",
-                    icon="download",
-                    on_click=self._open_export,
-                ).props("outline")
-
-                ui.button(
-                    "Exit Fullscreen",
-                    icon="close",
-                    on_click=self.fullscreen_dialog.close,
-                ).props("outline")
-
-            self.popup_calendar_content = (
-                ui.column()
-                .classes("w-full gap-0")
-                .style("flex: 1; min-height: 0; overflow-x: auto; overflow-y: auto;")
-            )
+        # Fullscreen calendar content uses the same calendar container.
+        self.popup_calendar_content = self.calendar_content
 
     # ---------------------------------------------------------
     # Fullscreen Calendar Methods
     # ---------------------------------------------------------
 
-    # Use the schedule viewer's existing export dialog
-    def set_export_callback(self, callback) -> None:
-        self.export_callback = callback
-
-    def _open_export(self) -> None:
-        if self.export_callback is not None:
-            self.export_callback()
-
-    # Expand the calendar to the viewport, or return to normal
+    # Expand the calendar to the browser viewport, or return to normal
     def _open_fullscreen(self) -> None:
-        self._render()
-        self.fullscreen_dialog.open()
+        ui.run_javascript(
+            """
+            const calendar = document.getElementById(
+                'schedule-calendar-fullscreen'
+            );
+
+            if (!calendar) {
+                return;
+            }
+
+            if (document.fullscreenElement === calendar) {
+                document.exitFullscreen();
+            } else if (!document.fullscreenElement) {
+                calendar.requestFullscreen();
+            }
+            """
+        )
 
     # ---------------------------------------------------------
     # Update Calendar
     # ---------------------------------------------------------
 
     # Replace the calendar contents with the parent's filtered rows.
-    def update(self, filtered_schedule: list[dict], selected_day: str | None = None) -> None:
+    def update(
+        self,
+        filtered_schedule: list[dict],
+        selected_day: str | None = None,
+        *,
+        display_mode: str = "Entire Schedule",
+        color_schedule: list[dict] | None = None,
+        time_range: tuple[int, int] | None = None,
+    ) -> None:
+        """Replace the calendar contents with the parent's filtered rows and day."""
         self.filtered_schedule = [row.copy() for row in filtered_schedule]
+        self.color_schedule = [
+            row.copy()
+            for row in (color_schedule if color_schedule is not None else filtered_schedule)
+        ]
+        self.display_mode = display_mode
         self.selected_day = selected_day
+        self.time_range = time_range
         self._render()
 
     # ---------------------------------------------------------
@@ -240,17 +327,9 @@ class ScheduleCalendarView:
     # ---------------------------------------------------------
     def _render(self) -> None:
         self._render_calendar(self.calendar_content, popup=False)
-        self._render_calendar(self.popup_calendar_content, popup=True)
 
     def _render_calendar(self, target, popup: bool) -> None:
         target.clear()
-
-        if not self.filtered_schedule:
-            with target:
-                ui.label("No schedule entries match the current filters.").classes(
-                    "schedule-calendar-empty w-full"
-                )
-            return
 
         # find the days to display based on the selected day filter
         visible_days = (
@@ -271,16 +350,34 @@ class ScheduleCalendarView:
 
             valid_rows.append((row, start, end))
 
-        if not valid_rows:
+        # Use a shared time range when provided by Schedule Comparison.
+        # Otherwise, calculate the range from this calendar's valid meetings.
+        if self.time_range is not None:
+            range_start, range_end = self.time_range
+
+            first_hour = max(0, floor(range_start / 60))
+            last_hour = min(24, ceil(range_end / 60))
+
+        elif valid_rows:
+            first_hour = max(
+                0,
+                floor(min(start for _, start, _ in valid_rows) / 60),
+            )
+            last_hour = min(
+                24,
+                ceil(max(end for _, _, end in valid_rows) / 60),
+            )
+
+        else:
             with target:
-                ui.label("No entries with valid start and end times.").classes(
-                    "schedule-calendar-empty w-full"
+                message = (
+                    "No schedule entries match the current filters."
+                    if not self.filtered_schedule
+                    else "No entries with valid start and end times."
                 )
+                ui.label(message).classes("schedule-calendar-empty w-full")
             return
 
-        # set the first and last hour of the calendar based on the earliest start time and latest end time of the valid rows
-        first_hour = max(0, floor(min(start for _, start, _ in valid_rows) / 60))
-        last_hour = min(24, ceil(max(end for _, _, end in valid_rows) / 60))
         if last_hour <= first_hour:
             last_hour = min(24, first_hour + 1)
 
@@ -290,20 +387,21 @@ class ScheduleCalendarView:
         hour_count = last_hour - first_hour
 
         # add fullscreen styles to the calendar grid and scroll container if the calendar is in fullscreen mode
+        # Compact calendars use a smaller time axis and flexible weekday columns.
+        time_column_width = 48 if self.compact else 76
+        minimum_day_width = "0" if self.compact or popup else "150px"
+
+        grid_style = (
+            f"grid-template-columns: {time_column_width}px repeat("
+            f"{len(visible_days)}, minmax({minimum_day_width}, 1fr));"
+        )
+
         if popup:
-            grid_style = (
-                f"grid-template-columns: 76px repeat("
-                f"{len(visible_days)}, minmax(150px, 1fr));"
-                f"grid-template-columns: 76px repeat("
-                f"{len(visible_days)}, minmax(0, 1fr)); "
-                f"grid-template-rows: 44px repeat("
-                f"{hour_count}, minmax(0, 1fr));"
-            )
+            grid_style += f"grid-template-rows: 44px repeat({hour_count}, minmax(0, 1fr));"
             scroll_style = "width: 100%; overflow: auto;"
+        elif self.compact:
+            scroll_style = "width: 100%; overflow-x: hidden;"
         else:
-            grid_style = (
-                f"grid-template-columns: 76px repeat({len(visible_days)}, minmax(150px, 1fr));"
-            )
             scroll_style = ""
 
         # Creates the calendar grid with day headings, time labels, and event blocks for each course
@@ -353,14 +451,16 @@ class ScheduleCalendarView:
                     day_rows.sort(key=lambda item: item[1])
 
                     # Create event blocks for each course and place them in the correct position based on start and end times
-                    for (
-                        row,
-                        start,
-                        end,
-                        lane,
-                        lane_count,
-                        cluster,
-                    ) in self._layout_day_events(day_rows):
+
+                    # Create event blocks for each course and place them in the correct position.
+                    # Compact comparison calendars display at most two event columns.
+                    layout = self._layout_day_events(
+                        day_rows,
+                        max_lanes=2 if self.compact else None,
+                    )
+
+                    for row, start, end, lane, lane_count, cluster in layout:
+                        # Calculate the event's vertical position
                         top = start - range_start
                         height = max(end - start, 36)
 
@@ -369,7 +469,6 @@ class ScheduleCalendarView:
                         left = lane * width
 
                         course = self._display_value(row.get("course"))
-                        # assigns a color to the course
                         background, border_color = self._course_color(course)
 
                         faculty = self._display_value(row.get("faculty"))
@@ -394,17 +493,28 @@ class ScheduleCalendarView:
                                 f"{self._format_time(start)}–{self._format_time(end)}"
                             ).classes("schedule-calendar-event-details")
 
-                            details = " • ".join(
-                                value for value in (resource, faculty) if value != "—"
-                            )
-                            if details:
-                                ui.label(details).classes("schedule-calendar-event-details")
+                            if not self.compact:
+                                details_values = (
+                                    (resource,)
+                                    if self.display_mode == "Faculty"
+                                    else (
+                                        resource,
+                                        faculty,
+                                    )
+                                )
+                                details = " • ".join(
+                                    value for value in details_values if value != "—"
+                                )
+                                if details:
+                                    ui.label(details).classes("schedule-calendar-event-details")
 
                         # Add a click event to the event block that shows the details of the
                         # selected meeting and its overlapping group
                         event.on(
                             "click",
-                            lambda r=row, s=start, e=end, c=cluster: self._show_details(r, s, e, c),
+                            lambda r=row, s=start, e=end, c=cluster: self._show_details(
+                                r, s, e, c, self.entry_provider()
+                            ),
                         )
 
     # ---------------------------------------------------------
@@ -415,14 +525,17 @@ class ScheduleCalendarView:
     # Each meeting gets the first available lane. If a meeting overlaps the meeting
     # currently occupying a lane, it gets another lane. When a meeting ends, its lane can be reused.
     @staticmethod
-    def _layout_day_events(day_rows: list[tuple[dict, int, int]]) -> list[tuple]:
-        """Assign overlapping meetings to separate horizontal lanes."""
+    def _layout_day_events(
+        day_rows: list[tuple[dict, int, int]],
+        max_lanes: int | None = None,
+    ) -> list[tuple]:
+        """Assign meetings to horizontal lanes, respecting an optional lane limit."""
         day_rows = sorted(day_rows, key=lambda item: (item[1], item[2]))
         clusters = []
         current_cluster = []
         cluster_end = -1
 
-        # First, group meetings whose time ranges overlap.
+        # Group meetings whose time ranges overlap.
         for item in day_rows:
             row, start, end = item
 
@@ -439,7 +552,7 @@ class ScheduleCalendarView:
 
         layout = []
 
-        # Assign each meeting in a cluster to a lane.
+        # Assign each meeting to a lane.
         for cluster in clusters:
             lane_ends = []
             assigned = []
@@ -451,275 +564,57 @@ class ScheduleCalendarView:
                 )
 
                 if lane is None:
-                    lane = len(lane_ends)
-                    lane_ends.append(end)
+                    if max_lanes is not None and len(lane_ends) >= max_lanes:
+                        # Reuse the final lane when the compact lane limit is reached.
+                        lane = max_lanes - 1
+                        lane_ends[lane] = max(lane_ends[lane], end)
+                    else:
+                        lane = len(lane_ends)
+                        lane_ends.append(end)
                 else:
                     lane_ends[lane] = end
 
                 assigned.append((row, start, end, lane))
 
-            lane_count = len(lane_ends)
+            lane_count = max(1, len(lane_ends))
 
             for row, start, end, lane in assigned:
                 layout.append((row, start, end, lane, lane_count, cluster))
 
         return layout
 
-    # Show full details for a meeting and its overlapping group.
-    # The dialog contains a left-side navigation panel and a right-side content area.
-    # Overview and Time Assignment are always available. Faculty and Resource are
-    # only shown when matching configuration details exist for the selected meeting.
+    # Keep rendering and meeting-details dialogs in separate view modules.
     def _show_details(
         self,
         row: ScheduleRow,
         start: int,
         end: int,
         cluster: OverlapCluster,
+        entry: ScheduleEntry | None = None,
     ) -> None:
-        selected: SelectedMeeting = {
-            "row": row,
-            "start": start,
-            "end": end,
-            "cluster": cluster,
-        }
-        active_section = {"value": "Overview"}
+        show_meeting_details(self, controller, row, start, end, cluster, entry)
 
-        # create and format pop-up dialog
-        with (
-            ui.dialog() as dialog,
-            ui.card().classes("w-[min(900px,95vw)] max-w-none bg-[#101820] text-[#d8e7e8]"),
-        ):
-            heading = ui.label().classes("text-xl font-bold")
-            with ui.row().classes("w-full items-stretch gap-4"):
-                navigation = ui.column().classes(
-                    "w-44 shrink-0 gap-2 border-r border-[#29404b] pr-3"
-                )
-                content = ui.column().classes("min-w-0 flex-1 gap-3")
+        # Return a background and border color for a course.
 
-            with ui.row().classes("w-full justify-end"):
-                ui.button("Close", on_click=dialog.close).props("outline")
-
-        # Return available course/faculty/resource details for the selected meeting.
-        def configuration_details() -> tuple[
-            Course | None,
-            FacultyConfig | None,
-            RoomConfig | LabConfig | None,
-            str | None,
-        ]:
-            current = controller.current
-            if current is None or current.config is None:
-                return None, None, None, None
-
-            config = current.config
-            faculty_name = selected["row"].get("faculty")
-            resource_name = selected["row"].get("resource")
-            course_id = selected["row"].get("course")
-
-            # gets the course details if the course ID is empty or a placeholder
-            course = (
-                get_course_details(current.schedule, course_id)
-                if course_id and str(course_id).strip() not in ("", "—")
-                else None
-            )
-
-            # gets the faculty details if the faculty name is not empty or a placeholder
-            faculty = (
-                get_faculty_details(config, faculty_name)
-                if faculty_name and str(faculty_name).strip() not in ("", "—")
-                else None
-            )
-
-            # gets the resource details if the resource name is not empty or a placeholder
-            resource = None
-            resource_type = None
-            if resource_name and str(resource_name).strip() not in ("", "—"):
-                lab = get_lab_details(config, resource_name)
-                if lab is not None:
-                    resource = lab
-                    resource_type = "Lab"
-                else:
-                    room = get_room_details(config, resource_name)
-                    if room is not None:
-                        resource = room
-                        resource_type = "Room"
-
-            return course, faculty, resource, resource_type
-
-        # Refresh the right-side content without creating another dialog.
-        def show_section(section: str) -> None:
-            active_section["value"] = section
-            rebuild_navigation()
-            content.clear()
-
-            current_row = selected["row"]
-            current_start = selected["start"]
-            current_end = selected["end"]
-            current_cluster = selected["cluster"]
-            course, faculty, resource, resource_type = configuration_details()
-
-            if section == "Overview":
-                with content:
-                    ui.label("Overview").classes("text-lg font-semibold")
-                    ui.label(f"Course: {self._display_value(current_row.get('course'))}")
-                    ui.label(f"Day: {self._display_value(current_row.get('day'))}")
-                    ui.label(
-                        f"Time: {self._format_time(current_start)}–{self._format_time(current_end)}"
-                    )
-                    ui.label(f"Faculty: {self._display_value(current_row.get('faculty'))}")
-                    ui.label(f"Room / Lab: {self._display_value(current_row.get('resource'))}")
-                    ui.separator()
-
-                    # Exclude the selected meeting from the overlap list.
-                    overlapping_meetings = [
-                        (other_row, other_start, other_end)
-                        for other_row, other_start, other_end in current_cluster
-                        if not (
-                            other_row is current_row
-                            and other_start == current_start
-                            and other_end == current_end
-                        )
-                    ]
-
-                    ui.label(
-                        f"Other meetings in this overlap group ({len(overlapping_meetings)})"
-                    ).classes("font-bold")
-
-                    if not overlapping_meetings:
-                        ui.label("No other meetings overlap this meeting.").classes(
-                            "text-sm text-gray-400"
-                        )
-
-                    # Keep the overlap list available in Overview. Selecting an item
-                    # updates this dialog's contents instead of opening another dialog.
-                    for other_row, other_start, other_end in overlapping_meetings:
-                        other_course = self._display_value(other_row.get("course"))
-                        ui.button(
-                            f"{other_course} — "
-                            f"{self._format_time(other_start)}–"
-                            f"{self._format_time(other_end)}",
-                            on_click=lambda r=other_row, s=other_start, e=other_end: select_meeting(
-                                r, s, e, current_cluster
-                            ),
-                        ).props("outline no-caps").classes("w-full")
-
-            elif section == "Time Assignment":
-                with content:
-                    ui.label("Time Assignment").classes("text-lg font-semibold")
-                    ui.label(f"Course: {self._display_value(current_row.get('course'))}")
-                    ui.label(f"Faculty: {self._display_value(current_row.get('faculty'))}")
-                    ui.label(f"Day: {self._display_value(current_row.get('day'))}")
-                    ui.label(f"Start: {self._format_time(current_start)}")
-                    ui.label(f"End: {self._format_time(current_end)}")
-
-            elif section == "Course" and course is not None:
-                modality_names = {
-                    "in_person": "In Person",
-                    "online": "Online",
-                    "hybrid": "Hybrid",
-                }
-                modality = modality_names.get(str(course.modality), str(course.modality))
-                conflicts = (
-                    ", ".join(str(conflict) for conflict in course.conflicts)
-                    if course.conflicts
-                    else "None"
-                )
-                with content:
-                    ui.label("Course Details").classes("text-lg font-semibold")
-                    ui.label(f"Course ID: {course.course_id}")
-                    ui.label(f"Section: {course.section_id}")
-                    ui.label(f"Credits: {course.credits}")
-                    ui.label(f"Capacity: {course.capacity}")
-                    ui.label(f"Modality: {modality}")
-                    ui.label(f"Conflicts: {conflicts}")
-
-            elif section == "Faculty" and faculty is not None:
-                with content:
-                    ui.label("Faculty Details").classes("text-lg font-semibold")
-                    ui.label(f"Name: {faculty.name}")
-                    ui.label(f"Minimum Credits: {faculty.minimum_credits}")
-                    ui.label(f"Maximum Credits: {faculty.maximum_credits}")
-                    ui.label(f"Maximum Days: {faculty.maximum_days}")
-                    ui.label(f"Unique Course Limit: {faculty.unique_course_limit}")
-
-            elif section == "Resource" and resource is not None:
-                with content:
-                    ui.label(f"{resource_type} Details").classes("text-lg font-semibold")
-                    ui.label(f"Name: {resource.name}")
-                    ui.label(f"Capacity: {resource.capacity}")
-                    features = (
-                        ", ".join(str(feature) for feature in resource.features)
-                        if resource.features
-                        else "None"
-                    )
-                    ui.label(f"Features: {features}")
-
-        # Change the selected meeting inside the existing dialog.
-        def select_meeting(
-            new_row: ScheduleRow,
-            new_start: int,
-            new_end: int,
-            new_cluster: OverlapCluster,
-        ) -> None:
-            selected["row"] = new_row
-            selected["start"] = new_start
-            selected["end"] = new_end
-            selected["cluster"] = new_cluster
-            active_section["value"] = "Overview"
-            rebuild_navigation()
-            show_section("Overview")
-
-        # Show only navigation options that have details for this meeting.
-        def rebuild_navigation() -> None:
-            navigation.clear()
-            course, faculty, resource, _ = configuration_details()
-            heading.set_text(self._display_value(selected["row"].get("course")))
-
-            sections = ["Overview", "Time Assignment"]
-            if course is not None:
-                sections.append("Course")
-            if faculty is not None:
-                sections.append("Faculty")
-            if resource is not None:
-                sections.append("Resource")
-
-            with navigation:
-                for section in sections:
-                    ui.button(
-                        section,
-                        on_click=lambda name=section: show_section(name),
-                    ).props("flat no-caps align=left").classes(
-                        "w-full justify-start "
-                        + (
-                            "bg-[#21414a] text-[#75e6da]"
-                            if section == active_section["value"]
-                            else "text-[#d8e7e8]"
-                        )
-                    )
-
-        # run the initial setup for the dialog
-        rebuild_navigation()
-        show_section("Overview")
-        dialog.open()
-
-    # Return a background and border color for a course.
     def _course_color(self, course: str) -> tuple[str, str]:
+        # Use the full schedule so a course keeps its color in every view.
         palette = [
-            ("#21414a", "#75e6da"),
-            ("#3b3157", "#b8a4ff"),
-            ("#4a3828", "#f0bd82"),
-            ("#293e59", "#8fc5ff"),
-            ("#49313b", "#f2a3bd"),
-            ("#304936", "#a6dfa9"),
-            ("#563c26", "#ffc078"),
-            ("#264653", "#2a9d8f"),
-            ("#5a2a27", "#ff8a80"),
-            ("#3d405b", "#f2cc8f"),
-            ("#344e41", "#a3b18a"),
-            ("#533747", "#e0aaff"),
+            ("var(--calendar-course-1)", "#75e6da"),
+            ("var(--calendar-course-2)", "#b8a4ff"),
+            ("var(--calendar-course-3)", "#f0bd82"),
+            ("var(--calendar-course-4)", "#8fc5ff"),
+            ("var(--calendar-course-5)", "#f2a3bd"),
+            ("var(--calendar-course-6)", "#a6dfa9"),
+            ("var(--calendar-course-7)", "#ffc078"),
+            ("var(--calendar-course-8)", "#2a9d8f"),
+            ("var(--calendar-course-9)", "#ff8a80"),
+            ("var(--calendar-course-10)", "#f2cc8f"),
+            ("var(--calendar-course-11)", "#a3b18a"),
+            ("var(--calendar-course-12)", "#e0aaff"),
         ]
 
-        # Create a sorted list of unique course names from the filtered schedule
-        courses = sorted({str(row.get("course", "")) for row in self.filtered_schedule})
+        # Use the full schedule so a course keeps its color in every view.
+        courses = sorted({str(row.get("course", "")) for row in self.color_schedule})
 
         try:
             index = courses.index(course)
@@ -760,5 +655,9 @@ class ScheduleCalendarView:
 
 
 # Create and return a calendar view instance.
-def schedule_calendar_view() -> ScheduleCalendarView:
-    return ScheduleCalendarView()
+def schedule_calendar_view(
+    entry_provider: Callable[[], ScheduleEntry | None] | None = None,
+    compact: bool = False,
+) -> ScheduleCalendarView:
+    """Create and return a calendar view instance."""
+    return ScheduleCalendarView(entry_provider=entry_provider, compact=compact)

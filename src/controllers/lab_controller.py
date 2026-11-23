@@ -1,6 +1,6 @@
 # GUI controller for lab updates.
 
-from src.controllers.lab_operations_controller import (
+from src.controllers.lab_value_operations import (
     add_lab_from_values,
     delete_lab_from_values,
     update_lab_from_values,

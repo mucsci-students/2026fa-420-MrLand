@@ -44,6 +44,10 @@ class ScheduleController:
         return self.model.current
 
     @property
+    def generated_entries(self) -> list[ScheduleEntry]:
+        return [entry for entry in self.model.entries if entry.source == "generated"]
+
+    @property
     def selected_index(self) -> int:
         return self.model.selected_index
 
@@ -60,30 +64,31 @@ class ScheduleController:
         target = self.model.selected_index + offset
         return 0 <= target < len(self.model.entries)
 
-    def current_rows(self) -> list[dict]:
-        """The selected schedule as one row per meeting, in the viewer's table format."""
-        entry = self.model.current
+    def entry_at(self, index: int) -> ScheduleEntry | None:
+        """Return a schedule entry by index without changing the selected schedule."""
+        entries = self.model.entries
+        if not 0 <= index < len(entries):
+            return None
+        return entries[index]
+
+    def rows_for(self, index: int) -> list[dict]:
+        """Return meeting rows for a schedule without changing the selected schedule."""
+        entry = self.entry_at(index)
         if entry is None:
             return []
+
         rows = create_resource_schedule(entry.records)
         for row_id, row in enumerate(rows, start=1):
             row["id"] = row_id
         return rows
 
+    def current_rows(self) -> list[dict]:
+        """The selected schedule as one row per meeting, in the viewer's table format."""
+        return self.rows_for(self.model.selected_index)
+
     # ------------------------------------------------------------------
     # Loading
     # ------------------------------------------------------------------
-
-    def list_saved_files(self) -> list[str]:
-        return self.model.list_saved_files()
-
-    def load_saved_file(self, file_name: str | None) -> tuple[ScheduleEntry | None, str | None]:
-        if not file_name:
-            return None, "Please choose a schedule file."
-        try:
-            return self.model.load_saved_file(file_name), None
-        except (OSError, ValueError) as error:
-            return None, f"Could not load '{file_name}': {error}"
 
     def load_uploaded_file(
         self, file_name: str, content: bytes
@@ -110,7 +115,7 @@ class ScheduleController:
             return None, "There is no schedule to export."
         try:
             return self.model.export(entry, file_format, file_name), None
-        except ValueError as error:
+        except (OSError, ValueError) as error:
             return None, str(error)
 
     def export_all_generated(
@@ -119,7 +124,7 @@ class ScheduleController:
         """(archive, file name, media type) for all generated schedules."""
         try:
             return self.model.export_all_generated(file_format), None
-        except ValueError as error:
+        except (OSError, ValueError) as error:
             return None, str(error)
 
 

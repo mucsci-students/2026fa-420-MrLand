@@ -11,7 +11,6 @@ from src.controllers.schedule_generator_controller import (
     schedule_generator_controller as controller,
 )
 from src.models.configuration_model import ConfigValidationError
-from src.models.configuration_repository import ConfigLoadError
 from src.models.schedule_generator_model import ScheduleGenerationState
 from src.views.configuration_editor import controller as editor_controller
 from src.views.schedule_generation_progress import ScheduleGenerationProgress
@@ -42,8 +41,11 @@ def schedule_generator() -> None:
                 ui.notify("Please select a .json file.", type="negative")
                 return
 
-            config = config_loader.load_uploaded_configuration(content)
             config_name = Path(file_name).stem
+            config = config_loader.load_uploaded_configuration(
+                content,
+                config_name=config_name,
+            )
             selected_config["name"] = config_name
             selected_config["config"] = config
             show_config(config, f"Loaded: {config_name}")
@@ -55,7 +57,7 @@ def schedule_generator() -> None:
             problems = "; ".join(f"{problem.area}: {problem.message}" for problem in error.problems)
             config_load_error.text = f"Invalid configuration file: {problems}"
             config_load_error.visible = True
-        except (OSError, ValueError, ConfigLoadError) as error:
+        except (OSError, ValueError) as error:
             config_load_error.text = f"Unable to load configuration: {error}"
             config_load_error.visible = True
         finally:
@@ -281,7 +283,14 @@ def schedule_generator() -> None:
     sync_current_config_availability()
     ui.timer(1.0, sync_current_config_availability)
 
-    progress_display = ScheduleGenerationProgress("w-full max-w-2xl gap-2 mt-6")
+    def cancel_diagnosis() -> None:
+        if not controller.cancel_diagnosis():
+            ui.notify("The schedule diagnosis is no longer running.", type="warning")
+
+    progress_display = ScheduleGenerationProgress(
+        "w-full max-w-2xl gap-2 mt-6",
+        on_cancel=cancel_diagnosis,
+    )
 
     result_container = ui.column().classes("w-full max-w-2xl mt-6")
     completion_rendered = False
@@ -314,7 +323,7 @@ def schedule_generator() -> None:
         if not state.finished or completion_rendered:
             return
         completion_rendered = True
-        progress_timer.cancel()
+        progress_timer.active = False
 
         if state.error:
             with result_container:
@@ -326,6 +335,12 @@ def schedule_generator() -> None:
         if state.generated == 0:
             if state.diagnosis is not None:
                 render_diagnosis(state.diagnosis)
+            elif state.diagnosis_cancelled:
+                with result_container:
+                    ui.label(
+                        "No valid schedule could be generated for this configuration."
+                    ).classes("text-red-400 text-lg")
+                    ui.label("Constraint diagnosis was stopped.").classes("text-gray-300")
             return
 
         with result_container:

@@ -86,3 +86,86 @@ class TestCalendarEventLayout:
 
     def test_empty_meeting_list_returns_empty_result(self):
         assert ScheduleCalendarView._layout_day_events([]) == []
+
+    def test_compact_mode_limits_events_to_two_lanes(self):
+        meetings = [
+            ({"course": "CS101"}, 540, 660),
+            ({"course": "CS102"}, 540, 660),
+            ({"course": "CS103"}, 540, 660),
+        ]
+
+        result = ScheduleCalendarView._layout_day_events(
+            meetings,
+            max_lanes=2,
+        )
+
+        assert len(result) == 3
+        assert all(event[3] in (0, 1) for event in result)
+        assert all(event[4] == 2 for event in result)
+
+    def test_compact_mode_keeps_all_meetings_when_lane_limit_is_reached(self):
+        meetings = [
+            ({"course": "CS101"}, 540, 660),
+            ({"course": "CS102"}, 570, 630),
+            ({"course": "CS103"}, 600, 720),
+        ]
+
+        result = ScheduleCalendarView._layout_day_events(
+            meetings,
+            max_lanes=2,
+        )
+
+        assert len(result) == len(meetings)
+        assert {event[0]["course"] for event in result} == {
+            "CS101",
+            "CS102",
+            "CS103",
+        }
+        assert all(event[3] < 2 for event in result)
+
+
+# ---------------------------------------------------------
+# Calendar Course Colors
+# ---------------------------------------------------------
+
+
+class TestCalendarCourseColors:
+    def test_course_color_is_consistent_with_filtered_schedule(self):
+        calendar = ScheduleCalendarView.__new__(ScheduleCalendarView)
+
+        calendar.color_schedule = [
+            {"course": "CS101"},
+            {"course": "CS102"},
+            {"course": "CS103"},
+        ]
+
+        first_color = calendar._course_color("CS102")
+
+        # Simulate filtering the displayed schedule.
+        calendar.filtered_schedule = [{"course": "CS102"}]
+
+        second_color = calendar._course_color("CS102")
+
+        assert first_color == second_color
+
+    def test_course_colors_are_different_for_different_courses(self):
+        calendar = ScheduleCalendarView.__new__(ScheduleCalendarView)
+
+        calendar.color_schedule = [
+            {"course": "CS101"},
+            {"course": "CS102"},
+        ]
+
+        first_color = calendar._course_color("CS101")
+        second_color = calendar._course_color("CS102")
+
+        assert first_color != second_color
+
+    def test_unknown_course_uses_first_palette_color(self):
+        calendar = ScheduleCalendarView.__new__(ScheduleCalendarView)
+        calendar.color_schedule = [{"course": "CS101"}]
+
+        unknown_color = calendar._course_color("UNKNOWN")
+        first_color = calendar._course_color("CS101")
+
+        assert unknown_color == first_color

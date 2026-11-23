@@ -23,7 +23,7 @@ def test_export_current_returns_download_data_without_writing_to_disk(tmp_path):
             "times": "MON 09:00-09:50",
         }
     ]
-    model = ScheduleViewerModel(directory=tmp_path)
+    model = ScheduleViewerModel()
     model.load_bytes("fall_schedule1.csv", records_to_csv(records))
     controller = ScheduleController(model=model)
 
@@ -38,7 +38,24 @@ def test_export_current_returns_download_data_without_writing_to_disk(tmp_path):
     assert list(tmp_path.iterdir()) == []
 
 
-def test_export_current_uses_selected_serialization_strategy(tmp_path):
+def test_generated_exports_do_not_require_a_saved_schedule_directory():
+    model = ScheduleViewerModel()
+    model.set_generated([ScheduleResult(config_name="fall", schedule=[])])
+    controller = ScheduleController(model=model)
+
+    current_export, current_error = controller.export_current("csv", "")
+    all_export, all_error = controller.export_all_generated("csv")
+
+    assert current_error is None
+    assert current_export is not None
+    assert current_export[1] == "fall_schedule1.csv"
+    assert all_error is None
+    assert all_export is not None
+    with zipfile.ZipFile(io.BytesIO(all_export[0])) as archive:
+        assert archive.namelist() == ["fall_schedule1.csv"]
+
+
+def test_export_current_uses_selected_serialization_strategy():
     records = [
         {
             "course": "CMSC 420",
@@ -48,15 +65,15 @@ def test_export_current_uses_selected_serialization_strategy(tmp_path):
             "times": "MON 09:00-09:50",
         }
     ]
-    model = ScheduleViewerModel(directory=tmp_path)
+    model = ScheduleViewerModel()
     entry = model.load_bytes("fall_schedule1.csv", records_to_csv(records))
 
     assert model.serialize(entry, "csv") == records_to_csv(records)
     assert json.loads(model.serialize(entry, "json")) == records
 
 
-def test_export_current_rejects_unsupported_format(tmp_path):
-    model = ScheduleViewerModel(directory=tmp_path)
+def test_export_current_rejects_unsupported_format():
+    model = ScheduleViewerModel()
     model.load_bytes(
         "fall_schedule1.csv",
         records_to_csv(
@@ -79,8 +96,8 @@ def test_export_current_rejects_unsupported_format(tmp_path):
     assert error == "Please choose CSV or JSON."
 
 
-def test_export_all_generated_returns_zip_without_loaded_schedules(tmp_path):
-    model = ScheduleViewerModel(directory=tmp_path)
+def test_export_all_generated_returns_zip_without_loaded_schedules():
+    model = ScheduleViewerModel()
     model.set_generated(
         [
             ScheduleResult(
@@ -151,12 +168,10 @@ def test_export_all_generated_returns_zip_without_loaded_schedules(tmp_path):
         "CS101",
         "CS102",
     ]
-    assert list(tmp_path.iterdir()) == []
 
 
-def test_export_all_generated_supports_json_and_avoids_existing_names(tmp_path):
-    (tmp_path / "fall_schedule1.csv").write_text("", encoding="utf-8")
-    model = ScheduleViewerModel(directory=tmp_path)
+def test_export_all_generated_starts_at_one_and_numbers_same_config_sequentially():
+    model = ScheduleViewerModel()
     model.set_generated(
         [
             ScheduleResult(
@@ -173,7 +188,8 @@ def test_export_all_generated_supports_json_and_avoids_existing_names(tmp_path):
                         ),
                     )
                 ],
-            )
+            ),
+            ScheduleResult(config_name="fall", schedule=[]),
         ]
     )
 
@@ -182,14 +198,12 @@ def test_export_all_generated_supports_json_and_avoids_existing_names(tmp_path):
     assert file_name == "generated_schedules.zip"
     assert media_type == "application/zip"
     with zipfile.ZipFile(io.BytesIO(content)) as archive:
-        assert archive.namelist() == ["fall_schedule2.json"]
+        assert archive.namelist() == ["fall_schedule1.json", "fall_schedule2.json"]
         assert json.loads(archive.read(archive.namelist()[0]))[0]["course"] == "CS101"
 
 
-def test_export_all_generated_reports_missing_schedules_and_invalid_format(
-    tmp_path,
-):
-    model = ScheduleViewerModel(directory=tmp_path)
+def test_export_all_generated_reports_missing_schedules_and_invalid_format():
+    model = ScheduleViewerModel()
     controller = ScheduleController(model=model)
 
     download, error = controller.export_all_generated("csv")

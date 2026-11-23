@@ -3,6 +3,7 @@
 Used by: GUI."""
 
 from nicegui import ui
+from scheduler.config import FacultyConfig
 
 from src.controllers.faculty_controller import FacultyController
 from src.views.common import (
@@ -128,7 +129,7 @@ def faculty_gui(
             mandatory_days,
         )
 
-        editing_member = {"member": None}
+        editing_member: dict[str, FacultyConfig | None] = {"member": None}
 
         # Validate whole-number form fields against their allowed bounds.
         def integer_value(field, label, minimum, maximum=None):
@@ -217,10 +218,16 @@ def faculty_gui(
 
         # Save edits to the faculty member currently being modified.
         def update_member() -> None:
+            existing_member = editing_member["member"]
+            if existing_member is None:
+                ui.notify("Select a faculty member before applying changes.", type="negative")
+                return
             if not run_crud_mutation(
                 on_change,
                 lambda: controller.update_member(
-                    faculty_members, editing_member["member"], *form_values()
+                    faculty_members,
+                    existing_member,
+                    *form_values(),
                 ),
             ):
                 return
@@ -338,4 +345,5 @@ def faculty_gui(
                             "flat round dense"
                         ).tooltip("Delete faculty member")
 
+    refresh_faculty()
     refresh_faculty()

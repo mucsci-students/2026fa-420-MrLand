@@ -12,14 +12,12 @@ from scheduler.config import CombinedConfig
 from scheduler.models.course import CourseInstance
 
 from src.models.schedule_files import (
-    SAVED_NAME_PATTERN,
     parse_schedule_file,
     records_from_result,
     schedule_export_strategy,
 )
 from src.models.schedule_result import ScheduleResult
 
-SCHEDULE_DIRECTORY = Path(__file__).resolve().parents[1] / "schedules"
 FORMATS = {"csv": "text/csv", "json": "application/json"}
 
 
@@ -36,14 +34,8 @@ class ScheduleEntry:
     file_name: str | None = None  # set for schedules loaded from a file
 
 
-def _natural_key(name: str) -> list:
-    """Sort 'x_schedule2' before 'x_schedule10'."""
-    return [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", name)]
-
-
 class ScheduleViewerModel:
-    def __init__(self, directory: Path = SCHEDULE_DIRECTORY) -> None:
-        self.directory = Path(directory)
+    def __init__(self) -> None:
         self._generated: list[ScheduleEntry] = []
         self._generated_results: list[ScheduleResult] = []
         self._loaded: list[ScheduleEntry] = []
@@ -105,27 +97,6 @@ class ScheduleViewerModel:
     # Loading
     # ------------------------------------------------------------------
 
-    def list_saved_files(self) -> list[str]:
-        try:
-            names = [
-                path.name
-                for path in self.directory.iterdir()
-                if path.is_file() and path.suffix.lower() in {".csv", ".json"}
-            ]
-        except OSError:
-            return []
-        return sorted(names, key=_natural_key)
-
-    def load_saved_file(self, file_name: str) -> ScheduleEntry:
-        path = (self.directory / file_name).resolve()
-        if path.parent != self.directory.resolve():
-            raise ValueError("Schedules can only be loaded from the schedules folder.")
-        try:
-            content = path.read_bytes()
-        except FileNotFoundError as error:
-            raise ValueError(f"'{file_name}' no longer exists.") from error
-        return self.load_bytes(file_name, content)
-
     def load_bytes(self, file_name: str, content: bytes) -> ScheduleEntry:
         """Parse a schedule file and add it to the viewer (or refresh it if already loaded)."""
         config_name, records = parse_schedule_file(file_name, content)
@@ -157,20 +128,11 @@ class ScheduleViewerModel:
         return schedule_export_strategy(file_format).serialize(entry.records)
 
     def default_export_file_name(self, entry: ScheduleEntry, file_format: str) -> str:
-        """A loaded file keeps its name; a generated schedule gets the next free
-        <config>_schedule<n> name, matching older saved schedules."""
+        """A loaded file keeps its name; a generated schedule starts at schedule 1."""
         if entry.file_name:
             return f"{Path(entry.file_name).stem}.{file_format}"
 
-        taken = set()
-        for name in self.list_saved_files():
-            match = SAVED_NAME_PATTERN.match(Path(name).stem)
-            if match and match.group("config") == entry.config_name:
-                taken.add(int(match.group("number")))
-        number = 1
-        while number in taken:
-            number += 1
-        return f"{entry.config_name}_schedule{number}.{file_format}"
+        return f"{entry.config_name}_schedule1.{file_format}"
 
     def export_all_generated(self, file_format: str) -> tuple[bytes, str, str]:
         """Return a ZIP containing every generated schedule in the selected format."""
@@ -178,14 +140,6 @@ class ScheduleViewerModel:
             raise ValueError("Please choose CSV or JSON.")
         if not self._generated:
             raise ValueError("There are no generated schedules to export.")
-
-        taken_by_config: dict[str, set[int]] = {}
-        for name in self.list_saved_files():
-            match = SAVED_NAME_PATTERN.match(Path(name).stem)
-            if match:
-                taken_by_config.setdefault(match.group("config"), set()).add(
-                    int(match.group("number"))
-                )
 
         next_number_by_config: dict[str, int] = {}
         archive = io.BytesIO()
@@ -197,11 +151,7 @@ class ScheduleViewerModel:
                     entry.config_name,
                 ).strip(" .")
                 config_name = config_name or "schedule"
-                taken = taken_by_config.setdefault(config_name, set())
                 number = next_number_by_config.get(config_name, 1)
-                while number in taken:
-                    number += 1
-                taken.add(number)
                 next_number_by_config[config_name] = number + 1
 
                 file_name = f"{config_name}_schedule{number}.{file_format}"
