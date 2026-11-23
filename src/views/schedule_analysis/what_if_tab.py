@@ -100,10 +100,20 @@ class WhatIfTab:
 
         with (
             ui.dialog() as self._upload_dialog,
-            ui.card().classes("w-[480px] max-w-full gap-3"),
+            ui.card()
+            .classes("w-[480px] max-w-full gap-4")
+            .style(
+                "background: var(--surface); "
+                "color: var(--app-foreground); "
+                "border: 1px solid var(--border-color);"
+            ),
         ):
-            ui.label("Load Configuration").classes("text-lg font-semibold")
-            ui.label("Select a JSON configuration file from your computer.").classes("text-sm")
+            ui.label("Load Configuration").classes("text-lg font-semibold").style(
+                "color: var(--text-primary);"
+            )
+            ui.label("Select a JSON configuration file from your computer.").classes(
+                "text-sm"
+            ).style("color: var(--text-muted);")
             self._config_upload = (
                 ui.upload(
                     label="Choose configuration file",
@@ -111,10 +121,11 @@ class WhatIfTab:
                     on_upload=self._load_uploaded_config,
                     max_files=1,
                 )
-                .props("accept=.json flat bordered")
-                .classes("w-full")
+                .props("accept=.json dark flat bordered")
+                .classes("w-full configuration-load-upload")
             )
-            ui.button("Cancel", on_click=self._upload_dialog.close).props("flat")
+            with ui.row().classes("w-full justify-end"):
+                ui.button("Cancel", on_click=self._upload_dialog.close).props("flat")
 
         with surface_card(
             "Generate and Compare",
